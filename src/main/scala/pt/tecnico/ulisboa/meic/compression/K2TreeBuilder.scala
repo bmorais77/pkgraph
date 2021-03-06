@@ -190,6 +190,13 @@ private object K2TreeBuilder {
    * @return builder with the edges from this K²-Tree already added
    */
   def fromK2Tree(k: Int, size: Int, tree: K2Tree): K2TreeBuilder = {
+    val builder = empty(k, size)
+    val bits = builder.bits
+
+    for(i <- 1 to builder.height) {
+      // TODO
+    }
+
     ???
   }
 }
