@@ -45,7 +45,7 @@ class K2TreeSpec extends FlatSpec {
    * T: 1001 1000 0001
    * L: 1010 1001
    */
-  it should "build from 8x8 matrix" in {
+  it should "build from 8x8 matrix (1)" in {
     val edges = Array((0, 0), (1, 0), (6, 6), (7, 7))
     val tree = K2Tree(2, 8, edges)
 
@@ -53,6 +53,32 @@ class K2TreeSpec extends FlatSpec {
     assert(tree.matrixSize == 8)
     assertBitSet(tree.internal, Integer.parseInt("100000011001", 2))
     assertBitSet(tree.leaves, Integer.parseInt("10010101", 2))
+  }
+
+  /**
+   * Matrix 8x8:
+   * +---+---+---+---+---+---+---+---+
+   * | 0   0   0   0   0   0   0   0 |
+   * | 1   1   1   0   0   0   0   0 |
+   * | 0   1   0   0   0   1   0   0 |
+   * | 1   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   1   0   0   0   1   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * +---+---+---+---+---+---+---+---+
+   *
+   * T: 1111 1110 0010 0001 0001
+   * L: 0011 0010 0110 0100 1000 1000
+   */
+  it should "build from 8x8 matrix (2)" in {
+    val edges = Array((1, 0), (1,1), (2,1), (3,0), (1, 2), (2, 5), (6, 2), (6, 6))
+    val tree = K2Tree(2, 8, edges)
+
+    assert(tree.k == 2)
+    assert(tree.matrixSize == 8)
+    assertBitSet(tree.internal, Integer.parseInt("10001000010001111111", 2))
+    assertBitSet(tree.leaves, Integer.parseInt("000100010010011001001100", 2))
   }
 
   /**
