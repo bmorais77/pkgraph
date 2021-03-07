@@ -18,8 +18,8 @@ class K2Tree(val k: Int, val matrixSize: Int, val internalBits: Int, val interna
    */
   def append(newSize: Int, edges: Array[(Int, Int)]): K2Tree = {
     K2TreeBuilder
-      .empty(k, newSize)
-      .withEdges(toArray ++ edges)
+      .fromK2Tree(newSize, this)
+      .withEdges(edges)
       .build()
   }
 
