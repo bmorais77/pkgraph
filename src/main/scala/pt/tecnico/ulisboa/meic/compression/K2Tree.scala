@@ -3,11 +3,13 @@ package pt.tecnico.ulisboa.meic.compression
 import org.apache.spark.util.collection.BitSet
 import pt.tecnico.ulisboa.meic.util.collection.BitSetExtensions
 
-class K2Tree(val k: Int, val matrixSize: Int, val internalBits: Int, val internal: BitSet, val leaves: BitSet) extends Iterable[(Int, Int)] {
-  def iterator(): Iterator[(Int, Int)] = {
-    val edges = collectEdges(matrixSize, 0, 0, -1)
-    edges.iterator
-  }
+class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int) {
+  /**
+   * Collect the edges encoded in this K²-Tree
+   *
+   * @return sequence of edges encoded in this K²-Tree
+   */
+  def edges: Seq[(Int, Int)] = collectEdges(size, 0, 0, -1)
 
   /**
    * Builds a new K2-Tree by appending the edges to an existing tree.
@@ -17,9 +19,8 @@ class K2Tree(val k: Int, val matrixSize: Int, val internalBits: Int, val interna
    * @return new K²-Tree from appending the given edges to the existing tree
    */
   def append(newSize: Int, edges: Array[(Int, Int)]): K2Tree = {
-    K2TreeBuilder
-      .fromK2Tree(newSize, this)
-      .withEdges(edges)
+    K2TreeBuilder(k, newSize)
+      .addEdges(this.edges ++ edges)
       .build()
   }
 
@@ -44,13 +45,13 @@ class K2Tree(val k: Int, val matrixSize: Int, val internalBits: Int, val interna
    * @return sequence of edges
    */
   private def collectEdges(currSize: Int, line: Int, col: Int, pos: Int): Seq[(Int, Int)] = {
-    if (pos >= internalBits) { // Is leaf node
-      if (leaves.get(pos - internalBits)) {
+    if (pos >= internalCount) { // Is leaf node
+      if (bits.get(pos)) {
         return (line, col) :: Nil
       }
     } else {
-      if (pos == -1 || internal.get(pos)) {
-        val y = rank(internal, pos) * k * k
+      if (pos == -1 || bits.get(pos)) {
+        val y = rank(bits, pos) * k * k
         val newSize = currSize / k
         return (0 until k * k)
           .flatMap(i => collectEdges(newSize, line * currSize + i / k, col * currSize + i % k, y + i))
@@ -71,7 +72,7 @@ object K2Tree {
    */
   def apply(k: Int, size: Int, edges: Array[(Int, Int)]): K2Tree = {
     K2TreeBuilder(k, size)
-      .withEdges(edges)
+      .addEdges(edges)
       .build()
   }
 }
