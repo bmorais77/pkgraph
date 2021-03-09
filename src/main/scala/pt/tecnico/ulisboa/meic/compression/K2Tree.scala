@@ -3,7 +3,16 @@ package pt.tecnico.ulisboa.meic.compression
 import org.apache.spark.util.collection.BitSet
 import pt.tecnico.ulisboa.meic.util.collection.BitSetExtensions
 
-class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int) {
+import scala.collection.mutable.ArrayBuffer
+
+class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int, val leavesCount: Int) {
+  /**
+   * Total number of bits used to represent this K²-Tree.
+   *
+   * @return number of bits used to represent this K²-Tree
+   */
+  def length: Int = internalCount + leavesCount
+
   /**
    * Collect the edges encoded in this K²-Tree
    *
@@ -18,10 +27,48 @@ class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int
    * @param edges   Edges to build K²-Tree from
    * @return new K²-Tree from appending the given edges to the existing tree
    */
-  def append(newSize: Int, edges: Array[(Int, Int)]): K2Tree = {
-    K2TreeBuilder(k, newSize)
-      .addEdges(this.edges ++ edges)
+  def addAll(newSize: Int, edges: Array[(Int, Int)]): K2Tree = {
+    K2TreeBuilder
+      .fromK2Tree(grow(newSize))
+      .addEdges(edges)
       .build()
+  }
+
+  /**
+   * Grows this K²-Tree to the new given size.
+   * All edges are kept.
+   *
+   * @param newSize New size to grow to
+   * @return K²-Tree representing a adjacency matrix with the given new size.
+   */
+  def grow(newSize: Int): K2Tree = {
+    if(newSize <= size) {
+      return this
+    }
+
+    val k2 = k * k
+    val levelChange = (size / newSize) / k2 + 1
+    val internalOffset = levelChange * k2
+    val bitCount = internalOffset + length
+
+    // Prefix the tree with K² bits for every level change
+    val tree = new BitSet(bitCount)
+    for(i <- 0 until levelChange) {
+      tree.set(i << k2)
+    }
+
+    // Add the original bits in the K²-Tree
+    for(i <- 0 until length) {
+      if(bits.get(i)) {
+        tree.set(internalOffset + i)
+      }
+    }
+
+    new K2Tree(k, newSize, tree, internalOffset + internalCount, leavesCount)
+  }
+
+  def shrink(newSize: Int): K2Tree = {
+    ???
   }
 
   /**
@@ -53,8 +100,13 @@ class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int
       if (pos == -1 || bits.get(pos)) {
         val y = rank(bits, pos) * k * k
         val newSize = currSize / k
-        return (0 until k * k)
-          .flatMap(i => collectEdges(newSize, line * currSize + i / k, col * currSize + i % k, y + i))
+        val edges = new ArrayBuffer[(Int, Int)](k * k)
+
+        for(i <- 0 until k * k) {
+          edges ++= collectEdges(newSize, line * k + i / k, col * k + i % k, y + i)
+        }
+
+        return edges
       }
     }
     Nil
