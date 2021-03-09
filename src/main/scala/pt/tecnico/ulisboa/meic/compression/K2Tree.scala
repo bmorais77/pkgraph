@@ -34,6 +34,13 @@ class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int
       .build()
   }
 
+  def removeAll(edges: Array[(Int, Int)]): K2Tree = {
+    K2TreeBuilder
+      .fromK2Tree(this)
+      .removeEdges(edges)
+      .build()
+  }
+
   /**
    * Grows this K²-Tree to the new given size.
    * All edges are kept.

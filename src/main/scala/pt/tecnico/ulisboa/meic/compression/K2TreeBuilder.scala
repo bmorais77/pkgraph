@@ -13,41 +13,42 @@ private class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits
   /**
    * Creates a new builder with the given edges added.
    *
-   * @param edges Array of edges to add
+   * @param edges Sequence of edges to add
    * @return builder of a K²-Tree with edges added
    */
   def addEdges(edges: Seq[(Int, Int)]): K2TreeBuilder = {
-    val offsets = calculateLevelOffsets(k, height)
+    navigateFromEdges(edges, (levelOffset, levelIndex) => {
+      // Index relative to the beginning of the tree
+      val index = levelOffset + levelIndex
 
-    def iterativeBuild(line: Int, col: Int): Unit = {
-      var currLine = line
-      var currCol = col
-      var currSize = size
+      // Check if path is already built, if true we can move on to next edge
+      val done = bits.get(index)
 
-      for (h <- height until 0 by -1) {
-        val levelOffset = offsets(h)
+      bits.set(index)
+      done
+    })
 
-        // Index relative to the current level
-        val levelIndex = hash.mortonCode(currLine, currCol)
+    new K2TreeBuilder(k, size, height, bits, length)
+  }
 
-        // Index relative to the beginning of the tree
-        val index = levelOffset + levelIndex
+  /**
+   * Creates a new builder with the given edges removed.
+   *
+   * @param edges Sequence of edges to remove
+   * @return builder of a K²-Tree with edges removed
+   */
+  def removeEdges(edges: Seq[(Int, Int)]): K2TreeBuilder = {
+    navigateFromEdges(edges, (levelOffset, levelIndex) => {
+      // Index relative to the beginning of the tree
+      val index = levelOffset + levelIndex
+      bits.unset(index)
 
-        // Path is already built, we can move on to next edge
-        if (bits.get(index)) {
-          return
-        }
+      // Start of the sequence of K² bits that this edge belongs to
+      val chunkStart = levelOffset + (levelIndex / k2) * k2
 
-        bits.set(index)
-        currLine /= k
-        currCol /= k
-        currSize /= k
-      }
-    }
-
-    for ((line, col) <- edges) {
-      iterativeBuild(line, col)
-    }
+      // We are done updating if there any other bits with value 1 in the same chunk
+      bits.count(chunkStart, chunkStart + k2) > 0
+    })
 
     new K2TreeBuilder(k, size, height, bits, length)
   }
@@ -89,6 +90,45 @@ private class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits
     }
 
     new K2Tree(k, size, tree, internalCount, leavesCount)
+  }
+
+  /**
+   * Navigate from the given edges to the virtual root of this K²-Tree.
+   * For every node found in the way to the root the function f is called with the current
+   * level offset and level index.
+   *
+   * @param edges Sequence of edges to iterate
+   * @param f     Function to execute at every node
+   */
+  private def navigateFromEdges(edges: Seq[(Int, Int)], f: (Int, Int) => Boolean): Unit = {
+    val offsets = calculateLevelOffsets(k, height)
+
+    def iterate(line: Int, col: Int): Unit = {
+      var currLine = line
+      var currCol = col
+      var currSize = size
+
+      for (h <- height until 0 by -1) {
+        val levelOffset = offsets(h)
+
+        // Index relative to the current level
+        val levelIndex = hash.mortonCode(currLine, currCol)
+
+        // Execute provided function, returns whether we are done iterating this edge or not
+        val done = f(levelOffset, levelIndex)
+        if (done) {
+          return
+        }
+
+        currLine /= k
+        currCol /= k
+        currSize /= k
+      }
+    }
+
+    for ((line, col) <- edges) {
+      iterate(line, col)
+    }
   }
 
   /**

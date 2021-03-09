@@ -245,6 +245,49 @@ class K2TreeSpec extends FlatSpec {
   }
 
   /**
+   * - Before removing:
+   *
+   * Matrix 4x4:
+   * +---+---+---+---+
+   * | 0   0   1   1 |
+   * | 1   1   0   0 |
+   * | 0   1   0   1 |
+   * | 1   0   1   0 |
+   * +---+---+---+---+
+   *
+   * T: 1111
+   * L: 0011 1100 0110 0110
+   *
+   * - After append:
+   *
+   * Matrix 4x4:
+   * +---+---+---+---+
+   * | 0   0   0   1 |
+   * | 1   1   0   0 |
+   * | 0   1   0   0 |
+   * | 1   0   0   0 |
+   * +---+---+---+---+
+   *
+   * T: 1110
+   * L: 0011 0100 0110
+   */
+  it should "remove edges without shrinking matrix" in {
+    val edges = Array((1, 0), (1,1), (2,1), (3,0), (0, 2), (0, 3), (2, 3), (3, 2))
+    val tree = K2Tree(2, 4, edges)
+
+    assert(tree.k == 2)
+    assert(tree.size == 4)
+    assertBitSet(tree.bits, "1111 0011 1100 0110 0110")
+
+    val removedEdges = Array((2, 3), (3, 2), (0, 2))
+    val newTree = tree.removeAll(removedEdges)
+
+    assert(newTree.k == 2)
+    assert(newTree.size == 4)
+    assertBitSet(newTree.bits, "1110 0011 0100 0110")
+  }
+
+  /**
    * Matrix 4x4:
    * +---+---+---+---+
    * | 0   0   1   0 |
