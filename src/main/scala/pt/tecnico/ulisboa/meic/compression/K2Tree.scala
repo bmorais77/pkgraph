@@ -21,10 +21,10 @@ class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int
   def edges: Seq[(Int, Int)] = collectEdges(size, 0, 0, -1)
 
   /**
-   * Builds a new K2-Tree by appending the edges to an existing tree.
+   * Returns a new K²-Tree with the given edges added.
    *
    * @param newSize Size of the adjacency matrix of the K²-Tree (i.e maximum line/col index rounded to nearest power of k)
-   * @param edges   Edges to build K²-Tree from
+   * @param edges   Edges to append to this K²-Tree
    * @return new K²-Tree from appending the given edges to the existing tree
    */
   def addAll(newSize: Int, edges: Array[(Int, Int)]): K2Tree = {
@@ -34,11 +34,18 @@ class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int
       .build()
   }
 
+  /**
+   * Returns a new K²-Tree with the given edges removed.
+   *
+   * @param edges Edges to remove from this K²-Tree
+   * @return new K²-Tree with the given edges removed
+   */
   def removeAll(edges: Array[(Int, Int)]): K2Tree = {
     K2TreeBuilder
       .fromK2Tree(this)
       .removeEdges(edges)
       .build()
+      .trim()
   }
 
   /**
@@ -74,8 +81,56 @@ class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int
     new K2Tree(k, newSize, tree, internalOffset + internalCount, leavesCount)
   }
 
-  def shrink(newSize: Int): K2Tree = {
-    ???
+  /**
+   * Builds a new K²-Tree with the minimum required size to store all edges.
+   * It is possible that the size is not changed if it's not possible to reduce the
+   * size of the K²-Tree anymore.
+   *
+   * @return new K²-Tree with the minimum required size
+   */
+  def trim(): K2Tree = {
+    // Cannot reduce a K²-Tree anymore than K
+    if(size == k) {
+      return this
+    }
+
+    val quadrantSize = size / k
+    val last = quadrantSize - 1
+    var shrink = true
+
+    // Checks the last quadrants at the top level
+    // If all are empty, then we can reduce the entire K²-Tree by one level
+    var i = 0
+    while(shrink && i < quadrantSize) {
+      val lineIndex = i * quadrantSize + last
+      val colIndex = last * quadrantSize + i
+
+      if(bits.get(lineIndex) || bits.get(colIndex)) {
+        shrink = false
+      }
+
+      i += 1
+    }
+
+    // Cannot shrink anymore
+    if(!shrink) {
+      return this
+    }
+
+    // Remove the first K² bits from the bitset
+    val k2 = k * k
+    val newBitCount = length - k2
+    val tree = new BitSet(newBitCount)
+
+    for(i <- 0 until newBitCount) {
+      if(bits.get(k2 + i)) {
+        tree.set(i)
+      }
+    }
+
+    // Keep trying to trim the tree
+    val newTree = new K2Tree(k, size / k, tree, internalCount - k2, leavesCount)
+    newTree.trim()
   }
 
   /**
