@@ -1,8 +1,7 @@
-package pt.tecnico.ulisboa.meic.util.collection
+package pt.tecnico.ulisboa.meic.compression
 
 import org.apache.spark.util.collection.BitSet
 import org.scalatest.FlatSpec
-import pt.tecnico.ulisboa.meic.compression.K2Tree
 
 class K2TreeSpec extends FlatSpec {
   /**
@@ -112,25 +111,35 @@ class K2TreeSpec extends FlatSpec {
     assertBitSet(tree.bits, "1111 1000 0100 0010 1000 1000 1000 0100 0100 1000 0010 0010 0100")
   }
 
-  /**
-   * Matrix 4x4:
-   * +---+---+---+---+
-   * | 0   0   0   0 |
-   * | 1   1   0   0 |
-   * | 0   1   0   0 |
-   * | 1   0   0   0 |
-   * +---+---+---+---+
-   *
-   * T: 1010
-   * L: 0011 0110
-   */
-  it should "build from a sparse edge list" in {
-    val edges = Array((1, 0), (1,1), (2,1), (3,0))
-    val tree = K2Tree(2, 4, edges)
-
+  it should "build an empty tree" in {
+    val tree = K2Tree(2, 4, Array.empty)
     assert(tree.k == 2)
     assert(tree.size == 4)
-    assertBitSet(tree.bits, "1010 0011 0110")
+  }
+
+  /**
+   * Matrix 8x8:
+   * +---+---+---+---+---+---+---+---+
+   * | 0   0   0   0   0   0   0   0 |
+   * | 1   1   1   0   0   0   0   0 |
+   * | 0   1   0   0   0   1   0   0 |
+   * | 1   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   1   0   0   0   1   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * +---+---+---+---+---+---+---+---+
+   *
+   * T: 1111 1110 0010 0001 0001
+   * L: 0011 0010 0110 0100 1000 1000
+   */
+  it should "build from a size that is not a power of k" in {
+    val edges = Array((1, 0), (1,1), (2,1), (3,0), (1, 2), (2, 5), (6, 2), (6, 6))
+    val tree = K2Tree(2, 5, edges)
+
+    assert(tree.k == 2)
+    assert(tree.size == 8)
+    assertBitSet(tree.bits, "1111 1110 0010 0001 0001 0011 0010 0110 0100 1000 1000")
   }
 
   /**

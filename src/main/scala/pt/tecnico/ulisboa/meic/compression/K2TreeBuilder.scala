@@ -101,6 +101,10 @@ private class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits
    * @param f     Function to execute at every node
    */
   private def navigateFromEdges(edges: Seq[(Int, Int)], f: (Int, Int) => Boolean): Unit = {
+    if(edges.isEmpty) {
+      return
+    }
+
     val offsets = calculateLevelOffsets(k, height)
 
     def iterate(line: Int, col: Int): Unit = {
@@ -172,15 +176,24 @@ private class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits
 private object K2TreeBuilder {
   /**
    * Builds an empty K2TreeBuilder
+   * If the given size is not a power of k, the nearest power will be used.
    *
    * @param k    value of the K²-Tree
    * @param size Size of the adjacency matrix of the K²-Tree (i.e maximum line/col index rounded to nearest power of k)
    * @return empty builder for a compressed K²-Tree
    */
   def apply(k: Int, size: Int): K2TreeBuilder = {
-    val height = math.ceil(mathx.log(k, size)).toInt
+    var actualSize = size
+
+    // Size is not a power of K, so we need to find the nearest power
+    if(size % k != 0) {
+      val exp = math.ceil(mathx.log(k, size))
+      actualSize = math.pow(k, exp).toInt
+    }
+
+    val height = math.ceil(mathx.log(k, actualSize)).toInt
     val length = (0 to height).reduce((acc, i) => acc + math.pow(k * k, i).toInt)
-    new K2TreeBuilder(k, size, height, new BitSet(length), length)
+    new K2TreeBuilder(k, actualSize, height, new BitSet(length), length)
   }
 
   /**
