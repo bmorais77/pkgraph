@@ -3,7 +3,7 @@ package pt.tecnico.ulisboa.meic.compression
 import org.apache.spark.util.collection.BitSet
 import pt.tecnico.ulisboa.meic.compression.K2TreeBuilder.calculateLevelOffsets
 import pt.tecnico.ulisboa.meic.util.collection.BitSetExtensions
-import pt.tecnico.ulisboa.meic.util.{hash, mathx}
+import pt.tecnico.ulisboa.meic.util.mathx
 
 import scala.collection.mutable
 
