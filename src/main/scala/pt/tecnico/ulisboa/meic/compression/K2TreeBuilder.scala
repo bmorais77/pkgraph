@@ -17,16 +17,33 @@ private class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits
    * @return builder of a K²-Tree with edges added
    */
   def addEdges(edges: Seq[(Int, Int)]): K2TreeBuilder = {
-    navigateFromEdges(edges, (levelOffset, levelIndex) => {
+    // Pre-compute the offsets of each level to the beginning of the bitset
+    val offsets = calculateLevelOffsets(k, height)
+
+    def recursiveNavigation(h: Int, line: Int, col: Int): Int = {
+      if (h == 0) {
+        return 0
+      }
+
+      // Offset to the beginning of this level
+      val levelOffset = offsets(h)
+
+      // Offset to the beginning of this chunk
+      val chunkOffset = recursiveNavigation(h - 1, line / k, col / k)
+
+      // Offset from the beginning of this chunk to the desired position
+      val localIndex = (line % k) * k + (col % k)
+
       // Index relative to the beginning of the tree
-      val index = levelOffset + levelIndex
-
-      // Check if path is already built, if true we can move on to next edge
-      val done = bits.get(index)
-
+      val index = levelOffset + chunkOffset + localIndex
       bits.set(index)
-      done
-    })
+
+      chunkOffset * k2 + localIndex * k2
+    }
+
+    for ((line, col) <- edges) {
+      recursiveNavigation(height, line, col)
+    }
 
     new K2TreeBuilder(k, size, height, bits, length)
   }
@@ -38,17 +55,44 @@ private class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits
    * @return builder of a K²-Tree with edges removed
    */
   def removeEdges(edges: Seq[(Int, Int)]): K2TreeBuilder = {
-    navigateFromEdges(edges, (levelOffset, levelIndex) => {
-      // Index relative to the beginning of the tree
-      val index = levelOffset + levelIndex
-      bits.unset(index)
+    // Pre-compute the offsets of each level to the beginning of the bitset
+    val offsets = calculateLevelOffsets(k, height)
 
-      // Start of the sequence of K² bits that this edge belongs to
-      val chunkStart = levelOffset + (levelIndex / k2) * k2
+    def tracePath(path: Array[(Int, Int)], h: Int, line: Int, col: Int): Int = {
+      if (h == 0) {
+        return 0
+      }
 
-      // We are done updating if there any other bits with value 1 in the same chunk
-      bits.count(chunkStart, chunkStart + k2) > 0
-    })
+      // Offset to the beginning of this level
+      val levelOffset = offsets(h)
+
+      // Offset to the beginning of this chunk
+      val chunkOffset = tracePath(path, h - 1, line / k, col / k)
+
+      // Offset from the beginning of this chunk to the desired position
+      val localIndex = (line % k) * k + (col % k)
+
+      path(h - 1) = (levelOffset + chunkOffset, levelOffset + chunkOffset + localIndex)
+      chunkOffset * k2 + localIndex * k2
+    }
+
+    def updateBits(path: Array[(Int, Int)]): Unit = {
+      for((chunkOffset, index) <- path.reverseIterator) {
+        bits.unset(index)
+
+        // We are done updating if there any other bits with value 1 in the same chunk
+        if(bits.count(chunkOffset, chunkOffset + k2) > 0) {
+          return
+        }
+      }
+    }
+
+    for ((line, col) <- edges) {
+      // Keeps track of the path we traversed in the tree
+      val path = new Array[(Int, Int)](height)
+      tracePath(path, height, line, col)
+      updateBits(path)
+    }
 
     new K2TreeBuilder(k, size, height, bits, length)
   }
@@ -90,49 +134,6 @@ private class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits
     }
 
     new K2Tree(k, size, tree, internalCount, leavesCount)
-  }
-
-  /**
-   * Navigate from the given edges to the virtual root of this K²-Tree.
-   * For every node found in the way to the root the function f is called with the current
-   * level offset and level index.
-   *
-   * @param edges Sequence of edges to iterate
-   * @param f     Function to execute at every node
-   */
-  private def navigateFromEdges(edges: Seq[(Int, Int)], f: (Int, Int) => Boolean): Unit = {
-    if(edges.isEmpty) {
-      return
-    }
-
-    val offsets = calculateLevelOffsets(k, height)
-
-    def iterate(line: Int, col: Int): Unit = {
-      var currLine = line
-      var currCol = col
-      var currSize = size
-
-      for (h <- height until 0 by -1) {
-        val levelOffset = offsets(h)
-
-        // Index relative to the current level
-        val levelIndex = hash.mortonCode(currLine, currCol)
-
-        // Execute provided function, returns whether we are done iterating this edge or not
-        val done = f(levelOffset, levelIndex)
-        if (done) {
-          return
-        }
-
-        currLine /= k
-        currCol /= k
-        currSize /= k
-      }
-    }
-
-    for ((line, col) <- edges) {
-      iterate(line, col)
-    }
   }
 
   /**
@@ -186,7 +187,7 @@ private object K2TreeBuilder {
     var actualSize = size
 
     // Size is not a power of K, so we need to find the nearest power
-    if(size % k != 0) {
+    if (size % k != 0) {
       val exp = math.ceil(mathx.log(k, size))
       actualSize = math.pow(k, exp).toInt
     }
@@ -222,9 +223,10 @@ private object K2TreeBuilder {
             builder.bits.set(index)
           }
 
-          val levelOffset = hash.mortonCode(line, col) * k2
-          val globalOffset = offsets(height + 1)
-          val offset = globalOffset + levelOffset
+          val localIndex = (line % k) * k + (col % k)
+          val chunkOffset = localIndex * k2
+          val levelOffset = offsets(height + 1)
+          val offset = levelOffset + chunkOffset
 
           val y = tree.bits.count(0, pos) * k2
           val newSize = currSize / k

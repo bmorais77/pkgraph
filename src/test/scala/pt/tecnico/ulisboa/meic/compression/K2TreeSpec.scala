@@ -26,6 +26,28 @@ class K2TreeSpec extends FlatSpec {
   }
 
   /**
+   * Matrix 4x4:
+   * +---+---+---+---+
+   * | 0   0   1   0 |
+   * | 1   1   0   0 |
+   * | 0   1   0   0 |
+   * | 1   0   0   1 |
+   * +---+---+---+---+
+   *
+   * L: 0010110001001001
+   */
+  it should "build from 4x4 matrix k=4 (1)" in {
+    val edges = Array((0, 2), (1, 0), (1,1), (2,1), (3,0), (3,3))
+    val tree = K2Tree(4, 4, edges)
+
+    assert(tree.k == 4)
+    assert(tree.size == 4)
+
+    val treeEdges = tree.edges
+    assert(edges sameElements treeEdges)
+  }
+
+  /**
    * Matrix 8x8:
    * +---+---+---+---+---+---+---+---+
    * | 1   0   0   0   0   0   0   0 |
