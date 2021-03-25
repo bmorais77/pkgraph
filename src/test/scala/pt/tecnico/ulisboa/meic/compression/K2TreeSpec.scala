@@ -415,6 +415,26 @@ class K2TreeSpec extends FlatSpec {
   }
 
   /**
+   * Matrix 4x4:
+   * +---+---+---+---+
+   * | 0   0   1   0 |
+   * | 1   1   0   0 |
+   * | 0   1   0   0 |
+   * | 1   0   0   1 |
+   * +---+---+---+---+
+   *
+   * T: 1111
+   * L: 0011 1000 0110 0001
+   */
+  it should "iterate all edges in tree in reverse order (4x4 k=2)" in {
+    val edges = Array((1, 0), (1,1), (0, 2), (2,1), (3,0), (3,3)).reverse
+    val tree = K2Tree(2, 4, edges).reverse
+
+    val treeEdges = tree.edges
+    assert(edges sameElements treeEdges)
+  }
+
+  /**
    * Matrix 8x8:
    * +---+---+---+---+---+---+---+---+
    * | 1   0   0   0   0   0   0   0 |
@@ -433,6 +453,30 @@ class K2TreeSpec extends FlatSpec {
   it should "iterate all edges in tree (8x8 k=2)" in {
     val edges = Array((0, 0), (1, 0), (6, 6), (7, 7))
     val tree = K2Tree(2, 8, edges)
+
+    val treeEdges = tree.edges
+    assert(edges sameElements treeEdges)
+  }
+
+  /**
+   * Matrix 8x8:
+   * +---+---+---+---+---+---+---+---+
+   * | 1   0   0   0   0   0   0   0 |
+   * | 1   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   1   0 |
+   * | 0   0   0   0   0   0   0   1 |
+   * +---+---+---+---+---+---+---+---+
+   *
+   * T: 1001 1000 0001
+   * L: 1010 1001
+   */
+  it should "iterate all edges in tree in reverse order (8x8 k=2)" in {
+    val edges = Array((0, 0), (1, 0), (6, 6), (7, 7)).reverse
+    val tree = K2Tree(2, 8, edges).reverse
 
     val treeEdges = tree.edges
     assert(edges sameElements treeEdges)

@@ -7,15 +7,16 @@ import pt.tecnico.ulisboa.meic.util.mathx
 
 import scala.collection.mutable
 
-private class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet, val length: Int) {
+// TODO: Add method to add individual edges and store the precomputed offsets
+class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet, val length: Int) {
   private val k2 = k * k
 
   /**
-   * Creates a new builder with the given edges added.
-   *
-   * @param edges Sequence of edges to add
-   * @return builder of a K²-Tree with edges added
-   */
+    * Creates a new builder with the given edges added.
+    *
+    * @param edges Sequence of edges to add
+    * @return builder of a K²-Tree with edges added
+    */
   def addEdges(edges: Seq[(Int, Int)]): K2TreeBuilder = {
     // Pre-compute the offsets of each level to the beginning of the bitset
     val offsets = calculateLevelOffsets(k, height)
@@ -49,11 +50,11 @@ private class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits
   }
 
   /**
-   * Creates a new builder with the given edges removed.
-   *
-   * @param edges Sequence of edges to remove
-   * @return builder of a K²-Tree with edges removed
-   */
+    * Creates a new builder with the given edges removed.
+    *
+    * @param edges Sequence of edges to remove
+    * @return builder of a K²-Tree with edges removed
+    */
   def removeEdges(edges: Seq[(Int, Int)]): K2TreeBuilder = {
     // Pre-compute the offsets of each level to the beginning of the bitset
     val offsets = calculateLevelOffsets(k, height)
@@ -98,10 +99,10 @@ private class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits
   }
 
   /**
-   * Builds a compressed K²-Tree representation from this builder.
-   *
-   * @return K²-Tree representation
-   */
+    * Builds a compressed K²-Tree representation from this builder.
+    *
+    * @return K²-Tree representation
+    */
   def build(): K2Tree = {
     // Count the number of bits need for the compressed version
     val (internalCount, leavesCount) = calculateCompressedSize()
@@ -137,10 +138,10 @@ private class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits
   }
 
   /**
-   * Calculates the minimum size required to store all bits in the compressed representation.
-   *
-   * @return minimum number of bits required for the internal bits and leaves bits of the compressed representation
-   */
+    * Calculates the minimum size required to store all bits in the compressed representation.
+    *
+    * @return minimum number of bits required for the internal bits and leaves bits of the compressed representation
+    */
   private def calculateCompressedSize(): (Int, Int) = {
     val leavesStart = (1 until height).map(h => math.pow(k2, h).toInt).sum / k2
 
@@ -174,15 +175,16 @@ private class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits
   }
 }
 
-private object K2TreeBuilder {
+object K2TreeBuilder {
+
   /**
-   * Builds an empty K2TreeBuilder
-   * If the given size is not a power of k, the nearest power will be used.
-   *
-   * @param k    value of the K²-Tree
-   * @param size Size of the adjacency matrix of the K²-Tree (i.e maximum line/col index rounded to nearest power of k)
-   * @return empty builder for a compressed K²-Tree
-   */
+    * Builds an empty K2TreeBuilder
+    * If the given size is not a power of k, the nearest power will be used.
+    *
+    * @param k    value of the K²-Tree
+    * @param size Size of the adjacency matrix of the K²-Tree (i.e maximum line/col index rounded to nearest power of k)
+    * @return empty builder for a compressed K²-Tree
+    */
   def apply(k: Int, size: Int): K2TreeBuilder = {
     var actualSize = size
 
@@ -198,13 +200,13 @@ private object K2TreeBuilder {
   }
 
   /**
-   * Constructs a K²-Tree Builder from the given K²-Tree.
-   *
-   * The resulting builder will have the same size and same edges of the given K²-Tree.
-   *
-   * @param tree K²-Tree to construct builder from
-   * @return K²-Tree builder with initial data from the given K²-Tree
-   */
+    * Constructs a K²-Tree Builder from the given K²-Tree.
+    *
+    * The resulting builder will have the same size and same edges of the given K²-Tree.
+    *
+    * @param tree K²-Tree to construct builder from
+    * @return K²-Tree builder with initial data from the given K²-Tree
+    */
   def fromK2Tree(tree: K2Tree): K2TreeBuilder = {
     val k2 = tree.k * tree.k
     val builder = K2TreeBuilder(tree.k, tree.size)
@@ -249,12 +251,12 @@ private object K2TreeBuilder {
   }
 
   /**
-   * Calculates the starting offsets for each level of a K²-Tree.
-   *
-   * @param k      Value of the K²-Tree
-   * @param height Height of the K²-Tree
-   * @return mapping of each level (1..height) and their corresponding starting offset.
-   */
+    * Calculates the starting offsets for each level of a K²-Tree.
+    *
+    * @param k      Value of the K²-Tree
+    * @param height Height of the K²-Tree
+    * @return mapping of each level (1..height) and their corresponding starting offset.
+    */
   private def calculateLevelOffsets(k: Int, height: Int): mutable.Map[Int, Int] = {
     val k2 = k * k
     val offsets = mutable.HashMap[Int, Int]()
