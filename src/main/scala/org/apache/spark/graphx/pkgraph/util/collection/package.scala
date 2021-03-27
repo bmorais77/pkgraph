@@ -1,4 +1,4 @@
-package pt.tecnico.ulisboa.meic.util
+package org.apache.spark.graphx.pkgraph.util
 
 import org.apache.spark.util.collection.BitSet
 

@@ -1,4 +1,4 @@
-package pt.tecnico.ulisboa.meic.compression
+package org.apache.spark.graphx.pkgraph.compression
 
 import org.apache.spark.util.collection.BitSet
 import org.scalatest.FlatSpec

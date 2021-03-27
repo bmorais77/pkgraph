@@ -1,8 +1,8 @@
-package pt.tecnico.ulisboa.meic.graph.impl
+package org.apache.spark.graphx.pkgraph.graph.impl
 
-import org.apache.spark.graphx.VertexRDD
 import org.apache.spark.graphx.impl.VertexAttributeBlock
-import org.apache.spark.graphx.vertices.PKVertexRDD
+import org.apache.spark.graphx.VertexRDD
+import org.apache.spark.graphx.pkgraph.graph.{PKEdgeRDD, PKVertexRDD}
 import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
@@ -35,25 +35,27 @@ class PKReplicatedVertexView[V: ClassTag, E: ClassTag](
     * `vertices`. This operation modifies the `ReplicatedVertexView`, and callers can access `edges`
     * afterwards to obtain the upgraded view.
     */
-  def upgrade(vertices: VertexRDD[V], includeSrc: Boolean, includeDst: Boolean): Unit = {
+  def upgrade(vertices: PKVertexRDD[V], includeSrc: Boolean, includeDst: Boolean): Unit = {
     val shipSrc = includeSrc && !hasSrcId
     val shipDst = includeDst && !hasDstId
     if (shipSrc || shipDst) {
-      val shippedVerts =
+      val shippedVerts: RDD[(Int, VertexAttributeBlock[V])] =
         vertices
-          .shipPKVertexAttributes(shipSrc, shipDst)
+          .shipVertexAttributes(shipSrc, shipDst)
           .setName(
             "ReplicatedVertexView.upgrade(%s, %s) - shippedVerts %s %s (broadcast)"
               .format(includeSrc, includeDst, shipSrc, shipDst)
           )
           .partitionBy(edges.partitioner.get)
-      val newEdges = edges.withEdgePartitions(edges.edgePartitions.zipPartitions(shippedVerts) {
-        (ePartIter, shippedVertsIter) =>
-          ePartIter.map {
-            case (pid, edgePartition) =>
-              (pid, edgePartition.updateVertices(shippedVertsIter.flatMap(_._2.iterator)))
-          }
-      })
+      val newEdges = edges.withEdgePartitions(
+        edges.zipEdgePartitions(shippedVerts) {
+          (ePartIter, shippedVertsIter) =>
+            ePartIter.map {
+              case (pid, edgePartition) =>
+                (pid, edgePartition.updateVertices(shippedVertsIter.flatMap(_._2.iterator)))
+            }
+        }
+      )
       edges = newEdges
       hasSrcId = includeSrc
       hasDstId = includeDst
@@ -67,17 +69,19 @@ class PKReplicatedVertexView[V: ClassTag, E: ClassTag](
     */
   def updateVertices(updates: VertexRDD[V]): PKReplicatedVertexView[V, E] = {
     val shippedVerts = updates
-      .shipPKVertexAttributes(hasSrcId, hasDstId)
+      .shipVertexAttributes(hasSrcId, hasDstId)
       .setName("ReplicatedVertexView.updateVertices - shippedVerts %s %s (broadcast)".format(hasSrcId, hasDstId))
       .partitionBy(edges.partitioner.get)
 
-    val newEdges = edges.withEdgePartitions(edges.edgePartitions.zipPartitions(shippedVerts) {
-      (ePartIter, shippedVertsIter) =>
-        ePartIter.map {
-          case (pid, edgePartition) =>
-            (pid, edgePartition.updateVertices(shippedVertsIter.flatMap(_._2.iterator)))
-        }
-    })
+    val newEdges = edges.withEdgePartitions(
+      edges.zipEdgePartitions(shippedVerts) {
+        (ePartIter, shippedVertsIter) =>
+          ePartIter.map {
+            case (pid, edgePartition) =>
+              (pid, edgePartition.updateVertices(shippedVertsIter.flatMap(_._2.iterator)))
+          }
+      }
+    )
 
     new PKReplicatedVertexView(newEdges, hasSrcId, hasDstId)
   }

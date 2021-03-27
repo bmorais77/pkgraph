@@ -1,29 +1,17 @@
-package pt.tecnico.ulisboa.meic.graph
+package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.HashPartitioner
-import org.apache.spark.graphx.impl.{EdgeActiveness, EdgeRDDImpl, GraphImpl, ReplicatedVertexView}
-import org.apache.spark.graphx.vertices.PKVertexRDD
-import org.apache.spark.graphx.{
-  Edge,
-  EdgeContext,
-  EdgeDirection,
-  EdgeRDD,
-  EdgeTriplet,
-  Graph,
-  PartitionID,
-  PartitionStrategy,
-  TripletFields,
-  VertexId,
-  VertexRDD
-}
+import org.apache.spark.graphx.impl.EdgeActiveness
+import org.apache.spark.graphx._
+import org.apache.spark.graphx.pkgraph.graph
+import org.apache.spark.graphx.pkgraph.graph.{PKEdgeRDD, PKVertexRDD}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
-import pt.tecnico.ulisboa.meic.graph.impl.{PKEdgePartitionBuilder, PKEdgeRDD, PKReplicatedVertexView}
 
 import scala.reflect.{ClassTag, classTag}
 
 class PKGraph[V: ClassTag, E: ClassTag] private (
-    override val vertices: VertexRDD[V],
+    override val vertices: PKVertexRDD[V],
     val replicatedVertexView: PKReplicatedVertexView[V, E]
 ) extends Graph[V, E] {
   override val edges: PKEdgeRDD[V, E] = replicatedVertexView.edges
@@ -31,7 +19,7 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
   /** Return an RDD that brings edges together with their source and destination vertices. */
   @transient override lazy val triplets: RDD[EdgeTriplet[V, E]] = {
     replicatedVertexView.upgrade(vertices, includeSrc = true, includeDst = true)
-    replicatedVertexView.edges.edgePartitions.mapPartitions(_.flatMap {
+    replicatedVertexView.edges.mapEdgePartitions(_.flatMap {
       case (_, part) => part.tripletIterator()
     })
   }
@@ -83,36 +71,30 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
   override def partitionBy(partitionStrategy: PartitionStrategy, numPartitions: Int): Graph[V, E] = {
     val vTag = classTag[V]
     val eTag = classTag[E]
-    val newEdges = edges
-      .withEdgePartitions(
-        edges
-          .map { e =>
-            val part: PartitionID = partitionStrategy.getPartition(e.srcId, e.dstId, numPartitions)
-            (part, (e.srcId, e.dstId, e.attr))
+    val partitions = edges
+      .map { e =>
+        val part: PartitionID = partitionStrategy.getPartition(e.srcId, e.dstId, numPartitions)
+        (part, (e.srcId, e.dstId, e.attr))
+      }
+      .partitionBy(new HashPartitioner(numPartitions))
+      .mapPartitionsWithIndex(
+        { (pid: Int, iter: Iterator[(PartitionID, (VertexId, VertexId, E))]) =>
+          val builder = new PKEdgePartitionBuilder[V, E]()(vTag, eTag)
+          iter.foreach { message =>
+            val data = message._2
+            builder.add(data._1, data._2, data._3)
           }
-          .partitionBy(new HashPartitioner(numPartitions))
-          .mapPartitionsWithIndex(
-            { (pid: Int, iter: Iterator[(PartitionID, (VertexId, VertexId, E))]) =>
-              val builder = new PKEdgePartitionBuilder[V, E]()(vTag, eTag)
-              iter.foreach { message =>
-                val data = message._2
-                builder.add(data._1, data._2, data._3)
-              }
-              val edgePartition = builder.build
-              Iterator((pid, edgePartition))
-            },
-            preservesPartitioning = true
-          )
+          val edgePartition = builder.build
+          Iterator((pid, edgePartition))
+        },
+        preservesPartitioning = true
       )
-      .cache()
 
-    // TODO: withEdges calls partitionsRDD of PKEdgeRDD
+    val newEdges = edges.withEdgePartitions(partitions).cache()
     PKGraph.fromExistingRDDs(vertices.withEdges(newEdges), newEdges)
   }
 
-  override def reverse: Graph[V, E] = {
-    new PKGraph(vertices.reverseRoutingTables(), replicatedVertexView.reverse())
-  }
+  override def reverse: Graph[V, E] = PKGraph(vertices.reverseRoutingTables(), replicatedVertexView.reverse())
 
   override def mapVertices[V2: ClassTag](f: (VertexId, V) => V2)(implicit eq: V =:= V2 = null): Graph[V2, E] = {
     // The implicit parameter eq will be populated by the compiler if VD and VD2 are equal, and left
@@ -121,12 +103,12 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
       vertices.cache()
       // The map preserves type, so we can use incremental replication
       val newVerts = vertices.mapValues(f).cache()
-      val changedVerts = vertices.asInstanceOf[VertexRDD[V2]].diff(newVerts)
+      val changedVerts = vertices.asInstanceOf[PKVertexRDD[V2]].diff(newVerts)
       val newReplicatedVertexView = replicatedVertexView
         .asInstanceOf[PKReplicatedVertexView[V2, E]]
         .updateVertices(changedVerts)
       this.asInstanceOf[PKGraph[V2, E]]
-      new PKGraph(newVerts, newReplicatedVertexView)
+      PKGraph(newVerts, newReplicatedVertexView)
     } else {
       // The map does not preserve type, so we must re-replicate all vertices
       this.asInstanceOf[PKGraph[V2, E]]
@@ -135,10 +117,8 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
   }
 
   override def mapEdges[E2: ClassTag](f: (PartitionID, Iterator[Edge[E]]) => Iterator[E2]): Graph[V, E2] = {
-    val newEdges = replicatedVertexView.edges
-      .mapEdgePartitions((pid, part) => part.map(f(pid, part.iterator)))
-    this.asInstanceOf[PKGraph[V, E2]]
-    // TODO: new GraphImpl(vertices, replicatedVertexView.withEdges(newEdges))
+    val newEdges = replicatedVertexView.edges.mapEdgePartitions((pid, part) => part.map(f(pid, part.iterator)))
+    new PKGraph[V, E2](vertices, replicatedVertexView.withEdges(newEdges))
   }
 
   override def mapTriplets[E2: ClassTag](
@@ -150,36 +130,32 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
     val newEdges = replicatedVertexView.edges.mapEdgePartitions { (pid, part) =>
       part.map(f(pid, part.tripletIterator(tripletFields.useSrc, tripletFields.useDst)))
     }
-    this.asInstanceOf[PKGraph[V, E2]]
-    // TODO: new GraphImpl(vertices, replicatedVertexView.withEdges(newEdges))
+    new PKGraph[V, E2](vertices, replicatedVertexView.withEdges(newEdges))
   }
 
   override def subgraph(
-      epred: EdgeTriplet[V, E] => Boolean = x => true,
-      vpred: (VertexId, V) => Boolean = (a, b) => true
+      epred: EdgeTriplet[V, E] => Boolean = _ => true,
+      vpred: (VertexId, V) => Boolean = (_, _) => true
   ): Graph[V, E] = {
     vertices.cache()
     // Filter the vertices, reusing the partitioner and the index from this graph
-    val newVerts = vertices.mapPKVertexPartitions(_.filter(vpred))
+    val newVerts = vertices.filterVertices(vpred)
     // Filter the triplets. We must always upgrade the triplet view fully because vpred always runs
     // on both src and dst vertices
     replicatedVertexView.upgrade(vertices, includeSrc = true, includeDst = true)
-    val newEdges = replicatedVertexView.edges.filter(epred, vpred)
-    this
-    // TODO: new GraphImpl(newVerts, replicatedVertexView.withEdges(newEdges))
+    val newEdges = replicatedVertexView.edges.filterPartitions(epred, vpred)
+    new PKGraph[V, E](newVerts, replicatedVertexView.withEdges(newEdges))
   }
 
   override def mask[V2: ClassTag, E2: ClassTag](other: Graph[V2, E2]): Graph[V, E] = {
-    val newVerts = vertices.innerJoin(other.vertices) { (vid, v, w) => v }
-    val newEdges = replicatedVertexView.edges.innerJoin(other.edges) { (src, dst, v, w) => v }
-    this
-    // TODO: new GraphImpl(newVerts, replicatedVertexView.withEdges(newEdges))
+    val newVerts = vertices.innerJoin(other.vertices) { (_, v, _) => v }
+    val newEdges = replicatedVertexView.edges.innerJoin(other.edges) { (_, _, v, _) => v }
+    graph.impl.PKGraph(newVerts, replicatedVertexView.withEdges(newEdges))
   }
 
   override def groupEdges(merge: (E, E) => E): Graph[V, E] = {
     val newEdges = replicatedVertexView.edges.mapEdgePartitions((_, part) => part.groupEdges(merge))
-    this
-    // TODO: new GraphImpl(vertices, replicatedVertexView.withEdges(newEdges))
+    new PKGraph[V, E](vertices, replicatedVertexView.withEdges(newEdges))
   }
 
   // ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -200,8 +176,8 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
     val activeDirectionOpt = activeSetOpt.map(_._2)
 
     // Map and combine.
-    val preAgg = replicatedVertexView.edges.edgePartitions
-      .mapPartitions(_.flatMap {
+    val preAgg = replicatedVertexView.edges
+      .mapEdgePartitions(_.flatMap {
         case (_, edgePartition) =>
           // Choose scan method
           activeDirectionOpt match {
@@ -219,7 +195,7 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
               edgePartition.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Neither)
           }
       })
-      .setName("GraphImpl.aggregateMessages - preAgg")
+      .setName("PKGraph.aggregateMessages - preAgg")
 
     // do the final reduction reusing the index map
     vertices.aggregateUsingIndex(preAgg, mergeMsg)
@@ -234,17 +210,15 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
       vertices.cache()
       // updateF preserves type, so we can use incremental replication
       val newVerts = vertices.leftJoin(other)(updateF).cache()
-      val changedVerts = vertices.asInstanceOf[VertexRDD[V2]].diff(newVerts)
+      val changedVerts = vertices.asInstanceOf[PKVertexRDD[V2]].diff(newVerts)
       val newReplicatedVertexView = replicatedVertexView
         .asInstanceOf[PKReplicatedVertexView[V2, E]]
         .updateVertices(changedVerts)
-      this.asInstanceOf[Graph[V2, E]]
-      new PKGraph(newVerts, newReplicatedVertexView)
+      PKGraph(newVerts, newReplicatedVertexView)
     } else {
       // updateF does not preserve type, so we must re-replicate all vertices
       val newVerts = vertices.leftJoin(other)(updateF)
-      this.asInstanceOf[Graph[V2, E]]
-      // TODO: GraphImpl(newVerts, replicatedVertexView.edges)
+      PKGraph(newVerts, replicatedVertexView.edges.asInstanceOf[PKEdgeRDD[V2, E]])
     }
   }
 }
@@ -252,8 +226,50 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
 object PKGraph {
 
   /**
-    * Create a graph from a [[VertexRDD]] and an [[PKEdgeRDD]] with the same replicated vertex type as the
-    * vertices. The [[VertexRDD]] must already be set up for efficient joins with the [[PKEdgeRDD]] by calling
+    * Builds an [[PKGraph]] from the given [[VertexRDD]] and [[PKReplicatedVertexView]].
+    *
+    * @param vertices RDD with vertices
+    * @param replicatedVertexView replicated vertex view
+    * @tparam V Type of vertex attributes
+    * @tparam E Type of edge attributes
+    * @return new [[PKGraph]]
+    */
+  def apply[V: ClassTag, E: ClassTag](
+      vertices: VertexRDD[V],
+      replicatedVertexView: PKReplicatedVertexView[V, E]
+  ): PKGraph[V, E] = new PKGraph(new PKVertexRDDImpl(vertices), replicatedVertexView)
+
+  /**
+    * Builds an [[PKGraph]] from the given [[VertexRDD]] and [[PKEdgeRDD]].
+    *
+    * @param vertices RDD with vertices
+    * @param edges RDD with edges
+    * @tparam V Type of vertex attributes
+    * @tparam E Type of edge attributes
+    * @return new [[PKGraph]]
+    */
+  def apply[V: ClassTag, E: ClassTag](vertices: VertexRDD[V], edges: PKEdgeRDD[V, E]): PKGraph[V, E] = {
+    new PKGraph(new PKVertexRDDImpl(vertices), new PKReplicatedVertexView(edges))
+  }
+
+  /**
+    * Create a graph from a [[PKVertexRDD]] and an [[PKEdgeRDDImpl]] with the same replicated vertex type as the
+    * vertices. The [[PKVertexRDD]] must already be set up for efficient joins with the [[PKEdgeRDDImpl]] by calling
+    * `VertexRDD.withEdges` or an appropriate VertexRDD constructor.
+    *
+    * @param vertices RDD with vertices
+    * @param edges RDD with edges
+    * @tparam V Vertex attribute type
+    * @tparam E Edge attribute type
+    * @return new [[PKGraph]] from existing vertex and edge RDDs
+    */
+  def fromExistingRDDs[V: ClassTag, E: ClassTag](vertices: PKVertexRDD[V], edges: PKEdgeRDD[V, E]): PKGraph[V, E] = {
+    new PKGraph(vertices, new PKReplicatedVertexView(edges))
+  }
+
+  /**
+    * Create a graph from a [[VertexRDD]] and an [[PKEdgeRDDImpl]] with the same replicated vertex type as the
+    * vertices. The [[VertexRDD]] must already be set up for efficient joins with the [[PKEdgeRDDImpl]] by calling
     * `VertexRDD.withEdges` or an appropriate VertexRDD constructor.
     *
     * @param vertices RDD with vertices
@@ -263,6 +279,6 @@ object PKGraph {
     * @return new [[PKGraph]] from existing vertex and edge RDDs
     */
   def fromExistingRDDs[V: ClassTag, E: ClassTag](vertices: VertexRDD[V], edges: PKEdgeRDD[V, E]): PKGraph[V, E] = {
-    new PKGraph(vertices, new PKReplicatedVertexView(edges))
+    new PKGraph(new PKVertexRDDImpl(vertices), new PKReplicatedVertexView(edges))
   }
 }

@@ -1,4 +1,4 @@
-package pt.tecnico.ulisboa.meic.compression
+package org.apache.spark.graphx.pkgraph.compression
 
 class ReversedK2Tree(tree: K2Tree) extends K2Tree(tree.k, tree.size, tree.bits, tree.internalCount, tree.leavesCount) {
   override protected def iterateEdges(f: (Int, Int) => Unit, currSize: Int, line: Int, col: Int, pos: Int): Unit = {

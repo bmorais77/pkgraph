@@ -1,9 +1,8 @@
-package pt.tecnico.ulisboa.meic.compression
+package org.apache.spark.graphx.pkgraph.compression
 
 import org.apache.spark.util.collection.BitSet
-import pt.tecnico.ulisboa.meic.util.collection.BitSetExtensions
+import org.apache.spark.graphx.pkgraph.util.collection.BitSetExtensions
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int, val leavesCount: Int) {

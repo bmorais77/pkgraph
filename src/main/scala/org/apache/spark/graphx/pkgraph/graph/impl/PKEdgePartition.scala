@@ -1,8 +1,8 @@
-package pt.tecnico.ulisboa.meic.graph.impl
+package org.apache.spark.graphx.pkgraph.graph.impl
 
+import org.apache.spark.graphx._
 import org.apache.spark.graphx.impl.EdgeActiveness
-import org.apache.spark.graphx.{Edge, EdgeContext, EdgeTriplet, TripletFields, VertexId}
-import pt.tecnico.ulisboa.meic.compression.K2Tree
+import org.apache.spark.graphx.pkgraph.compression.K2Tree
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -179,7 +179,7 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @param merge a commutative associative merge operation
     * @return a new edge partition without duplicate edges
     */
-  def groupEdges(merge: (E, E) => E): PKEdgePartition[E, V] = ???
+  def groupEdges(merge: (E, E) => E): PKEdgePartition[V, E] = ???
 
   /**
     * Adapted from EdgePartition.scala:

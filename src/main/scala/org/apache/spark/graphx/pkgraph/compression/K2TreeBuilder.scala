@@ -1,9 +1,9 @@
-package pt.tecnico.ulisboa.meic.compression
+package org.apache.spark.graphx.pkgraph.compression
 
 import org.apache.spark.util.collection.BitSet
-import pt.tecnico.ulisboa.meic.compression.K2TreeBuilder.calculateLevelOffsets
-import pt.tecnico.ulisboa.meic.util.collection.BitSetExtensions
-import pt.tecnico.ulisboa.meic.util.mathx
+import K2TreeBuilder.calculateLevelOffsets
+import org.apache.spark.graphx.pkgraph.util.mathx
+import org.apache.spark.graphx.pkgraph.util.collection.BitSetExtensions
 
 import scala.collection.mutable
 

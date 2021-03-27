@@ -1,7 +1,7 @@
-package pt.tecnico.ulisboa.meic.graph.impl
+package org.apache.spark.graphx.pkgraph.graph.impl
 
+import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder
 import org.apache.spark.graphx.{Edge, VertexId}
-import pt.tecnico.ulisboa.meic.compression.K2TreeBuilder
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
