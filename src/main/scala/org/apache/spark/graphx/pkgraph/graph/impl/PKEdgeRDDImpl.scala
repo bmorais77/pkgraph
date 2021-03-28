@@ -4,14 +4,14 @@ import org.apache.spark.graphx._
 import org.apache.spark.graphx.pkgraph.graph.PKEdgeRDD
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.{HashPartitioner, OneToOneDependency, Partition, Partitioner}
+import org.apache.spark.{HashPartitioner, Partition, Partitioner}
 
 import scala.reflect.ClassTag
 
 private[graph] class PKEdgeRDDImpl[V: ClassTag, E: ClassTag](
     val edgePartitions: RDD[(PartitionID, PKEdgePartition[V, E])],
     val targetStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
-) extends PKEdgeRDD[V, E](edgePartitions) {
+) extends PKEdgeRDD[E](edgePartitions) {
 
   override def setName(_name: String): this.type = {
     if (edgePartitions.name != null) {
@@ -100,6 +100,14 @@ private[graph] class PKEdgeRDDImpl[V: ClassTag, E: ClassTag](
     new PKEdgeRDDImpl[V, E3](partitions, targetStorageLevel)
   }
 
+  /**
+    * Maps each edge partition according to the given user function.
+    *
+    * @param f User function
+    * @tparam V2 new type of vertex attributes
+    * @tparam E2 new type of edge attributes
+    * @return new [[PKEdgeRDD]] with mapped edge partitions
+    */
   def mapEdgePartitions[V2: ClassTag, E2: ClassTag](
       f: (PartitionID, PKEdgePartition[V, E]) => PKEdgePartition[V, E2]
   ): PKEdgeRDDImpl[V, E2] = {
@@ -117,16 +125,6 @@ private[graph] class PKEdgeRDDImpl[V: ClassTag, E: ClassTag](
     new PKEdgeRDDImpl(partitions, targetStorageLevel)
   }
 
-  def withEdgePartitions[V2: ClassTag, E2: ClassTag](
-      partitionsRDD: RDD[(PartitionID, PKEdgePartition[V2, E2])]
-  ): PKEdgeRDDImpl[V2, E2] = {
-    new PKEdgeRDDImpl(partitionsRDD, targetStorageLevel)
-  }
-
-  override def withTargetStorageLevel(targetStorageLevel: StorageLevel): PKEdgeRDDImpl[V, E] = {
-    new PKEdgeRDDImpl(edgePartitions, targetStorageLevel)
-  }
-
   /**
     * Maps each edge partition according to the given user function.
     *
@@ -134,20 +132,9 @@ private[graph] class PKEdgeRDDImpl[V: ClassTag, E: ClassTag](
     * @tparam U new type for mapped iterator
     * @return new RDD with mapped type
     */
-  override def mapEdgePartitions[U: ClassTag](
+  def mapEdgePartitions[U: ClassTag](
       f: Iterator[(PartitionID, PKEdgePartition[V, E])] => Iterator[U]
   ): RDD[U] = ???
-
-  /**
-    * Maps each edge partition according to the given user function.
-    *
-    * @param f User function
-    * @tparam E2 new type of edge attributes
-    * @return new [[PKEdgeRDD]] with mapped edge partitions
-    */
-  override def mapEdgePartitions[E2: ClassTag](
-      f: (PartitionID, PKEdgePartition[V, E]) => PKEdgePartition[V, E2]
-  ): PKEdgeRDD[V, E2] = ???
 
   /**
     * Filter the edge partitions according to the given vertex and edge filters.
@@ -156,7 +143,7 @@ private[graph] class PKEdgeRDDImpl[V: ClassTag, E: ClassTag](
     * @param vpred Vertex predicate
     * @return new [[PKEdgeRDD]] with filtered edge partitions
     */
-  override def filterPartitions(epred: EdgeTriplet[V, E] => Boolean, vpred: (VertexId, V) => Boolean): PKEdgeRDD[V, E] =
+  def filterPartitions(epred: EdgeTriplet[V, E] => Boolean, vpred: (VertexId, V) => Boolean): PKEdgeRDDImpl[V, E] =
     ???
 
   /**
@@ -168,7 +155,25 @@ private[graph] class PKEdgeRDDImpl[V: ClassTag, E: ClassTag](
     * @tparam R Type of data in result of zip
     * @return RDD with edge partitions zipped with `other` RDD
     */
-  override def zipEdgePartitions[U: ClassTag, R: ClassTag](other: RDD[U])(
+  def zipEdgePartitions[U: ClassTag, R: ClassTag](other: RDD[U])(
       f: (Iterator[(PartitionID, PKEdgePartition[V, E])], Iterator[U]) => Iterator[R]
   ): RDD[R] = ???
+
+  /**
+    * Builds a new [[PKEdgeRDDImpl]] with the same data as this one, but using the given edge partitions.
+    *
+    * @param partitionsRDD New edge partitions to use
+    * @tparam V2 New type of vertex attributes
+    * @tparam E2 New type of edge attributes
+    * @return [[PKEdgeRDDImpl]] with given edge partitions
+    */
+  def withEdgePartitions[V2: ClassTag, E2: ClassTag](
+      partitionsRDD: RDD[(PartitionID, PKEdgePartition[V2, E2])]
+  ): PKEdgeRDDImpl[V2, E2] = {
+    new PKEdgeRDDImpl(partitionsRDD, targetStorageLevel)
+  }
+
+  override def withTargetStorageLevel(targetStorageLevel: StorageLevel): PKEdgeRDDImpl[V, E] = {
+    new PKEdgeRDDImpl(edgePartitions, targetStorageLevel)
+  }
 }

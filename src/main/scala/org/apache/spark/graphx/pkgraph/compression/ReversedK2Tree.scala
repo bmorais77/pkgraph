@@ -1,6 +1,7 @@
 package org.apache.spark.graphx.pkgraph.compression
 
-class ReversedK2Tree(tree: K2Tree) extends K2Tree(tree.k, tree.size, tree.bits, tree.internalCount, tree.leavesCount) {
+class ReversedK2Tree(tree: K2Tree)
+    extends K2Tree(tree.k, tree.size, tree.bits, tree.internalCount, tree.leavesCount, tree.edgeCount) {
   override protected def iterateEdges(f: (Int, Int) => Unit, currSize: Int, line: Int, col: Int, pos: Int): Unit = {
     if (pos >= internalCount) { // Is leaf node
       if (bits.get(pos)) {
@@ -9,7 +10,7 @@ class ReversedK2Tree(tree: K2Tree) extends K2Tree(tree.k, tree.size, tree.bits, 
       }
     } else {
       if (pos == -1 || bits.get(pos)) {
-        val y = rank(bits, pos) * k * k
+        val y = rank(pos) * k * k
         val newSize = currSize / k
 
         for (i <- k * k - 1 to 0 by -1) {

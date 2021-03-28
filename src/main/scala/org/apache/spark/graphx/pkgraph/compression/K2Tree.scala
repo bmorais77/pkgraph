@@ -5,7 +5,14 @@ import org.apache.spark.graphx.pkgraph.util.collection.BitSetExtensions
 
 import scala.collection.mutable.ArrayBuffer
 
-class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int, val leavesCount: Int) {
+class K2Tree(
+    val k: Int,
+    val size: Int,
+    val bits: BitSet,
+    val internalCount: Int,
+    val leavesCount: Int,
+    val edgeCount: Int
+) {
 
   /**
     * Total number of bits used to represent this K²-Tree.
@@ -83,7 +90,7 @@ class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int
       }
     }
 
-    new K2Tree(k, newSize, tree, internalOffset + internalCount, leavesCount)
+    new K2Tree(k, newSize, tree, internalOffset + internalCount, leavesCount, edgeCount)
   }
 
   /**
@@ -134,7 +141,7 @@ class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int
     }
 
     // Keep trying to trim the tree
-    val newTree = new K2Tree(k, size / k, tree, internalCount - k2, leavesCount)
+    val newTree = new K2Tree(k, size / k, tree, internalCount - k2, leavesCount, edgeCount)
     newTree.trim()
   }
 
@@ -148,21 +155,21 @@ class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int
   }
 
   /**
-   * Reverses the order of edges in this K²-Tree
-   *
-   * @return K²-Tree which iterates the edges in reverse order
-   */
+    * Reverses the order of edges in this K²-Tree
+    *
+    * @return K²-Tree which iterates the edges in reverse order
+    */
   final def reverse: K2Tree = new ReversedK2Tree(this)
 
   /**
-   * Recursive function to iterate through all edges in this K²-Tree.
-   *
-   * @param f        Function called when a edge is found
-   * @param currSize Current size of the adjacency matrix
-   * @param line     Line of the edge in the current level
-   * @param col      Column of the edge in the current level
-   * @param pos      Current position in the bitsets
-   */
+    * Recursive function to iterate through all edges in this K²-Tree.
+    *
+    * @param f        Function called when a edge is found
+    * @param currSize Current size of the adjacency matrix
+    * @param line     Line of the edge in the current level
+    * @param col      Column of the edge in the current level
+    * @param pos      Current position in the bitsets
+    */
   protected def iterateEdges(f: (Int, Int) => Unit, currSize: Int, line: Int, col: Int, pos: Int): Unit = {
     if (pos >= internalCount) { // Is leaf node
       if (bits.get(pos)) {
@@ -171,7 +178,7 @@ class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int
       }
     } else {
       if (pos == -1 || bits.get(pos)) {
-        val y = rank(bits, pos) * k * k
+        val y = rank(pos) * k * k
         val newSize = currSize / k
 
         for (i <- 0 until k * k) {
@@ -184,13 +191,12 @@ class K2Tree(val k: Int, val size: Int, val bits: BitSet, val internalCount: Int
   /**
     * Rank operation of the K²-Tree.
     *
-    * Counts the number of bits with value 1 in the given BitSet between [0, end].
+    * Counts the number of bits with value 1 in the tree bits between [0, end].
     *
-    * @param bits BitSet to check bits
     * @param end  Inclusive ending position
     * @return number of bits with value 1 between [0, end]
     */
-  protected def rank(bits: BitSet, end: Int): Int = bits.count(0, end)
+  protected[compression] def rank(end: Int): Int = bits.count(0, end)
 }
 
 object K2Tree {

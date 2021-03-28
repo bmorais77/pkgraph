@@ -2,13 +2,13 @@ package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.graphx.impl.VertexAttributeBlock
 import org.apache.spark.graphx.VertexRDD
-import org.apache.spark.graphx.pkgraph.graph.{PKEdgeRDD, PKVertexRDD}
+import org.apache.spark.graphx.pkgraph.graph.PKVertexRDD
 import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
 
 class PKReplicatedVertexView[V: ClassTag, E: ClassTag](
-    var edges: PKEdgeRDD[V, E],
+    var edges: PKEdgeRDDImpl[V, E],
     var hasSrcId: Boolean = false,
     var hasDstId: Boolean = false
 ) {
@@ -17,7 +17,7 @@ class PKReplicatedVertexView[V: ClassTag, E: ClassTag](
     * Return a new `ReplicatedVertexView` with the specified `EdgeRDD`, which must have the same
     * shipping level.
     */
-  def withEdges[V2: ClassTag, E2: ClassTag](edgesRDD: PKEdgeRDD[V2, E2]): PKReplicatedVertexView[V2, E2] = {
+  def withEdges[V2: ClassTag, E2: ClassTag](edgesRDD: PKEdgeRDDImpl[V2, E2]): PKReplicatedVertexView[V2, E2] = {
     new PKReplicatedVertexView(edgesRDD, hasSrcId, hasDstId)
   }
 
@@ -26,7 +26,7 @@ class PKReplicatedVertexView[V: ClassTag, E: ClassTag](
     * match.
     */
   def reverse(): PKReplicatedVertexView[V, E] = {
-    val newEdges = edges.mapEdgePartitions((_, part) => part.reverse)
+    val newEdges = edges.mapEdgePartitions[V, E]((_, part) => part.reverse)
     new PKReplicatedVertexView(newEdges, hasDstId, hasSrcId)
   }
 

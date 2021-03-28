@@ -10,6 +10,7 @@ import scala.collection.mutable
 // TODO: Add method to add individual edges and store the precomputed offsets
 class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet, val length: Int) {
   private val k2 = k * k
+  private var edgeCount: Int = 0
 
   /**
     * Creates a new builder with the given edges added.
@@ -44,9 +45,10 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
 
     for ((line, col) <- edges) {
       recursiveNavigation(height, line, col)
+      edgeCount += 1
     }
 
-    new K2TreeBuilder(k, size, height, bits, length)
+    this
   }
 
   /**
@@ -93,9 +95,10 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
       val path = new Array[(Int, Int)](height)
       tracePath(path, height, line, col)
       updateBits(path)
+      edgeCount -= 1
     }
 
-    new K2TreeBuilder(k, size, height, bits, length)
+    this
   }
 
   /**
@@ -134,7 +137,7 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
       }
     }
 
-    new K2Tree(k, size, tree, internalCount, leavesCount)
+    new K2Tree(k, size, tree, internalCount, leavesCount, edgeCount)
   }
 
   /**

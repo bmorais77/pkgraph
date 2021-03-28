@@ -16,21 +16,6 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
 ) {
 
   /**
-    * Adapted from EdgePartition.scala:
-    *
-    * Return a new edge partition with the specified edge data.
-    *
-    * @param data Edge attributes
-    * @tparam E2 new type of edges
-    * @return edge partition with given edge data
-    */
-  def withData[E2: ClassTag](data: Array[E2]): PKEdgePartition[V, E2] = {
-    new PKEdgePartition(vertexAttrs, data, tree, lineOffset, colOffset)
-  }
-
-  /**
-    * Adapted from EdgePartition.scala:
-    *
     * Return a new edge partition without any locally cached vertex attributes.
     *
     * @tparam V2 new type of vertices
@@ -57,9 +42,9 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
     new PKEdgePartition(newVertexAttrs.toMap, edgeAttrs, tree, lineOffset, colOffset)
   }
 
+  // TODO: Maybe implement an existing partition builder
+
   /**
-    * Adapted from EdgePartition.scala:
-    *
     * Reverse all the edges in this partition.
     *
     * @return a new edge partition with all edges reversed.
@@ -69,8 +54,6 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
   }
 
   /**
-    * Adapted from EdgePartition.scala:
-    *
     * Construct a new edge partition by applying the function f to all
     * edges in this partition.
     *
@@ -94,12 +77,10 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
       i += 1
     })
 
-    this.withData(newData)
+    withData(newData)
   }
 
   /**
-    * Adapted from EdgePartition.scala:
-    *
     * Construct a new edge partition by using the edge attributes
     * contained in the iterator.
     *
@@ -124,8 +105,6 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
   }
 
   /**
-    * Adapted from EdgePartition.scala:
-    *
     * Construct a new edge partition containing only the edges matching `epred` and where both
     * vertices match `vpred`.
     *
@@ -158,8 +137,6 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
   }
 
   /**
-    * Adapted from EdgePartition.scala:
-    *
     * Apply the function f to all edges in this partition.
     *
     * @param f an external state mutating user defined function.
@@ -168,22 +145,10 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
     iterator.foreach(f)
   }
 
-  /**
-    * Adapted from EdgePartition.scala:
-    *
-    * Merge all the edges with the same src and dest id into a single
-    * edge using the `merge` function
-    *
-    * TODO: Because of our use of K²-Tree this function may be unnecessary? check if attributes are not repeated
-    *
-    * @param merge a commutative associative merge operation
-    * @return a new edge partition without duplicate edges
-    */
-  def groupEdges(merge: (E, E) => E): PKEdgePartition[V, E] = ???
+  // TODO: When adding an edge, check if its repeated, if true then merge attributes
+  // TODO: May need to order edges before adding
 
   /**
-    * Adapted from EdgePartition.scala:
-    *
     * Apply `f` to all edges present in both `this` and `other` and return a new `PKEdgePartition`
     * containing the resulting edges.
     *
@@ -202,12 +167,12 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
     ???
   }
 
+  // TODO: Keep the number of edges in the K²-Tree
+
   /**
     * Adapted from EdgePartition.scala:
     *
     * The number of edges in this partition
-    *
-    * TODO: Check if this function is actually needed, so we can avoid storing more metadata in the K²-Tree
     *
     * @return size of the partition
     */
@@ -216,21 +181,17 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
   /**
     * Adapted from EdgePartition.scala:
     *
-    * TODO: Implement
-    *
     * @return The number of unique source vertices in the partition.
     */
   def indexSize: Int = 0
 
+  // TODO: Use an K²-Tree iterator instead of collecting all edges
+
   /**
-    * Adapted from EdgePartition.scala:
-    *
     * Get an iterator over the edges in this partition.
     *
     * Be careful not to keep references to the objects from this iterator.
     * To improve GC performance the same object is re-used in `next()`.
-    *
-    * TODO: Use an K²-Tree iterator instead of collecting all edges
     *
     * @return an iterator over edges in the partition
     */
@@ -251,14 +212,12 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
       }
     }
 
+  // TODO: Use an K²-Tree iterator instead of collecting all edges
+
   /**
-    * Adapted from EdgePartition.scala:
-    *
     * Get an iterator over the edge triplets in this partition.
     *
     * It is safe to keep references to the objects from this iterator.
-    *
-    * TODO: Use an K²-Tree iterator instead of collecting all edges
     *
     * @param includeSrc Include source vertex attributes
     * @param includeDst Include destination vertex
@@ -292,11 +251,9 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
       }
     }
 
-  // TODO: Not sure if aggregate message functions are necessary
+  // TODO: Implement
 
   /**
-    * TODO: Implement
-    *
     * Send messages along edges and aggregate them at the receiving vertices. Implemented by scanning
     * all edges sequentially.
     *
@@ -313,4 +270,15 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
       tripletFields: TripletFields,
       activeness: EdgeActiveness
   ): Iterator[(VertexId, A)] = ???
+
+  /**
+    * Return a new edge partition with the specified edge data.
+    *
+    * @param data Edge attributes
+    * @tparam E2 new type of edges
+    * @return edge partition with given edge data
+    */
+  private def withData[E2: ClassTag](data: Array[E2]): PKEdgePartition[V, E2] = {
+    new PKEdgePartition(vertexAttrs, data, tree, lineOffset, colOffset)
+  }
 }
