@@ -32,6 +32,8 @@ class K2Tree(
     buffer
   }
 
+  def iterator: K2TreeIterator = new K2TreeIterator(this)
+
   /**
     * Returns a new K²-Tree with the given edges added.
     *

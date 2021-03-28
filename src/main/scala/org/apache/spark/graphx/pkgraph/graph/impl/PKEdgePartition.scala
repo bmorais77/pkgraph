@@ -167,25 +167,12 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
     ???
   }
 
-  // TODO: Keep the number of edges in the K²-Tree
-
   /**
-    * Adapted from EdgePartition.scala:
-    *
     * The number of edges in this partition
     *
     * @return size of the partition
     */
-  val size: Int = 0
-
-  /**
-    * Adapted from EdgePartition.scala:
-    *
-    * @return The number of unique source vertices in the partition.
-    */
-  def indexSize: Int = 0
-
-  // TODO: Use an K²-Tree iterator instead of collecting all edges
+  val size: Int = tree.edgeCount
 
   /**
     * Get an iterator over the edges in this partition.
@@ -195,24 +182,22 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
     *
     * @return an iterator over edges in the partition
     */
-  def iterator: Iterator[Edge[E]] =
-    new Iterator[Edge[E]] {
-      private val edges = tree.edges
+  def iterator: Iterator[Edge[E]] = new Iterator[Edge[E]] {
+      private val iterator = tree.iterator
       private val edge = new Edge[E]
       private var pos = 0
 
-      override def hasNext: Boolean = pos < edges.length
+      override def hasNext: Boolean = iterator.hasNext
 
       override def next(): Edge[E] = {
-        edge.srcId = edges(pos)._1
-        edge.dstId = edges(pos)._2
+        val (line, col) = iterator.next()
+        edge.srcId = line + lineOffset
+        edge.dstId = col + colOffset
         edge.attr = edgeAttrs(pos)
         pos += 1
         edge
       }
     }
-
-  // TODO: Use an K²-Tree iterator instead of collecting all edges
 
   /**
     * Get an iterator over the edge triplets in this partition.
@@ -225,15 +210,15 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
     */
   def tripletIterator(includeSrc: Boolean = true, includeDst: Boolean = true): Iterator[EdgeTriplet[V, E]] =
     new Iterator[EdgeTriplet[V, E]] {
-      private val edges = tree.edges
+      private val iterator = tree.iterator
       private var pos = 0
 
-      override def hasNext: Boolean = pos < edges.length
+      override def hasNext: Boolean = iterator.hasNext
 
       override def next(): EdgeTriplet[V, E] = {
         val triplet = new EdgeTriplet[V, E]
 
-        val (line, col) = edges(pos)
+        val (line, col) = iterator.next()
         triplet.srcId = line + lineOffset
         triplet.dstId = col + colOffset
         triplet.attr = edgeAttrs(pos)
