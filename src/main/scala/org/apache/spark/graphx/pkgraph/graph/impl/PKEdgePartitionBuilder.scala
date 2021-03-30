@@ -6,7 +6,7 @@ import org.apache.spark.graphx.{Edge, VertexId}
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
-private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag](k: Int = 2) {
+private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag](k: Int) {
   private val edges = new ArrayBuffer[Edge[E]](64)
 
   private var startX: Long = 0
@@ -46,6 +46,6 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag](k: Int = 2
       i += 1
     }
 
-    new PKEdgePartition[V, E](Map.empty[VertexId, V], data, treeBuilder.build(), startX, startY)
+    new PKEdgePartition[V, E](Map.empty[VertexId, V], data, treeBuilder.build())
   }
 }
