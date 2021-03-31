@@ -2,7 +2,7 @@ package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.graphx._
 import org.apache.spark.graphx.impl.EdgeActiveness
-import org.apache.spark.graphx.pkgraph.compression.K2Tree
+import org.apache.spark.graphx.pkgraph.compression.{K2Tree, K2TreeIndex}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -10,10 +10,12 @@ import scala.reflect.ClassTag
 // TODO: VertexID is long but line and column returned by K²-Tree are int
 // TODO: Should only be a problem for huge graphs (> 2^32 vertices)
 
-class PKEdgePartition[V: ClassTag, E: ClassTag](
+private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     vertexAttrs: Map[VertexId, V],
     edgeAttrs: Array[E],
-    tree: K2Tree
+    tree: K2Tree,
+    lineOffset: Long,
+    colOffset: Long
 ) {
 
   /**
@@ -23,7 +25,7 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @return edge partition without cached vertices
     */
   def withoutVertexAttributes[V2: ClassTag](): PKEdgePartition[V2, E] = {
-    new PKEdgePartition(Map.empty[VertexId, V2], edgeAttrs, tree)
+    new PKEdgePartition(Map.empty[VertexId, V2], edgeAttrs, tree, lineOffset, colOffset)
   }
 
   /**
@@ -40,7 +42,7 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
       val (id, attr) = iter.next()
       newVertexAttrs(id) = attr
     }
-    new PKEdgePartition(newVertexAttrs.toMap, edgeAttrs, tree)
+    new PKEdgePartition(newVertexAttrs.toMap, edgeAttrs, tree, lineOffset, colOffset)
   }
 
   // TODO: Maybe implement an existing partition builder
@@ -51,7 +53,7 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @return a new edge partition with all edges reversed.
     */
   def reverse: PKEdgePartition[V, E] = {
-    new PKEdgePartition(vertexAttrs, edgeAttrs.reverse, tree.reverse)
+    new PKEdgePartition(vertexAttrs, edgeAttrs.reverse, tree.reverse, lineOffset, colOffset)
   }
 
   /**
@@ -71,8 +73,8 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
     var i = 0
 
     tree.forEachEdge((line, col) => {
-      edge.srcId = line
-      edge.dstId = col
+      edge.srcId = line + lineOffset
+      edge.dstId = col + colOffset
       edge.attr = edgeAttrs(i)
       newData(i) = f(edge)
       i += 1
@@ -121,10 +123,10 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
     tree.forEachEdge((line, col) => {
       // The user sees the EdgeTriplet, so we can't reuse it and must create one per edge.
       val triplet = new EdgeTriplet[V, E]
-      triplet.srcId = line
-      triplet.dstId = col
-      triplet.srcAttr = vertexAttrs(line)
-      triplet.dstAttr = vertexAttrs(col)
+      triplet.srcId = line + lineOffset
+      triplet.dstId = col + colOffset
+      triplet.srcAttr = vertexAttrs(line + lineOffset)
+      triplet.dstAttr = vertexAttrs(col + colOffset)
       triplet.attr = edgeAttrs(i)
 
       if (vpred(triplet.srcId, triplet.srcAttr) && vpred(triplet.dstId, triplet.dstAttr) && epred(triplet)) {
@@ -149,8 +151,6 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
   // TODO: When adding an edge, check if its repeated, if true then merge attributes
   // TODO: May need to order edges before adding
 
-  // TODO: Try to optimized this function, without having to collect all edges and sort them
-
   /**
     * Apply `f` to all edges present in both `this` and `other` and return a new `PKEdgePartition`
     * containing the resulting edges.
@@ -169,19 +169,19 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
       other: PKEdgePartition[_, E2]
   )(f: (VertexId, VertexId, E, E2) => E3): PKEdgePartition[V, E3] = {
     val builder = new PKEdgePartitionBuilder[V, E3](tree.k)
-    val it1 = treeIterator
-    val it2 = other.treeIterator
+    val it1 = iteratorWithIndex
+    val it2 = other.iteratorWithIndex
 
     while (it1.hasNext && it2.hasNext) {
       val edge1 = it1.next()
       var edge2 = it2.next()
 
-      while (it2.hasNext && edge1.pos < edge2.pos) {
+      while (it2.hasNext && edge2.index < edge1.index) {
         edge2 = it2.next()
       }
 
-      if (edge1.srcId == edge2.srcId && edge1.dstId == edge2.dstId) {
-        builder.add(edge1.srcId, edge1.dstId, f(edge1.srcId, edge1.dstId, edge1.attr, edge2.attr))
+      if (edge1.line == edge2.line && edge1.col == edge2.col) {
+        builder.add(edge1.line, edge1.col, f(edge1.line, edge1.col, edge1.attr, edge2.attr))
       }
     }
 
@@ -213,29 +213,36 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
 
       override def next(): Edge[E] = {
         val (_, line, col) = iterator.next()
-        edge.srcId = line
-        edge.dstId = col
+        edge.srcId = line + lineOffset
+        edge.dstId = col + colOffset
         edge.attr = edgeAttrs(pos)
         pos += 1
         edge
       }
     }
 
-  def treeIterator: Iterator[TreeEdge[E]] =
-    new Iterator[TreeEdge[E]] {
+  /**
+    * Get an iterator over the edges in this partition with the edge index included.
+    *
+    * Be careful not to keep references to the objects from this iterator.
+    * To improve GC performance the same object is re-used in `next()`.
+    *
+    * @return an iterator over edges in the partition
+    */
+  def iteratorWithIndex: Iterator[PKEdge[E]] = new Iterator[PKEdge[E]] {
       private val iterator = tree.iterator
-      private val edge = new TreeEdge[E]
-      private var index = 0
+      private val edge = new PKEdge[E]
+      private var pos = 0
 
       override def hasNext: Boolean = iterator.hasNext
 
-      override def next(): TreeEdge[E] = {
-        val (pos, line, col) = iterator.next()
-        edge.srcId = line
-        edge.dstId = col
-        edge.attr = edgeAttrs(index)
-        edge.pos = pos
-        index += 1
+      override def next(): PKEdge[E] = {
+        val (index, line, col) = iterator.next()
+        edge.index = index
+        edge.line = line + lineOffset
+        edge.col = col + colOffset
+        edge.attr = edgeAttrs(pos)
+        pos += 1
         edge
       }
     }
@@ -260,16 +267,16 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
         val triplet = new EdgeTriplet[V, E]
 
         val (_, line, col) = iterator.next()
-        triplet.srcId = line
-        triplet.dstId = col
+        triplet.srcId = line + lineOffset
+        triplet.dstId = col + colOffset
         triplet.attr = edgeAttrs(pos)
 
         if (includeSrc) {
-          triplet.srcAttr = vertexAttrs(line)
+          triplet.srcAttr = vertexAttrs(line + lineOffset)
         }
 
         if (includeDst) {
-          triplet.dstAttr = vertexAttrs(col)
+          triplet.dstAttr = vertexAttrs(col + colOffset)
         }
 
         pos += 1
@@ -305,6 +312,6 @@ class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @return edge partition with given edge data
     */
   private def withData[E2: ClassTag](data: Array[E2]): PKEdgePartition[V, E2] = {
-    new PKEdgePartition(vertexAttrs, data, tree)
+    new PKEdgePartition(vertexAttrs, data, tree, lineOffset, colOffset)
   }
 }

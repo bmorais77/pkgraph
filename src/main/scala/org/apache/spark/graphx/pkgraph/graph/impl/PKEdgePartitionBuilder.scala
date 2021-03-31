@@ -46,6 +46,6 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag](k: Int) {
       i += 1
     }
 
-    new PKEdgePartition[V, E](Map.empty[VertexId, V], data, treeBuilder.build())
+    new PKEdgePartition[V, E](Map.empty[VertexId, V], data, treeBuilder.build(), startX, startY)
   }
 }

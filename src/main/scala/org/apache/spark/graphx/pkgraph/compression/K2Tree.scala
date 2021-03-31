@@ -2,6 +2,7 @@ package org.apache.spark.graphx.pkgraph.compression
 
 import org.apache.spark.util.collection.BitSet
 import org.apache.spark.graphx.pkgraph.util.collection.BitSetExtensions
+import org.apache.spark.graphx.pkgraph.util.mathx
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -20,6 +21,13 @@ class K2Tree(
     * @return number of bits used to represent this K²-Tree
     */
   def length: Int = internalCount + leavesCount
+
+  /**
+   * Get the height of this K²-Tree
+   *
+   * @return height
+   */
+  def height: Int = math.ceil(mathx.log(k, size)).toInt
 
   /**
     * Collect the edges encoded in this K²-Tree
