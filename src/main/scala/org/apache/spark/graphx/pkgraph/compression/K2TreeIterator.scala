@@ -2,7 +2,7 @@ package org.apache.spark.graphx.pkgraph.compression
 
 import scala.collection.mutable
 
-class K2TreeIterator(tree: K2Tree) extends Iterator[(K2TreeIndex, Int, Int)] {
+class K2TreeIterator(tree: K2Tree, reverse: Boolean = false) extends Iterator[(K2TreeIndex, Int, Int)] {
   private val k2 = tree.k * tree.k
   private val path = mutable.Stack(Node(0, 0, -1, -1))
   private var edgesFound = 0
@@ -35,7 +35,7 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[(K2TreeIndex, Int, Int)] {
       if (top.pos == -1 || tree.bits.get(top.pos)) {
         val y = tree.rank(top.pos) * k2
 
-        for (i <- top.childIndex until k2) {
+        for (i <- indices(top)) {
           val newSegment = Node(top.line * tree.k + i / tree.k, top.col * tree.k + i % tree.k, y + i, -1)
 
           path.push(newSegment)
@@ -54,6 +54,13 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[(K2TreeIndex, Int, Int)] {
       return findNextEdge
     }
     None
+  }
+
+  private def indices(node: Node): Range = {
+    if (reverse)
+      (k2 - node.childIndex - 1) to 0 by -1
+    else
+      node.childIndex until k2
   }
 
   private def buildEdgeIndexFromPath(): K2TreeIndex = {

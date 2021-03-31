@@ -1,8 +1,8 @@
 package org.apache.spark.graphx.pkgraph.compression
 
-// TODO: ReversedK2Tree still uses the normal iterator, should use a reversed iterator
-class ReversedK2Tree(tree: K2Tree)
-    extends K2Tree(tree.k, tree.size, tree.bits, tree.internalCount, tree.leavesCount, tree.edgeCount) {
+class ReversedK2Tree(tree: K2Tree) extends K2Tree(tree.k, tree.size, tree.bits, tree.internalCount, tree.leavesCount, tree.edgeCount) {
+  override def iterator: K2TreeIterator = new K2TreeIterator(this, true)
+
   override protected def iterateEdges(f: (Int, Int) => Unit, currSize: Int, line: Int, col: Int, pos: Int): Unit = {
     if (pos >= internalCount) { // Is leaf node
       if (bits.get(pos)) {
