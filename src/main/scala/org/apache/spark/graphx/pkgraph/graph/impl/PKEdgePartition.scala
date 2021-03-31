@@ -2,13 +2,10 @@ package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.graphx._
 import org.apache.spark.graphx.impl.EdgeActiveness
-import org.apache.spark.graphx.pkgraph.compression.{K2Tree, K2TreeIndex}
+import org.apache.spark.graphx.pkgraph.compression.K2Tree
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
-
-// TODO: VertexID is long but line and column returned by K²-Tree are int
-// TODO: Should only be a problem for huge graphs (> 2^32 vertices)
 
 private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     vertexAttrs: Map[VertexId, V],
@@ -72,9 +69,9 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     val edge = new Edge[E]()
     var i = 0
 
-    tree.forEachEdge((line, col) => {
-      edge.srcId = line + lineOffset
-      edge.dstId = col + colOffset
+    tree.forEachEdge(e => {
+      edge.srcId = e.line + lineOffset
+      edge.dstId = e.col + colOffset
       edge.attr = edgeAttrs(i)
       newData(i) = f(edge)
       i += 1
@@ -120,13 +117,13 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     val builder = new PKEdgePartitionBuilder[V, E](tree.k)
     var i = 0
 
-    tree.forEachEdge((line, col) => {
+    tree.forEachEdge(e => {
       // The user sees the EdgeTriplet, so we can't reuse it and must create one per edge.
       val triplet = new EdgeTriplet[V, E]
-      triplet.srcId = line + lineOffset
-      triplet.dstId = col + colOffset
-      triplet.srcAttr = vertexAttrs(line + lineOffset)
-      triplet.dstAttr = vertexAttrs(col + colOffset)
+      triplet.srcId = e.line + lineOffset
+      triplet.dstId = e.col + colOffset
+      triplet.srcAttr = vertexAttrs(e.line + lineOffset)
+      triplet.dstAttr = vertexAttrs(e.col + colOffset)
       triplet.attr = edgeAttrs(i)
 
       if (vpred(triplet.srcId, triplet.srcAttr) && vpred(triplet.dstId, triplet.dstAttr) && epred(triplet)) {
@@ -212,9 +209,9 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       override def hasNext: Boolean = iterator.hasNext
 
       override def next(): Edge[E] = {
-        val (_, line, col) = iterator.next()
-        edge.srcId = line + lineOffset
-        edge.dstId = col + colOffset
+        val nextEdge = iterator.next()
+        edge.srcId = nextEdge.line + lineOffset
+        edge.dstId = nextEdge.col + colOffset
         edge.attr = edgeAttrs(pos)
         pos += 1
         edge
@@ -237,10 +234,10 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       override def hasNext: Boolean = iterator.hasNext
 
       override def next(): PKEdge[E] = {
-        val (index, line, col) = iterator.next()
-        edge.index = index
-        edge.line = line + lineOffset
-        edge.col = col + colOffset
+        val nextEdge = iterator.next()
+        edge.index = nextEdge.index
+        edge.line = nextEdge.line + lineOffset
+        edge.col = nextEdge.col + colOffset
         edge.attr = edgeAttrs(pos)
         pos += 1
         edge
@@ -266,17 +263,17 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       override def next(): EdgeTriplet[V, E] = {
         val triplet = new EdgeTriplet[V, E]
 
-        val (_, line, col) = iterator.next()
-        triplet.srcId = line + lineOffset
-        triplet.dstId = col + colOffset
+        val edge = iterator.next()
+        triplet.srcId = edge.line + lineOffset
+        triplet.dstId = edge.col + colOffset
         triplet.attr = edgeAttrs(pos)
 
         if (includeSrc) {
-          triplet.srcAttr = vertexAttrs(line + lineOffset)
+          triplet.srcAttr = vertexAttrs(edge.line + lineOffset)
         }
 
         if (includeDst) {
-          triplet.dstAttr = vertexAttrs(col + colOffset)
+          triplet.dstAttr = vertexAttrs(edge.col + colOffset)
         }
 
         pos += 1

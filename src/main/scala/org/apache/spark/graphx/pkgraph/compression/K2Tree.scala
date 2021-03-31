@@ -4,8 +4,6 @@ import org.apache.spark.util.collection.BitSet
 import org.apache.spark.graphx.pkgraph.util.collection.BitSetExtensions
 import org.apache.spark.graphx.pkgraph.util.mathx
 
-import scala.collection.mutable.ArrayBuffer
-
 class K2Tree(
     val k: Int,
     val size: Int,
@@ -34,12 +32,13 @@ class K2Tree(
     *
     * @return sequence of edges encoded in this K²-Tree
     */
-  def edges: Seq[(Int, Int)] = {
-    val buffer = new ArrayBuffer[(Int, Int)]
-    forEachEdge((line, col) => buffer += ((line, col)))
-    buffer
-  }
+  def edges: Seq[(Int, Int)] = iterator.map(e => (e.line, e.col)).toSeq
 
+  /**
+   * Get this tree's iterator.
+   *
+   * @return K²-Tree iterator
+   */
   def iterator: K2TreeIterator = new K2TreeIterator(this)
 
   /**
@@ -160,8 +159,11 @@ class K2Tree(
     *
     * @param f Function called when an edge is found
     */
-  def forEachEdge(f: (Int, Int) => Unit): Unit = {
-    iterateEdges(f, size, 0, 0, -1)
+  def forEachEdge(f: K2TreeEdge => Unit): Unit = {
+    val it = iterator
+    while(it.hasNext) {
+      f(it.next())
+    }
   }
 
   /**
@@ -170,33 +172,6 @@ class K2Tree(
     * @return K²-Tree which iterates the edges in reverse order
     */
   final def reverse: K2Tree = new ReversedK2Tree(this)
-
-  /**
-    * Recursive function to iterate through all edges in this K²-Tree.
-    *
-    * @param f        Function called when a edge is found
-    * @param currSize Current size of the adjacency matrix
-    * @param line     Line of the edge in the current level
-    * @param col      Column of the edge in the current level
-    * @param pos      Current position in the bitsets
-    */
-  protected def iterateEdges(f: (Int, Int) => Unit, currSize: Int, line: Int, col: Int, pos: Int): Unit = {
-    if (pos >= internalCount) { // Is leaf node
-      if (bits.get(pos)) {
-        f(line, col)
-        return
-      }
-    } else {
-      if (pos == -1 || bits.get(pos)) {
-        val y = rank(pos) * k * k
-        val newSize = currSize / k
-
-        for (i <- 0 until k * k) {
-          iterateEdges(f, newSize, line * k + i / k, col * k + i % k, y + i)
-        }
-      }
-    }
-  }
 
   /**
     * Rank operation of the K²-Tree.

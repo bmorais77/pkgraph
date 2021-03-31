@@ -24,8 +24,8 @@ class K2TreeIteratorSpec extends FlatSpec {
     val buffer = new ArrayBuffer[(Int, Int)](tree.edgeCount)
     val iterator = new K2TreeIterator(tree)
     while(iterator.hasNext) {
-      val (_, line, col) = iterator.next()
-      buffer.append((line, col))
+      val edge = iterator.next()
+      buffer.append((edge.line, edge.col))
     }
 
     val edgesFound: Array[(Int, Int)] = buffer.toArray
@@ -51,8 +51,8 @@ class K2TreeIteratorSpec extends FlatSpec {
     val buffer = new ArrayBuffer[(Int, Int)](tree.edgeCount)
     val iterator = new K2TreeIterator(tree,  true)
     while(iterator.hasNext) {
-      val (_, line, col) = iterator.next()
-      buffer.append((line, col))
+      val edge = iterator.next()
+      buffer.append((edge.line, edge.col))
     }
 
     val edgesFound: Array[(Int, Int)] = buffer.toArray
@@ -77,8 +77,8 @@ class K2TreeIteratorSpec extends FlatSpec {
     val buffer = new ArrayBuffer[(Int, Int)](tree.edgeCount)
     val iterator = new K2TreeIterator(tree)
     while(iterator.hasNext) {
-      val (_, line, col) = iterator.next()
-      buffer.append((line, col))
+      val edge = iterator.next()
+      buffer.append((edge.line, edge.col))
     }
 
     val edgesFound: Array[(Int, Int)] = buffer.toArray
@@ -103,8 +103,8 @@ class K2TreeIteratorSpec extends FlatSpec {
     val buffer = new ArrayBuffer[(Int, Int)](tree.edgeCount)
     val iterator = new K2TreeIterator(tree, true)
     while(iterator.hasNext) {
-      val (_, line, col) = iterator.next()
-      buffer.append((line, col))
+      val edge = iterator.next()
+      buffer.append((edge.line, edge.col))
     }
 
     val edgesFound: Array[(Int, Int)] = buffer.toArray
@@ -134,8 +134,8 @@ class K2TreeIteratorSpec extends FlatSpec {
     val buffer = new ArrayBuffer[(Int, Int)](tree.edgeCount)
     val iterator = new K2TreeIterator(tree)
     while(iterator.hasNext) {
-      val (_, line, col) = iterator.next()
-      buffer.append((line, col))
+      val edge = iterator.next()
+      buffer.append((edge.line, edge.col))
     }
 
     val edgesFound: Array[(Int, Int)] = buffer.toArray
@@ -165,8 +165,8 @@ class K2TreeIteratorSpec extends FlatSpec {
     val buffer = new ArrayBuffer[(Int, Int)](tree.edgeCount)
     val iterator = new K2TreeIterator(tree, true)
     while(iterator.hasNext) {
-      val (_, line, col) = iterator.next()
-      buffer.append((line, col))
+      val edge = iterator.next()
+      buffer.append((edge.line, edge.col))
     }
 
     val edgesFound: Array[(Int, Int)] = buffer.toArray
@@ -196,8 +196,8 @@ class K2TreeIteratorSpec extends FlatSpec {
     val buffer = new ArrayBuffer[(Int, Int)](tree.edgeCount)
     val iterator = new K2TreeIterator(tree)
     while(iterator.hasNext) {
-      val (_, line, col) = iterator.next()
-      buffer.append((line, col))
+      val edge = iterator.next()
+      buffer.append((edge.line, edge.col))
     }
 
     val edgesFound: Array[(Int, Int)] = buffer.toArray
@@ -227,8 +227,8 @@ class K2TreeIteratorSpec extends FlatSpec {
     val buffer = new ArrayBuffer[(Int, Int)](tree.edgeCount)
     val iterator = new K2TreeIterator(tree, true)
     while(iterator.hasNext) {
-      val (_, line, col) = iterator.next()
-      buffer.append((line, col))
+      val edge = iterator.next()
+      buffer.append((edge.line, edge.col))
     }
 
     val edgesFound: Array[(Int, Int)] = buffer.toArray
@@ -269,8 +269,8 @@ class K2TreeIteratorSpec extends FlatSpec {
     val buffer = new ArrayBuffer[(Int, Int)](tree.edgeCount)
     val iterator = new K2TreeIterator(tree)
     while(iterator.hasNext) {
-      val (_, line, col) = iterator.next()
-      buffer.append((line, col))
+      val edge = iterator.next()
+      buffer.append((edge.line, edge.col))
     }
 
     val edgesFound: Array[(Int, Int)] = buffer.toArray
@@ -311,8 +311,8 @@ class K2TreeIteratorSpec extends FlatSpec {
     val buffer = new ArrayBuffer[(Int, Int)](tree.edgeCount)
     val iterator = new K2TreeIterator(tree, true)
     while(iterator.hasNext) {
-      val (_, line, col) = iterator.next()
-      buffer.append((line, col))
+      val edge = iterator.next()
+      buffer.append((edge.line, edge.col))
     }
 
     val edgesFound: Array[(Int, Int)] = buffer.toArray
@@ -353,8 +353,8 @@ class K2TreeIteratorSpec extends FlatSpec {
     val buffer = new ArrayBuffer[(Int, Int)](tree.edgeCount)
     val iterator = new K2TreeIterator(tree)
     while(iterator.hasNext) {
-      val (_, line, col) = iterator.next()
-      buffer.append((line, col))
+      val edge = iterator.next()
+      buffer.append((edge.line, edge.col))
     }
 
     val edgesFound: Array[(Int, Int)] = buffer.toArray
@@ -395,8 +395,8 @@ class K2TreeIteratorSpec extends FlatSpec {
     val buffer = new ArrayBuffer[(Int, Int)](tree.edgeCount)
     val iterator = new K2TreeIterator(tree, true)
     while(iterator.hasNext) {
-      val (_, line, col) = iterator.next()
-      buffer.append((line, col))
+      val edge = iterator.next()
+      buffer.append((edge.line, edge.col))
     }
 
     val edgesFound: Array[(Int, Int)] = buffer.toArray
