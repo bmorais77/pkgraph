@@ -19,3 +19,15 @@ case class K2TreeIndex private[compression](indices: Array[Int]) extends Ordered
     0
   }
 }
+
+object K2TreeIndex {
+  def fromEdge(k: Int, height: Int, line: Int, col: Int): K2TreeIndex = {
+    val indices = new Array[Int](height)
+    var i = height - 1
+    while(i >= 0) {
+      indices(i) = (line % k) * k + (col % k)
+      i -= 1
+    }
+    K2TreeIndex(indices)
+  }
+}

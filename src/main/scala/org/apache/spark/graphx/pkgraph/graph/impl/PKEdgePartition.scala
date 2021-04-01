@@ -2,9 +2,11 @@ package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.graphx._
 import org.apache.spark.graphx.impl.EdgeActiveness
-import org.apache.spark.graphx.pkgraph.compression.K2Tree
+import org.apache.spark.graphx.pkgraph.compression.{K2Tree, K2TreeBuilder, K2TreeIndex}
+import org.apache.spark.graphx.pkgraph.util.mathx
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
@@ -23,6 +25,84 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     */
   def withoutVertexAttributes[V2: ClassTag](): PKEdgePartition[V2, E] = {
     new PKEdgePartition(Map.empty[VertexId, V2], edgeAttrs, tree, lineOffset, colOffset)
+  }
+
+  /**
+    * Returns a new [[PKEdgePartition]] with the given edges added.
+    *
+    * @param edges Edges to add
+    * @return new partition with edges added
+    */
+  def addEdges(edges: Iterator[Edge[E]]): PKEdgePartition[V, E] = {
+    var newLineOffset = lineOffset
+    var newColOffset = colOffset
+    var newLineEnd = lineOffset + tree.size
+    var newColEnd = colOffset + tree.size
+
+    // Traverse edges to check if there are any behind the virtual origin (lineOffset, colOffset) or
+    // after the size of the current matrix
+    val newEdges = new ArrayBuffer[Edge[E]]
+    for(edge <- edges) {
+      newLineOffset = math.min(edge.srcId, lineOffset)
+      newColOffset = math.min(edge.dstId, colOffset)
+      newLineEnd = math.max(edge.srcId, newLineEnd)
+      newColEnd = math.max(edge.dstId, newColEnd)
+      newEdges += edge
+    }
+
+    var newTree = tree
+
+    // Check if new edges are behind virtual origin
+    if(newLineOffset < lineOffset || newColOffset < colOffset) {
+      // TODO: Grow K²-Tree to the left and up
+      newTree = tree
+    }
+
+    // Check if new edges are after the end of the adjacency matrix
+    if(newLineEnd > lineOffset + tree.size || newColEnd > colOffset + tree.size) {
+      // We need to first grow the tree
+      var newSize = math.max(newLineEnd - newLineOffset, newColEnd - newColOffset).toInt
+
+      // Size is not a power of K, so we need to find the nearest power
+      if (newSize % tree.k != 0) {
+        val exp = math.ceil(mathx.log(tree.k, newSize))
+        newSize = math.pow(tree.k, exp).toInt
+      }
+
+      newTree = tree.grow(newSize)
+    }
+
+    // Add existing edges
+    var i = 0
+    val newEdgeAttrs = new mutable.TreeSet[(K2TreeIndex, E)]()((a, b) => a._1.compare(b._1))
+    for(edge <- newTree.iterator) {
+      newEdgeAttrs.add((edge.index, edgeAttrs(i)))
+      i += 1
+    }
+
+    val builder = newTree.toBuilder
+
+    // Traverse edges again and add them to the builder
+    for(edge <- newEdges) {
+      val line = (edge.srcId - newLineOffset).toInt
+      val col = (edge.dstId - newColOffset).toInt
+      builder.addEdge(line, col)
+      newEdgeAttrs.add((K2TreeIndex.fromEdge(builder.k, builder.height, line, col), edge.attr))
+    }
+
+    val attrs = newEdgeAttrs.map(_._2).toArray
+    new PKEdgePartition[V, E](vertexAttrs, attrs, builder.build, newLineOffset, newColOffset)
+  }
+
+  /**
+    * Returns new [[PKEdgePartition]] with the given edges removed.
+    *
+    * @param edges Edges to remove
+    * @return new partition with edges removed
+    */
+  def removeEdges(edges: Iterator[Edge[E]]): PKEdgePartition[V, E] = {
+    // TODO: Implement
+    this
   }
 
   /**
@@ -113,7 +193,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @return edge partition containing only edges and vertices that match the predicate
     */
   def filter(epred: EdgeTriplet[V, E] => Boolean, vpred: (VertexId, V) => Boolean): PKEdgePartition[V, E] = {
-    // TODO: Optimize using an ExistingPKEdgePartitionBuilder to reuse already computed data
+    // TODO: Optimize using an ExistingPKEdgePartitionBuilder to reuse already computed data?
     val builder = new PKEdgePartitionBuilder[V, E](tree.k)
     var i = 0
 
@@ -226,7 +306,8 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     *
     * @return an iterator over edges in the partition
     */
-  def iteratorWithIndex: Iterator[PKEdge[E]] = new Iterator[PKEdge[E]] {
+  def iteratorWithIndex: Iterator[PKEdge[E]] =
+    new Iterator[PKEdge[E]] {
       private val iterator = tree.iterator
       private val edge = new PKEdge[E]
       private var pos = 0

@@ -21,10 +21,10 @@ class K2Tree(
   def length: Int = internalCount + leavesCount
 
   /**
-   * Get the height of this K²-Tree
-   *
-   * @return height
-   */
+    * Get the height of this K²-Tree
+    *
+    * @return height
+    */
   def height: Int = math.ceil(mathx.log(k, size)).toInt
 
   /**
@@ -35,10 +35,10 @@ class K2Tree(
   def edges: Seq[(Int, Int)] = iterator.map(e => (e.line, e.col)).toSeq
 
   /**
-   * Get this tree's iterator.
-   *
-   * @return K²-Tree iterator
-   */
+    * Get this tree's iterator.
+    *
+    * @return K²-Tree iterator
+    */
   def iterator: K2TreeIterator = new K2TreeIterator(this)
 
   /**
@@ -49,10 +49,9 @@ class K2Tree(
     * @return new K²-Tree from appending the given edges to the existing tree
     */
   def addAll(newSize: Int, edges: Array[(Int, Int)]): K2Tree = {
-    K2TreeBuilder
-      .fromK2Tree(grow(newSize))
-      .addEdges(edges)
-      .build()
+    val builder = K2TreeBuilder.fromK2Tree(grow(newSize))
+    builder.addEdges(edges)
+    builder.build
   }
 
   /**
@@ -62,11 +61,9 @@ class K2Tree(
     * @return new K²-Tree with the given edges removed
     */
   def removeAll(edges: Array[(Int, Int)]): K2Tree = {
-    K2TreeBuilder
-      .fromK2Tree(this)
-      .removeEdges(edges)
-      .build()
-      .trim()
+    val builder = K2TreeBuilder.fromK2Tree(this)
+    builder.removeEdges(edges)
+    builder.build
   }
 
   /**
@@ -161,7 +158,7 @@ class K2Tree(
     */
   def forEachEdge(f: K2TreeEdge => Unit): Unit = {
     val it = iterator
-    while(it.hasNext) {
+    while (it.hasNext) {
       f(it.next())
     }
   }
@@ -172,6 +169,13 @@ class K2Tree(
     * @return K²-Tree which iterates the edges in reverse order
     */
   final def reverse: K2Tree = new ReversedK2Tree(this)
+
+  /**
+   * Returns a [[K2TreeBuilder]] with the edges from this tree already added.
+   *
+   * @return [[K2TreeBuilder]] from this tree
+   */
+  final def toBuilder: K2TreeBuilder = K2TreeBuilder.fromK2Tree(this)
 
   /**
     * Rank operation of the K²-Tree.
@@ -195,8 +199,8 @@ object K2Tree {
     * @return compressed K²-Tree
     */
   def apply(k: Int, size: Int, edges: Array[(Int, Int)]): K2Tree = {
-    K2TreeBuilder(k, size)
-      .addEdges(edges)
-      .build()
+    val builder = K2TreeBuilder(k, size)
+    builder.addEdges(edges)
+    builder.build
   }
 }
