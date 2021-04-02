@@ -2,7 +2,7 @@ package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.graphx._
 import org.apache.spark.graphx.impl.EdgeActiveness
-import org.apache.spark.graphx.pkgraph.compression.{K2Tree, K2TreeBuilder, K2TreeIndex}
+import org.apache.spark.graphx.pkgraph.compression.{K2Tree, K2TreeIndex}
 import org.apache.spark.graphx.pkgraph.util.mathx
 
 import scala.collection.mutable
@@ -122,8 +122,6 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     new PKEdgePartition(newVertexAttrs.toMap, edgeAttrs, tree, lineOffset, colOffset)
   }
 
-  // TODO: Maybe implement an existing partition builder
-
   /**
     * Reverse all the edges in this partition.
     *
@@ -193,7 +191,6 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @return edge partition containing only edges and vertices that match the predicate
     */
   def filter(epred: EdgeTriplet[V, E] => Boolean, vpred: (VertexId, V) => Boolean): PKEdgePartition[V, E] = {
-    // TODO: Optimize using an ExistingPKEdgePartitionBuilder to reuse already computed data?
     val builder = new PKEdgePartitionBuilder[V, E](tree.k)
     var i = 0
 
@@ -224,9 +221,6 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
   def foreach(f: Edge[E] => Unit): Unit = {
     iterator.foreach(f)
   }
-
-  // TODO: When adding an edge, check if its repeated, if true then merge attributes
-  // TODO: May need to order edges before adding
 
   /**
     * Apply `f` to all edges present in both `this` and `other` and return a new `PKEdgePartition`
@@ -362,8 +356,6 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       }
     }
 
-  // TODO: Implement
-
   /**
     * Send messages along edges and aggregate them at the receiving vertices. Implemented by scanning
     * all edges sequentially.
@@ -380,7 +372,17 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       mergeMsg: (A, A) => A,
       tripletFields: TripletFields,
       activeness: EdgeActiveness
-  ): Iterator[(VertexId, A)] = ???
+  ): Iterator[(VertexId, A)] = {
+    val ctx = PKAggregatingEdgeContext[V, E, A](mergeMsg)
+    for(edge <- iterator) {
+      // TODO: Maybe support EdgeActiveness?
+      val srcAttr = if (tripletFields.useSrc) vertexAttrs(edge.srcId) else null.asInstanceOf[V]
+      val dstAttr = if (tripletFields.useDst) vertexAttrs(edge.dstId) else null.asInstanceOf[V]
+      ctx.set(edge.srcId, edge.dstId, srcAttr, dstAttr, edge.attr)
+      sendMsg(ctx)
+    }
+    ctx.iterator
+  }
 
   /**
     * Return a new edge partition with the specified edge data.
