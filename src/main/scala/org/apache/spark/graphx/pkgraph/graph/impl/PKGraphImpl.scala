@@ -1,7 +1,6 @@
 package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.HashPartitioner
-import org.apache.spark.graphx.impl.EdgeActiveness
 import org.apache.spark.graphx._
 import org.apache.spark.graphx.pkgraph.graph.{PKEdgeRDD, PKGraph, PKVertexRDD}
 import org.apache.spark.rdd.RDD
@@ -9,7 +8,7 @@ import org.apache.spark.storage.StorageLevel
 
 import scala.reflect.{ClassTag, classTag}
 
-class PKGraphImpl[V: ClassTag, E: ClassTag] private(
+class PKGraphImpl[V: ClassTag, E: ClassTag] private (
     override val vertices: PKVertexRDD[V],
     val replicatedVertexView: PKReplicatedVertexView[V, E]
 ) extends PKGraph[V, E] {
@@ -359,29 +358,9 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private(
     // in the relevant position in an edge.
     replicatedVertexView.upgrade(vertices, tripletFields.useSrc, tripletFields.useDst)
 
-    // TODO: Check if the active set is necessary for our solution
-    val activeDirectionOpt: Option[EdgeDirection] = None
-
     // Map and combine.
     val preAgg = replicatedVertexView.edges
-      .mapEdgePartitions(_.flatMap {
-        case (_, edgePartition) =>
-          // Choose scan method
-          activeDirectionOpt match {
-            case Some(EdgeDirection.Both) =>
-              edgePartition.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
-            case Some(EdgeDirection.Either) =>
-              // TODO: Because we only have a clustered index on the source vertex ID, we can't filter
-              // the index here. Instead we have to scan all edges and then do the filter.
-              edgePartition.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
-            case Some(EdgeDirection.Out) =>
-              edgePartition.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
-            case Some(EdgeDirection.In) =>
-              edgePartition.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
-            case _ => // None
-              edgePartition.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Neither)
-          }
-      })
+      .mapEdgePartitions(_.flatMap { _._2.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields) })
       .setName("PKGraph.aggregateMessages - preAgg")
 
     // do the final reduction reusing the index map
@@ -494,7 +473,10 @@ object PKGraphImpl {
     * @tparam E Edge attribute type
     * @return new [[PKGraphImpl]] from existing vertex and edge RDDs
     */
-  def fromExistingRDDs[V: ClassTag, E: ClassTag](vertices: VertexRDD[V], edges: PKEdgeRDDImpl[V, E]): PKGraphImpl[V, E] = {
+  def fromExistingRDDs[V: ClassTag, E: ClassTag](
+      vertices: VertexRDD[V],
+      edges: PKEdgeRDDImpl[V, E]
+  ): PKGraphImpl[V, E] = {
     new PKGraphImpl(new PKVertexRDDImpl(vertices), new PKReplicatedVertexView(edges))
   }
 }

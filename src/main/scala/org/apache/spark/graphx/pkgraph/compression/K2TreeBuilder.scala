@@ -61,22 +61,13 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
   }
 
   /**
-    * Adds the given edges.
+    * Removes the given edge.
+    * If the edge does not exist in the current builder the resulting K²-Tree will still be correct.
     *
-    * @param edges Sequence of edges to add
+    * @param line Line of the edge (Source)
+    * @param col Column of the edge (Destination)
     */
-  def addEdges(edges: Seq[(Int, Int)]): Unit = {
-    edges.foreach(Function.tupled(addEdge))
-  }
-
-  /**
-    * Removes the given edges.
-    * If the edges do not exist in the current builder the resulting K²-Tree
-    * will still be correct.
-    *
-    * @param edges Sequence of edges to remove
-    */
-  def removeEdges(edges: Seq[(Int, Int)]): Unit = {
+  def removeEdge(line: Int, col: Int): Unit = {
     def tracePath(path: Array[(Int, Int)], h: Int, line: Int, col: Int): Int = {
       if (h == 0) {
         return 0
@@ -106,14 +97,28 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
       }
     }
 
-    for ((line, col) <- edges) {
-      // Keeps track of the path we traversed in the tree
-      val path = new Array[(Int, Int)](height)
-      tracePath(path, height, line, col)
-      updateBits(path)
-      edgeCount -= 1
-    }
+    // Keeps track of the path we traversed in the tree
+    val path = new Array[(Int, Int)](height)
+    tracePath(path, height, line, col)
+    updateBits(path)
+    edgeCount -= 1
   }
+
+  /**
+    * Adds the given edges.
+    *
+    * @param edges Sequence of edges to add
+    */
+  def addEdges(edges: Seq[(Int, Int)]): Unit = edges.foreach(Function.tupled(addEdge))
+
+  /**
+    * Removes the given edges.
+    * If the edges do not exist in the current builder the resulting K²-Tree
+    * will still be correct.
+    *
+    * @param edges Sequence of edges to remove
+    */
+  def removeEdges(edges: Seq[(Int, Int)]): Unit = edges.foreach(Function.tupled(removeEdge))
 
   /**
     * Builds a compressed K²-Tree representation from this builder.

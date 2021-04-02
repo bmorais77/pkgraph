@@ -3,7 +3,7 @@ package org.apache.spark.graphx.pkgraph.graph.impl
 import org.apache.spark.graphx.pkgraph.util.collection.PrimitiveHashMap
 import org.apache.spark.graphx.{EdgeContext, VertexId}
 
-import scala.collection.mutable
+import scala.reflect.ClassTag
 
 private[impl] class PKAggregatingEdgeContext[V, E, A] private (
     mergeMsg: (A, A) => A,
@@ -56,6 +56,6 @@ private[impl] class PKAggregatingEdgeContext[V, E, A] private (
 }
 
 object PKAggregatingEdgeContext {
-  def apply[V, E, A](mergeMsg: (A, A) => A): PKAggregatingEdgeContext[V, E, A] =
+  def apply[V, E, A: ClassTag](mergeMsg: (A, A) => A): PKAggregatingEdgeContext[V, E, A] =
     new PKAggregatingEdgeContext(mergeMsg, new PrimitiveHashMap[VertexId, A])
 }

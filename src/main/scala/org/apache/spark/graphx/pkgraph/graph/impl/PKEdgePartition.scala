@@ -42,7 +42,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     // Traverse edges to check if there are any behind the virtual origin (lineOffset, colOffset) or
     // after the size of the current matrix
     val newEdges = new ArrayBuffer[Edge[E]]
-    for(edge <- edges) {
+    for (edge <- edges) {
       newLineOffset = math.min(edge.srcId, lineOffset)
       newColOffset = math.min(edge.dstId, colOffset)
       newLineEnd = math.max(edge.srcId, newLineEnd)
@@ -53,13 +53,13 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     var newTree = tree
 
     // Check if new edges are behind virtual origin
-    if(newLineOffset < lineOffset || newColOffset < colOffset) {
+    if (newLineOffset < lineOffset || newColOffset < colOffset) {
       // TODO: Grow K²-Tree to the left and up
       newTree = tree
     }
 
     // Check if new edges are after the end of the adjacency matrix
-    if(newLineEnd > lineOffset + tree.size || newColEnd > colOffset + tree.size) {
+    if (newLineEnd > lineOffset + tree.size || newColEnd > colOffset + tree.size) {
       // We need to first grow the tree
       var newSize = math.max(newLineEnd - newLineOffset, newColEnd - newColOffset).toInt
 
@@ -75,7 +75,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     // Add existing edges
     var i = 0
     val newEdgeAttrs = new mutable.TreeSet[(K2TreeIndex, E)]()((a, b) => a._1.compare(b._1))
-    for(edge <- newTree.iterator) {
+    for (edge <- newTree.iterator) {
       newEdgeAttrs.add((edge.index, edgeAttrs(i)))
       i += 1
     }
@@ -83,7 +83,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     val builder = newTree.toBuilder
 
     // Traverse edges again and add them to the builder
-    for(edge <- newEdges) {
+    for (edge <- newEdges) {
       val line = (edge.srcId - newLineOffset).toInt
       val col = (edge.dstId - newColOffset).toInt
       builder.addEdge(line, col)
@@ -101,8 +101,25 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @return new partition with edges removed
     */
   def removeEdges(edges: Iterator[Edge[E]]): PKEdgePartition[V, E] = {
-    // TODO: Implement
-    this
+    // Build edge attribute sorted map to keep track of removed attributes
+    val attrs = new mutable.LinkedHashMap[Int, E]
+    var i = 0
+    for(edge <- tree.iterator) {
+      attrs(edge.line * tree.size + edge.col) = edgeAttrs(i)
+      i += 1
+    }
+
+    val builder = tree.toBuilder
+    for(edge <- edges) {
+      val line = (edge.srcId - lineOffset).toInt
+      val col = (edge.dstId - colOffset).toInt
+      builder.removeEdge(line, col)
+      attrs.remove(line * tree.size + col)
+    }
+
+    val newAttrs = attrs.values.toArray
+    val newTree = builder.build.trim()
+    new PKEdgePartition[V, E](vertexAttrs, newAttrs, newTree, lineOffset, colOffset)
   }
 
   /**
@@ -356,6 +373,9 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       }
     }
 
+  // TODO: Maybe implement an aggregateAllMessages that does not need the sendMsg callback to aggregate
+  // TODO: all messages effectively using the K²-Tree
+
   /**
     * Send messages along edges and aggregate them at the receiving vertices. Implemented by scanning
     * all edges sequentially.
@@ -363,18 +383,16 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @param sendMsg generates messages to neighboring vertices of an edge
     * @param mergeMsg the combiner applied to messages destined to the same vertex
     * @param tripletFields which triplet fields `sendMsg` uses
-    * @param activeness criteria for filtering edges based on activeness
     *
     * @return iterator aggregated messages keyed by the receiving vertex id
     */
   def aggregateMessagesEdgeScan[A: ClassTag](
       sendMsg: EdgeContext[V, E, A] => Unit,
       mergeMsg: (A, A) => A,
-      tripletFields: TripletFields,
-      activeness: EdgeActiveness
+      tripletFields: TripletFields
   ): Iterator[(VertexId, A)] = {
     val ctx = PKAggregatingEdgeContext[V, E, A](mergeMsg)
-    for(edge <- iterator) {
+    for (edge <- iterator) {
       // TODO: Maybe support EdgeActiveness?
       val srcAttr = if (tripletFields.useSrc) vertexAttrs(edge.srcId) else null.asInstanceOf[V]
       val dstAttr = if (tripletFields.useDst) vertexAttrs(edge.dstId) else null.asInstanceOf[V]
