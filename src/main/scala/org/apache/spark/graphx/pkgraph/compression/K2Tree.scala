@@ -10,7 +10,6 @@ class K2Tree(
     val bits: BitSet,
     val internalCount: Int,
     val leavesCount: Int,
-    val edgeCount: Int
 ) {
 
   /**
@@ -26,6 +25,13 @@ class K2Tree(
     * @return height
     */
   def height: Int = math.ceil(mathx.log(k, size)).toInt
+
+  /**
+   * Returns whether this tree is empty or not.
+   *
+   * @return true if tree has no edges, false otherwise
+   */
+  def isEmpty: Boolean = leavesCount == 0
 
   /**
     * Collect the edges encoded in this K²-Tree
@@ -96,7 +102,7 @@ class K2Tree(
       }
     }
 
-    new K2Tree(k, newSize, tree, internalOffset + internalCount, leavesCount, edgeCount)
+    new K2Tree(k, newSize, tree, internalOffset + internalCount, leavesCount)
   }
 
   /**
@@ -147,20 +153,8 @@ class K2Tree(
     }
 
     // Keep trying to trim the tree
-    val newTree = new K2Tree(k, size / k, tree, internalCount - k2, leavesCount, edgeCount)
+    val newTree = new K2Tree(k, size / k, tree, internalCount - k2, leavesCount)
     newTree.trim()
-  }
-
-  /**
-    * Iterates all edges in this tree and calls the given function for each edge.
-    *
-    * @param f Function called when an edge is found
-    */
-  def forEachEdge(f: K2TreeEdge => Unit): Unit = {
-    val it = iterator
-    while (it.hasNext) {
-      f(it.next())
-    }
   }
 
   /**

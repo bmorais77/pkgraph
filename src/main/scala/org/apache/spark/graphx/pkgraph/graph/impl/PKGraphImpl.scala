@@ -142,7 +142,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
       .mapPartitionsWithIndex(
         { (pid: Int, iter: Iterator[(PartitionID, (VertexId, VertexId, E))]) =>
           // TODO: Partition builder defaults to K=2, maybe this should be an option on the graph constructor
-          val builder = new PKEdgePartitionBuilder[V, E](2)(vTag, eTag)
+          val builder = PKEdgePartitionBuilder[V, E](2)(vTag, eTag)
           iter.foreach { message =>
             val data = message._2
             builder.add(data._1, data._2, data._3)

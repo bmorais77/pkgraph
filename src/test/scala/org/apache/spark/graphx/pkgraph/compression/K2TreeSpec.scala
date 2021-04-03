@@ -1,5 +1,6 @@
 package org.apache.spark.graphx.pkgraph.compression
 
+import org.apache.spark.graphx.pkgraph.util.TestUtils.assertBitSet
 import org.apache.spark.util.collection.BitSet
 import org.scalatest.FlatSpec
 
@@ -481,13 +482,5 @@ class K2TreeSpec extends FlatSpec {
 
     val treeEdges = tree.edges
     assert(edges sameElements treeEdges)
-  }
-
-  private def assertBitSet(bits: BitSet, binary: String): Unit = {
-    val compactBinary = binary.replaceAll("\\s", "")
-    for (i <- 0 until compactBinary.length) {
-      val bit = compactBinary.charAt(i) == '1'
-      assert(bits.get(i) == bit, s"bit $i on bitset did not match bit in value")
-    }
   }
 }

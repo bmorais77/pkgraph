@@ -3,6 +3,7 @@ package org.apache.spark.graphx.pkgraph.graph.impl
 import org.apache.spark.graphx._
 import org.apache.spark.graphx.impl.EdgeActiveness
 import org.apache.spark.graphx.pkgraph.compression.{K2Tree, K2TreeIndex}
+import org.apache.spark.graphx.pkgraph.util.collection.PrimitiveHashMap
 import org.apache.spark.graphx.pkgraph.util.mathx
 
 import scala.collection.mutable
@@ -10,11 +11,11 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
-    vertexAttrs: Map[VertexId, V],
-    edgeAttrs: Array[E],
-    tree: K2Tree,
-    lineOffset: Long,
-    colOffset: Long
+    val vertexAttrs: PrimitiveHashMap[VertexId, V],
+    val edgeAttrs: Array[E],
+    val tree: K2Tree,
+    val lineOffset: Long,
+    val colOffset: Long
 ) {
 
   /**
@@ -24,7 +25,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @return edge partition without cached vertices
     */
   def withoutVertexAttributes[V2: ClassTag](): PKEdgePartition[V2, E] = {
-    new PKEdgePartition(Map.empty[VertexId, V2], edgeAttrs, tree, lineOffset, colOffset)
+    new PKEdgePartition(new PrimitiveHashMap[VertexId, V2], edgeAttrs, tree, lineOffset, colOffset)
   }
 
   /**
@@ -87,10 +88,12 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       val line = (edge.srcId - newLineOffset).toInt
       val col = (edge.dstId - newColOffset).toInt
       builder.addEdge(line, col)
-      newEdgeAttrs.add((K2TreeIndex.fromEdge(builder.k, builder.height, line, col), edge.attr))
+
+      val index = K2TreeIndex.fromEdge(builder.k, builder.height, line, col)
+      newEdgeAttrs.add((index, edge.attr))
     }
 
-    val attrs = newEdgeAttrs.map(_._2).toArray
+    val attrs = newEdgeAttrs.toArray.map(_._2)
     new PKEdgePartition[V, E](vertexAttrs, attrs, builder.build, newLineOffset, newColOffset)
   }
 
@@ -102,15 +105,17 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     */
   def removeEdges(edges: Iterator[Edge[E]]): PKEdgePartition[V, E] = {
     // Build edge attribute sorted map to keep track of removed attributes
+    val iterator = tree.iterator
     val attrs = new mutable.LinkedHashMap[Int, E]
     var i = 0
-    for(edge <- tree.iterator) {
+    while (i < edgeAttrs.length && iterator.hasNext) {
+      val edge = iterator.next()
       attrs(edge.line * tree.size + edge.col) = edgeAttrs(i)
       i += 1
     }
 
     val builder = tree.toBuilder
-    for(edge <- edges) {
+    for (edge <- edges) {
       val line = (edge.srcId - lineOffset).toInt
       val col = (edge.dstId - colOffset).toInt
       builder.removeEdge(line, col)
@@ -123,20 +128,19 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
   }
 
   /**
-    * Adapted from EdgePartition.scala:
-    *
     * Updates the vertex attributes in this partition with the ones in the given iterator.
     *
     * @param iter Iterator with vertex attributes
-    * @return
+    * @return new [[PKEdgePartition]] with updated vertices
     */
   def updateVertices(iter: Iterator[(VertexId, V)]): PKEdgePartition[V, E] = {
-    val newVertexAttrs = new mutable.OpenHashMap[VertexId, V]() ++= vertexAttrs
     while (iter.hasNext) {
       val (id, attr) = iter.next()
-      newVertexAttrs(id) = attr
+      vertexAttrs.changeValue(id, attr, _ => attr)
     }
-    new PKEdgePartition(newVertexAttrs.toMap, edgeAttrs, tree, lineOffset, colOffset)
+    // TODO: Not sure if we can just give the same reference to `vertexAttrs` or if a copy is needed
+    // TODO: Should be okay since running the method multiple times will result in the same output
+    new PKEdgePartition(vertexAttrs, edgeAttrs, tree, lineOffset, colOffset)
   }
 
   /**
@@ -161,16 +165,12 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     */
   def map[E2: ClassTag](f: Edge[E] => E2): PKEdgePartition[V, E2] = {
     val newData = new Array[E2](edgeAttrs.length)
-    val edge = new Edge[E]()
     var i = 0
 
-    tree.forEachEdge(e => {
-      edge.srcId = e.line + lineOffset
-      edge.dstId = e.col + colOffset
-      edge.attr = edgeAttrs(i)
+    for (edge <- iterator) {
       newData(i) = f(edge)
       i += 1
-    })
+    }
 
     withData(newData)
   }
@@ -208,25 +208,20 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @return edge partition containing only edges and vertices that match the predicate
     */
   def filter(epred: EdgeTriplet[V, E] => Boolean, vpred: (VertexId, V) => Boolean): PKEdgePartition[V, E] = {
-    val builder = new PKEdgePartitionBuilder[V, E](tree.k)
-    var i = 0
-
-    tree.forEachEdge(e => {
+    val builder = PKEdgePartitionBuilder.existing[V, E](tree.k, vertexAttrs)
+    for (edge <- iterator) {
       // The user sees the EdgeTriplet, so we can't reuse it and must create one per edge.
       val triplet = new EdgeTriplet[V, E]
-      triplet.srcId = e.line + lineOffset
-      triplet.dstId = e.col + colOffset
-      triplet.srcAttr = vertexAttrs(e.line + lineOffset)
-      triplet.dstAttr = vertexAttrs(e.col + colOffset)
-      triplet.attr = edgeAttrs(i)
+      triplet.srcId = edge.srcId
+      triplet.dstId = edge.dstId
+      triplet.srcAttr = vertexAttrs(edge.srcId)
+      triplet.dstAttr = vertexAttrs(edge.dstId)
+      triplet.attr = edge.attr
 
       if (vpred(triplet.srcId, triplet.srcAttr) && vpred(triplet.dstId, triplet.dstAttr) && epred(triplet)) {
         builder.add(triplet.srcId, triplet.dstId, triplet.attr)
       }
-
-      i += 1
-    })
-
+    }
     builder.build
   }
 
@@ -256,7 +251,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
   def innerJoin[E2: ClassTag, E3: ClassTag](
       other: PKEdgePartition[_, E2]
   )(f: (VertexId, VertexId, E, E2) => E3): PKEdgePartition[V, E3] = {
-    val builder = new PKEdgePartitionBuilder[V, E3](tree.k)
+    val builder = PKEdgePartitionBuilder[V, E3](tree.k)
     val it1 = iteratorWithIndex
     val it2 = other.iteratorWithIndex
 
@@ -281,10 +276,12 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     *
     * @return size of the partition
     */
-  val size: Int = tree.edgeCount
+  val size: Int = edgeAttrs.length
 
   /**
     * Get an iterator over the edges in this partition.
+    * Note: This iterator can be slightly faster than the [[K2TreeIterator]] because it counts the number of edges,
+    * avoiding having to search the entire tree.
     *
     * Be careful not to keep references to the objects from this iterator.
     * To improve GC performance the same object is re-used in `next()`.
@@ -297,7 +294,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       private val edge = new Edge[E]
       private var pos = 0
 
-      override def hasNext: Boolean = iterator.hasNext
+      override def hasNext: Boolean = pos < edgeAttrs.length && iterator.hasNext
 
       override def next(): Edge[E] = {
         val nextEdge = iterator.next()
@@ -311,6 +308,8 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
 
   /**
     * Get an iterator over the edges in this partition with the edge index included.
+    * Note: This iterator can be slightly faster than the [[K2TreeIterator]] because it counts the number of edges,
+    * avoiding having to search the entire tree.
     *
     * Be careful not to keep references to the objects from this iterator.
     * To improve GC performance the same object is re-used in `next()`.
@@ -323,7 +322,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       private val edge = new PKEdge[E]
       private var pos = 0
 
-      override def hasNext: Boolean = iterator.hasNext
+      override def hasNext: Boolean = pos < edgeAttrs.length && iterator.hasNext
 
       override def next(): PKEdge[E] = {
         val nextEdge = iterator.next()
@@ -338,6 +337,8 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
 
   /**
     * Get an iterator over the edge triplets in this partition.
+    * Note: This iterator can be slightly faster than the [[K2TreeIterator]] because it counts the number of edges,
+    * avoiding having to search the entire tree.
     *
     * It is safe to keep references to the objects from this iterator.
     *
@@ -350,7 +351,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       private val iterator = tree.iterator
       private var pos = 0
 
-      override def hasNext: Boolean = iterator.hasNext
+      override def hasNext: Boolean = pos < edgeAttrs.length && iterator.hasNext
 
       override def next(): EdgeTriplet[V, E] = {
         val triplet = new EdgeTriplet[V, E]

@@ -9,7 +9,6 @@ import scala.collection.mutable
 
 class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet, val length: Int) {
   private val k2 = k * k
-  private var edgeCount: Int = 0
 
   private lazy val levelOffsets = calculateLevelOffsets(k, height)
 
@@ -53,10 +52,6 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
     }
 
     val (_, position) = recursiveNavigation(height, line, col)
-    if (position != -1) {
-      edgeCount += 1
-    }
-
     position
   }
 
@@ -101,7 +96,6 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
     val path = new Array[(Int, Int)](height)
     tracePath(path, height, line, col)
     updateBits(path)
-    edgeCount -= 1
   }
 
   /**
@@ -156,7 +150,7 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
       }
     }
 
-    new K2Tree(k, size, tree, internalCount, leavesCount, edgeCount)
+    new K2Tree(k, size, tree, internalCount, leavesCount)
   }
 
   /**
@@ -216,8 +210,9 @@ object K2TreeBuilder {
       actualSize = math.pow(k, exp).toInt
     }
 
+    val k2 = k * k
     val height = math.ceil(mathx.log(k, actualSize)).toInt
-    val length = (0 to height).reduce((acc, i) => acc + math.pow(k * k, i).toInt)
+    val length = (0 to height).reduce((acc, i) => acc + math.pow(k2, i).toInt)
     new K2TreeBuilder(k, actualSize, height, new BitSet(length), length)
   }
 
@@ -233,40 +228,26 @@ object K2TreeBuilder {
     val k2 = tree.k * tree.k
     val builder = K2TreeBuilder(tree.k, tree.size)
 
-    // Copy the first K² bits, since they belong to the first level which will be the same
-    for (i <- 0 until k2) {
-      if (tree.bits.get(i)) {
-        builder.bits.set(i)
-      }
-    }
+    var builderCursor = -1
+    var bitCursor = 0
+    var treeCursor = 0
 
-    var previousLevelCursor = 0
-    var previousLevelEnd = k2
-    var currentLevelCursor = k2
-    var builderCursor = k2
-
-    for (height <- 2 to builder.height) {
-      // Traverse all bits of previous level
-      while (previousLevelCursor < previousLevelEnd) {
-        if (tree.bits.get(previousLevelCursor)) {
-          // Copy bits from K²-Tree to builder
-          for (i <- currentLevelCursor until currentLevelCursor + k2) {
-            if (tree.bits.get(i)) {
-              builder.bits.set(builderCursor)
-            }
-            builderCursor += 1
+    while(treeCursor < tree.length) {
+      if(builderCursor == -1 || builder.bits.get(builderCursor)) {
+        // Copy next K² bits from tree
+        for (i <- treeCursor until treeCursor + k2) {
+          if (tree.bits.get(i)) {
+            builder.bits.set(bitCursor)
           }
-          currentLevelCursor += k2
-        } else {
-          // Skipping K² bits here is the same as placing K² bits with value zero
-          builderCursor += k2
+          bitCursor += 1
         }
-
-        // Move to next bit in previous level
-        previousLevelCursor += 1
+        treeCursor += k2
+      } else {
+        // Fill builder with K² zeros
+        bitCursor += k2
       }
 
-      previousLevelEnd = previousLevelEnd + math.pow(k2, height).toInt
+      builderCursor += 1
     }
 
     builder

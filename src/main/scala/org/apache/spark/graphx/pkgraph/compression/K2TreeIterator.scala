@@ -4,27 +4,42 @@ import scala.collection.mutable
 
 class K2TreeIterator(tree: K2Tree, reverse: Boolean = false) extends Iterator[K2TreeEdge] {
   private val k2 = tree.k * tree.k
-  private var edgesFound = 0
 
   // Keeps track of the path up to the current node
   // Note: At the top of the stack there will always be the `virtual` root node
   private val path = mutable.Stack(Node(0, 0, -1, -1))
 
-  override def hasNext: Boolean = edgesFound < tree.edgeCount
+  private var currentEdge: Option[K2TreeEdge] = None
+
+  override def hasNext: Boolean = {
+    if(tree.isEmpty) {
+      return false
+    }
+
+    if (currentEdge.isDefined) {
+      return true
+    }
+
+    val edge = findNextEdge
+    currentEdge = edge
+    edge.isDefined
+  }
 
   override def next(): K2TreeEdge = {
-    findNextEdge match {
-      case Some(edge) => edge
-      case None       => throw new NoSuchElementException
+    currentEdge match {
+      case Some(edge) =>
+        currentEdge = None
+        edge
+      case None => throw new NoSuchElementException
     }
   }
 
   /**
-   * Finds the next edge in the [[K2Tree]], if there is any.
-   * If [[hasNext]] returns true, this function is guaranteed to return an edge.
-   *
-   * @return [[K2TreeEdge]] if there are any more edges, or [[None]] otherwise.
-   */
+    * Finds the next edge in the [[K2Tree]], if there is any.
+    * If [[hasNext]] returns true, this function is guaranteed to return an edge.
+    *
+    * @return [[K2TreeEdge]] if there are any more edges, or [[None]] otherwise.
+    */
   private def findNextEdge: Option[K2TreeEdge] = {
     if (path.isEmpty) {
       return None
@@ -37,7 +52,6 @@ class K2TreeIterator(tree: K2Tree, reverse: Boolean = false) extends Iterator[K2
       if (tree.bits.get(top.pos)) {
         val edge = buildEdgeFromPath()
         path.pop()
-        edgesFound += 1
         return Some(edge)
       }
     } else {
@@ -54,6 +68,10 @@ class K2TreeIterator(tree: K2Tree, reverse: Boolean = false) extends Iterator[K2
             return nextEdge
           }
 
+          if(path.isEmpty) {
+            return None
+          }
+
           path.pop()
           top.childIndex += 1
         }
@@ -66,12 +84,12 @@ class K2TreeIterator(tree: K2Tree, reverse: Boolean = false) extends Iterator[K2
   }
 
   /**
-   * Builds a [[Range]] to traverse the child nodes of the given node.
-   * This is separated into a function to handle the case that the iterator is reversed.
-   *
-   * @param node Node to get child indices of.
-   * @return
-   */
+    * Builds a [[Range]] to traverse the child nodes of the given node.
+    * This is separated into a function to handle the case that the iterator is reversed.
+    *
+    * @param node Node to get child indices of.
+    * @return
+    */
   private def childIndices(node: Node): Range = {
     if (reverse)
       (k2 - node.childIndex - 1) to 0 by -1
@@ -89,8 +107,8 @@ class K2TreeIterator(tree: K2Tree, reverse: Boolean = false) extends Iterator[K2
   private def buildEdgeFromPath(): K2TreeEdge = {
     // Building the index
     val indices = new Array[Int](path.length - 1)
-    for (i <- 1 until path.length) {
-      indices(i - 1) = (path(i).line % tree.k) * tree.k + (path(i).col % tree.k)
+    for (i <- 0 until path.length - 1) {
+      indices(path.length - 2 - i) = (path(i).line % tree.k) * tree.k + (path(i).col % tree.k)
     }
 
     val index = K2TreeIndex(indices)

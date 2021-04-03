@@ -1,13 +1,17 @@
 package org.apache.spark.graphx.pkgraph.graph.impl
 
-import org.apache.spark.graphx.pkgraph.compression.{K2TreeBuilder, K2TreeIndex}
+import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder
+import org.apache.spark.graphx.pkgraph.util.collection.PrimitiveHashMap
 import org.apache.spark.graphx.{Edge, VertexId}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
-private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag](k: Int) {
+private[impl] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private(
+    k: Int,
+    vertexAttrs: PrimitiveHashMap[VertexId, V]
+) {
   // Inserts the edges in a ordered fashion
   private val edges = new ArrayBuffer[Edge[E]]
 
@@ -37,10 +41,8 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag](k: Int) {
 
     var i = 0
     for (edge <- edges) {
-      val srcId = edge.srcId
-      val dstId = edge.dstId
-      val localSrcId = (srcId - startX).toInt
-      val localDstId = (dstId - startY).toInt
+      val localSrcId = (edge.srcId - startX).toInt
+      val localDstId = (edge.dstId - startY).toInt
 
       val index = treeBuilder.addEdge(localSrcId, localDstId)
       if (index != -1) {
@@ -53,7 +55,17 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag](k: Int) {
       }
     }
 
-    val attrs = data.map(_._2).toArray
-    new PKEdgePartition[V, E](Map.empty[VertexId, V], attrs, treeBuilder.build, startX, startY)
+    val attrs = data.toArray.map(_._2)
+    new PKEdgePartition[V, E](vertexAttrs, attrs, treeBuilder.build, startX, startY)
+  }
+}
+
+object PKEdgePartitionBuilder {
+  def apply[V: ClassTag, E: ClassTag](k: Int): PKEdgePartitionBuilder[V, E] = {
+    new PKEdgePartitionBuilder[V, E](k, new PrimitiveHashMap[VertexId, V])
+  }
+
+  def existing[V: ClassTag, E: ClassTag](k: Int, vertexAttrs: PrimitiveHashMap[VertexId, V]): PKEdgePartitionBuilder[V, E] = {
+    new PKEdgePartitionBuilder[V, E](k, vertexAttrs)
   }
 }
