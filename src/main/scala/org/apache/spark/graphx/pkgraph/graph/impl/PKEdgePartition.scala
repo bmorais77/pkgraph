@@ -103,7 +103,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @param edges Edges to remove
     * @return new partition with edges removed
     */
-  def removeEdges(edges: Iterator[Edge[E]]): PKEdgePartition[V, E] = {
+  def removeEdges(edges: Iterator[(VertexId, VertexId)]): PKEdgePartition[V, E] = {
     // Build edge attribute sorted map to keep track of removed attributes
     val iterator = tree.iterator
     val attrs = new mutable.LinkedHashMap[Int, E]
@@ -115,9 +115,9 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     }
 
     val builder = tree.toBuilder
-    for (edge <- edges) {
-      val line = (edge.srcId - lineOffset).toInt
-      val col = (edge.dstId - colOffset).toInt
+    for ((srcId, dstId) <- edges) {
+      val line = (srcId - lineOffset).toInt
+      val col = (dstId - colOffset).toInt
       builder.removeEdge(line, col)
       attrs.remove(line * tree.size + col)
     }
@@ -198,6 +198,8 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     assert(newData.length == i)
     this.withData(newData)
   }
+
+  // TODO: filter is not actually used in PKGraph, maybe remove?
 
   /**
     * Construct a new edge partition containing only the edges matching `epred` and where both
