@@ -126,40 +126,6 @@ private[graph] class PKEdgeRDDImpl[V: ClassTag, E: ClassTag](
   }
 
   /**
-    * Maps each edge partition according to the given user function.
-    *
-    * @param f User function
-    * @tparam U new type for mapped iterator
-    * @return new RDD with mapped type
-    */
-  def mapEdgePartitions[U: ClassTag](
-      f: Iterator[(PartitionID, PKEdgePartition[V, E])] => Iterator[U]
-  ): RDD[U] = ???
-
-  /**
-    * Filter the edge partitions according to the given vertex and edge filters.
-    *
-    * @param epred Edge predicate
-    * @param vpred Vertex predicate
-    * @return new [[PKEdgeRDD]] with filtered edge partitions
-    */
-  def filterPartitions(epred: EdgeTriplet[V, E] => Boolean, vpred: (VertexId, V) => Boolean): PKEdgeRDDImpl[V, E] =
-    ???
-
-  /**
-    * Zips the `other` RDD with this one according to the given user function.
-    *
-    * @param other Other RDD to zip
-    * @param f User function
-    * @tparam U Type of data in `other` RDD
-    * @tparam R Type of data in result of zip
-    * @return RDD with edge partitions zipped with `other` RDD
-    */
-  def zipEdgePartitions[U: ClassTag, R: ClassTag](other: RDD[U])(
-      f: (Iterator[(PartitionID, PKEdgePartition[V, E])], Iterator[U]) => Iterator[R]
-  ): RDD[R] = ???
-
-  /**
     * Builds a new [[PKEdgeRDDImpl]] with the same data as this one, but using the given edge partitions.
     *
     * @param partitionsRDD New edge partitions to use

@@ -19,7 +19,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
     */
   @transient override lazy val triplets: RDD[EdgeTriplet[V, E]] = {
     replicatedVertexView.upgrade(vertices, includeSrc = true, includeDst = true)
-    replicatedVertexView.edges.mapEdgePartitions(_.flatMap {
+    replicatedVertexView.edges.edgePartitions.mapPartitions(_.flatMap {
       case (_, part) => part.tripletIterator()
     })
   }
@@ -283,7 +283,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
     // Filter the triplets. We must always upgrade the triplet view fully because vpred always runs
     // on both src and dst vertices
     replicatedVertexView.upgrade(vertices, includeSrc = true, includeDst = true)
-    val newEdges = replicatedVertexView.edges.filterPartitions(epred, vpred)
+    val newEdges = replicatedVertexView.edges.filter(epred, vpred)
     new PKGraphImpl[V, E](newVerts, replicatedVertexView.withEdges(newEdges))
   }
 
@@ -359,8 +359,8 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
     replicatedVertexView.upgrade(vertices, tripletFields.useSrc, tripletFields.useDst)
 
     // Map and combine.
-    val preAgg = replicatedVertexView.edges
-      .mapEdgePartitions(_.flatMap { _._2.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields) })
+    val preAgg = replicatedVertexView.edges.edgePartitions
+      .mapPartitions(_.flatMap { _._2.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields) })
       .setName("PKGraph.aggregateMessages - preAgg")
 
     // do the final reduction reusing the index map
@@ -432,16 +432,16 @@ object PKGraphImpl {
   ): PKGraphImpl[V, E] = new PKGraphImpl(vertices, replicatedVertexView)
 
   /**
-   * Create a graph from a [[PKVertexRDDImpl]] and an [[PKEdgeRDDImpl]] with the same replicated vertex type as the
-   * vertices. The [[PKVertexRDD]] must already be set up for efficient joins with the [[PKEdgeRDDImpl]] by calling
-   * `VertexRDD.withEdges` or an appropriate VertexRDD constructor.
-   *
-   * @param vertices RDD with vertices
-   * @param edges RDD with edges
-   * @tparam V Vertex attribute type
-   * @tparam E Edge attribute type
-   * @return new [[PKGraphImpl]] from existing vertex and edge RDDs
-   */
+    * Create a graph from a [[PKVertexRDDImpl]] and an [[PKEdgeRDDImpl]] with the same replicated vertex type as the
+    * vertices. The [[PKVertexRDD]] must already be set up for efficient joins with the [[PKEdgeRDDImpl]] by calling
+    * `VertexRDD.withEdges` or an appropriate VertexRDD constructor.
+    *
+    * @param vertices RDD with vertices
+    * @param edges RDD with edges
+    * @tparam V Vertex attribute type
+    * @tparam E Edge attribute type
+    * @return new [[PKGraphImpl]] from existing vertex and edge RDDs
+    */
   def apply[V: ClassTag, E: ClassTag](vertices: PKVertexRDDImpl[V], edges: PKEdgeRDDImpl[V, E]): PKGraphImpl[V, E] = {
     new PKGraphImpl(vertices, new PKReplicatedVertexView(edges))
   }

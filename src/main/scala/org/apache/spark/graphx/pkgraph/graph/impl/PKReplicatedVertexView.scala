@@ -47,7 +47,7 @@ class PKReplicatedVertexView[V: ClassTag, E: ClassTag](
           )
           .partitionBy(edges.partitioner.get)
       val newEdges = edges.withEdgePartitions(
-        edges.zipEdgePartitions(shippedVerts) {
+        edges.edgePartitions.zipPartitions(shippedVerts) {
           (ePartIter, shippedVertsIter) =>
             ePartIter.map {
               case (pid, edgePartition) =>
@@ -73,7 +73,7 @@ class PKReplicatedVertexView[V: ClassTag, E: ClassTag](
       .partitionBy(edges.partitioner.get)
 
     val newEdges = edges.withEdgePartitions(
-      edges.zipEdgePartitions(shippedVerts) {
+      edges.edgePartitions.zipPartitions(shippedVerts) {
         (ePartIter, shippedVertsIter) =>
           ePartIter.map {
             case (pid, edgePartition) =>
