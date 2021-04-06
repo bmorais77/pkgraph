@@ -1,8 +1,9 @@
 package org.apache.spark.graphx.pkgraph.graph
 
-import org.apache.spark.{Dependency, SparkContext}
-import org.apache.spark.graphx.{PartitionID, VertexRDD}
-import org.apache.spark.graphx.impl.{ShippableVertexPartition, VertexAttributeBlock}
+import org.apache.spark.graphx.VertexRDD.createRoutingTables
+import org.apache.spark.{Dependency, HashPartitioner, SparkContext}
+import org.apache.spark.graphx.{EdgeRDD, PartitionID, VertexRDD}
+import org.apache.spark.graphx.impl.{RoutingTablePartition, ShippableVertexPartition, VertexAttributeBlock, VertexRDDImpl}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 

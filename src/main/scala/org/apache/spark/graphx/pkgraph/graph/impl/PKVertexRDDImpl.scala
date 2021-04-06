@@ -1,8 +1,14 @@
 package org.apache.spark.graphx.pkgraph.graph.impl
 
+import org.apache.spark.graphx.VertexRDD.createRoutingTables
 import org.apache.spark.graphx.{EdgeRDD, PartitionID, VertexId, VertexRDD}
 import org.apache.spark.{HashPartitioner, OneToOneDependency, Partition, Partitioner}
-import org.apache.spark.graphx.impl.{RoutingTablePartition, ShippableVertexPartition, VertexAttributeBlock}
+import org.apache.spark.graphx.impl.{
+  RoutingTablePartition,
+  ShippableVertexPartition,
+  VertexAttributeBlock,
+  VertexRDDImpl
+}
 import org.apache.spark.graphx.pkgraph.graph.{PKEdgeRDD, PKVertexRDD}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -223,7 +229,7 @@ private[pkgraph] class PKVertexRDDImpl[V](
 
   override def withEdges(edges: EdgeRDD[_]): PKVertexRDDImpl[V] = {
     val edgesRDD = edges.asInstanceOf[PKEdgeRDDImpl[V, _]]
-    val routingTables = createRoutingTables(edgesRDD, this.partitioner.get)
+    val routingTables = PKVertexRDDImpl.createRoutingTables(edgesRDD, this.partitioner.get)
     val partitions = vertexPartitions.zipPartitions(routingTables, preservesPartitioning = true) {
       (partIter, routingTableIter) =>
         val routingTable = if (routingTableIter.hasNext) routingTableIter.next() else PKRoutingTablePartition.empty
@@ -269,27 +275,18 @@ private[pkgraph] class PKVertexRDDImpl[V](
   ): PKVertexRDDImpl[V2] = {
     new PKVertexRDDImpl(partitionsRDD, targetStorageLevel)
   }
-
-  private def createRoutingTables(
-      edges: PKEdgeRDDImpl[V, _],
-      partitioner: Partitioner
-  ): RDD[PKRoutingTablePartition] = {
-    // Determine which vertices each edge partition needs by creating a mapping from vid to pid.
-    val vid2pid = edges.edgePartitions
-      .mapPartitions(_.flatMap(Function.tupled(PKRoutingTablePartition.edgePartitionToMsgs)))
-      .setName("VertexRDD.createRoutingTables - vid2pid (aggregation)")
-
-    val numEdgePartitions = edges.partitions.length
-    vid2pid
-      .partitionBy(partitioner)
-      .mapPartitions(
-        iter => Iterator(PKRoutingTablePartition.fromMsgs(numEdgePartitions, iter)),
-        preservesPartitioning = true
-      )
-  }
 }
 
 object PKVertexRDDImpl {
+
+  /**
+    * Constructs a standalone [[PKVertexRDDImpl]] (one that is not set up for efficient joins with an
+    * [[EdgeRDD]]) from an RDD of vertex-attribute pairs. Duplicate entries are removed arbitrarily.
+    *
+    * @tparam V the vertex attribute type
+    *
+    * @param vertices the collection of vertex-attribute pairs
+    */
   def apply[V: ClassTag](vertices: RDD[(VertexId, V)]): PKVertexRDDImpl[V] = {
     val vPartitioned: RDD[(VertexId, V)] = vertices.partitioner match {
       case Some(_) => vertices
@@ -298,5 +295,96 @@ object PKVertexRDDImpl {
     val vertexPartitions =
       vPartitioned.mapPartitions(iter => Iterator(PKVertexPartition(iter)), preservesPartitioning = true)
     new PKVertexRDDImpl[V](vertexPartitions)
+  }
+
+  /**
+    * Constructs a [[PKVertexRDDImpl]] from an RDD of vertex-attribute pairs. Duplicate vertex entries are
+    * removed arbitrarily. The resulting `VertexRDD` will be joinable with `edges`, and any missing
+    * vertices referred to by `edges` will be created with the attribute `defaultVal`.
+    *
+    * @tparam V the vertex attribute type
+    *
+    * @param vertices the collection of vertex-attribute pairs
+    * @param edges the [[EdgeRDD]] that these vertices may be joined with
+    * @param defaultVal the vertex attribute to use when creating missing vertices
+    */
+  def apply[V: ClassTag](
+      vertices: RDD[(VertexId, V)],
+      edges: PKEdgeRDDImpl[V, _],
+      defaultVal: V
+  ): PKVertexRDDImpl[V] = {
+    PKVertexRDDImpl(vertices, edges, defaultVal, (a, _) => a)
+  }
+
+  /**
+    * Constructs a [[PKVertexRDDImpl]] from an RDD of vertex-attribute pairs. Duplicate vertex entries are
+    * merged using `mergeFunc`. The resulting `VertexRDD` will be joinable with `edges`, and any
+    * missing vertices referred to by `edges` will be created with the attribute `defaultVal`.
+    *
+    * @tparam V the vertex attribute type
+    *
+    * @param vertices the collection of vertex-attribute pairs
+    * @param edges the [[EdgeRDD]] that these vertices may be joined with
+    * @param defaultVal the vertex attribute to use when creating missing vertices
+    * @param mergeFunc the commutative, associative duplicate vertex attribute merge function
+    */
+  def apply[V: ClassTag](
+      vertices: RDD[(VertexId, V)],
+      edges: PKEdgeRDDImpl[V, _],
+      defaultVal: V,
+      mergeFunc: (V, V) => V
+  ): PKVertexRDDImpl[V] = {
+    val vPartitioned: RDD[(VertexId, V)] = vertices.partitioner match {
+      case Some(_) => vertices
+      case None    => vertices.partitionBy(new HashPartitioner(vertices.partitions.length))
+    }
+    val routingTables = createRoutingTables(edges, vPartitioned.partitioner.get)
+    val vertexPartitions = vPartitioned.zipPartitions(routingTables, preservesPartitioning = true) {
+      (vertexIter, routingTableIter) =>
+        val routingTable = if (routingTableIter.hasNext) routingTableIter.next() else PKRoutingTablePartition.empty
+        Iterator(PKVertexPartition(vertexIter, routingTable, defaultVal, mergeFunc))
+    }
+    new PKVertexRDDImpl(vertexPartitions)
+  }
+
+  /**
+    * Constructs a [[PKVertexRDD]] containing all vertices referred to in `edges`. The vertices will be
+    * created with the attribute `defaultVal`. The resulting [[PKVertexRDD]] will be joinable with
+    * `edges`.
+    *
+    * @tparam V the vertex attribute type
+    *
+    * @param edges the [[PKEdgeRDD]] referring to the vertices to create
+    * @param numPartitions the desired number of partitions for the resulting `VertexRDD`
+    * @param defaultVal the vertex attribute to use when creating missing vertices
+    */
+  def fromEdges[V: ClassTag](edges: PKEdgeRDDImpl[V, _], numPartitions: Int, defaultVal: V): PKVertexRDD[V] = {
+    val routingTables = createRoutingTables(edges, new HashPartitioner(numPartitions))
+    val vertexPartitions = routingTables.mapPartitions(
+      { routingTableIter =>
+        val routingTable = if (routingTableIter.hasNext) routingTableIter.next() else PKRoutingTablePartition.empty
+        Iterator(PKVertexPartition(Iterator.empty, routingTable, defaultVal))
+      },
+      preservesPartitioning = true
+    )
+    new PKVertexRDDImpl(vertexPartitions)
+  }
+
+  private def createRoutingTables[V: ClassTag](
+      edges: PKEdgeRDDImpl[V, _],
+      partitioner: Partitioner
+  ): RDD[PKRoutingTablePartition] = {
+    // Determine which vertices each edge partition needs by creating a mapping from vid to pid.
+    val vid2pid = edges.edgePartitions
+      .mapPartitions(_.flatMap(Function.tupled(PKRoutingTablePartition.edgePartitionToMsgs)))
+      .setName("PKVertexRDD.createRoutingTables - vid2pid (aggregation)")
+
+    val numEdgePartitions = edges.partitions.length
+    vid2pid
+      .partitionBy(partitioner)
+      .mapPartitions(
+        iter => Iterator(PKRoutingTablePartition.fromMsgs(numEdgePartitions, iter)),
+        preservesPartitioning = true
+      )
   }
 }

@@ -1,6 +1,7 @@
 package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.graphx._
+import org.apache.spark.graphx.impl.{EdgePartition, EdgePartitionBuilder, EdgeRDDImpl}
 import org.apache.spark.graphx.pkgraph.graph.PKEdgeRDD
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -141,5 +142,39 @@ private[graph] class PKEdgeRDDImpl[V: ClassTag, E: ClassTag](
 
   override def withTargetStorageLevel(targetStorageLevel: StorageLevel): PKEdgeRDDImpl[V, E] = {
     new PKEdgeRDDImpl(edgePartitions, targetStorageLevel)
+  }
+}
+
+object PKEdgeRDDImpl {
+
+  /**
+    * Creates an [[PKEdgeRDDImpl]] from a set of edges.
+    *
+    * @tparam V the type of the vertex attributes that may be joined with the returned EdgeRDD
+    * @tparam E the edge attribute type
+    *
+    * @param edges to create RDD from
+    */
+  def fromEdges[V: ClassTag, E: ClassTag](edges: RDD[Edge[E]]): PKEdgeRDDImpl[V, E] = {
+    val edgePartitions = edges.mapPartitionsWithIndex { (pid, iter) =>
+      val builder = PKEdgePartitionBuilder[V, E](2) // TODO: user should supply k
+      iter.foreach { e =>
+        builder.add(e.srcId, e.dstId, e.attr)
+      }
+      Iterator((pid, builder.build))
+    }
+    fromEdgePartitions(edgePartitions)
+  }
+
+  /**
+    * Creates an [[PKEdgeRDDImpl]] from already-constructed edge partitions.
+    *
+    * @tparam V the type of the vertex attributes that may be joined with the returned EdgeRDD
+    * @tparam E the edge attribute type
+    */
+  def fromEdgePartitions[V: ClassTag, E: ClassTag](
+      edgePartitions: RDD[(Int, PKEdgePartition[V, E])]
+  ): PKEdgeRDDImpl[V, E] = {
+    new PKEdgeRDDImpl(edgePartitions)
   }
 }

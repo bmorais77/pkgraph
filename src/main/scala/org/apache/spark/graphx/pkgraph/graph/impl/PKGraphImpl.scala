@@ -119,7 +119,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
     * @param partitionStrategy the partitioning strategy to use when partitioning the edges in the graph.
     * @return graph partitioned with the given [[PartitionStrategy]]
     */
-  override def partitionBy(partitionStrategy: PartitionStrategy): Graph[V, E] = {
+  override def partitionBy(partitionStrategy: PartitionStrategy): PKGraphImpl[V, E] = {
     partitionBy(partitionStrategy, edges.partitions.length)
   }
 
@@ -130,7 +130,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
     * @param numPartitions the number of edge partitions in the new graph.
     * @return graph partitioned with the given [[PartitionStrategy]] and with the given number of partitions
     */
-  override def partitionBy(partitionStrategy: PartitionStrategy, numPartitions: Int): Graph[V, E] = {
+  override def partitionBy(partitionStrategy: PartitionStrategy, numPartitions: Int): PKGraphImpl[V, E] = {
     val vTag = classTag[V]
     val eTag = classTag[E]
     val partitions = edges
@@ -154,7 +154,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
       )
 
     val newEdges = edges.withEdgePartitions(partitions).cache()
-    PKGraphImpl(vertices.withEdges(newEdges), newEdges)
+    PKGraphImpl.fromExistingRDDs(vertices.withEdges(newEdges), newEdges)
   }
 
   /**
@@ -185,11 +185,11 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
       val newReplicatedVertexView = replicatedVertexView
         .asInstanceOf[PKReplicatedVertexView[V2, E]]
         .updateVertices(changedVerts)
-      PKGraphImpl(newVerts, newReplicatedVertexView)
+      new PKGraphImpl(newVerts, newReplicatedVertexView)
     } else {
       // The map does not preserve type, so we must re-replicate all vertices
       // TODO: Cached attributes in edge partitions are not updated?
-      PKGraphImpl[V2, E](vertices.mapValues(f), replicatedVertexView.edges.asInstanceOf[PKEdgeRDDImpl[V2, E]])
+      PKGraphImpl(vertices.mapValues(f), replicatedVertexView.edges.asInstanceOf[PKEdgeRDDImpl[V2, E]])
     }
   }
 
@@ -251,7 +251,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
     *
     * @return new graph with reversed edges
     */
-  override def reverse: Graph[V, E] = PKGraphImpl(vertices.reverseRoutingTables(), replicatedVertexView.reverse())
+  override def reverse: Graph[V, E] = new PKGraphImpl(vertices.reverseRoutingTables(), replicatedVertexView.reverse())
 
   /**
     * Restricts the graph to only the vertices and edges satisfying the predicates. The resulting
@@ -300,7 +300,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
   override def mask[V2: ClassTag, E2: ClassTag](other: Graph[V2, E2]): Graph[V, E] = {
     val newVerts = vertices.innerJoin(other.vertices) { (_, v, _) => v }
     val newEdges = replicatedVertexView.edges.innerJoin(other.edges) { (_, _, v, _) => v }
-    PKGraphImpl(newVerts, replicatedVertexView.withEdges(newEdges))
+    new PKGraphImpl(newVerts, replicatedVertexView.withEdges(newEdges))
   }
 
   /**
@@ -312,7 +312,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
     *
     * @return The resulting graph with a single edge for each (source, dest) vertex pair.
     */
-  override def groupEdges(merge: (E, E) => E): Graph[V, E] = {
+  override def groupEdges(merge: (E, E) => E): PKGraphImpl[V, E] = {
     // Our solution does not support multi-graphs so identical edges are already grouped when adding them
     // for the first time, so this method does nothing
     this
@@ -406,7 +406,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
       val newReplicatedVertexView = replicatedVertexView
         .asInstanceOf[PKReplicatedVertexView[V2, E]]
         .updateVertices(changedVerts)
-      PKGraphImpl(newVerts, newReplicatedVertexView)
+      new PKGraphImpl(newVerts, newReplicatedVertexView)
     } else {
       // updateF does not preserve type, so we must re-replicate all vertices
       val newVerts = vertices.leftJoin(other)(updateF)
@@ -418,31 +418,94 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
 object PKGraphImpl {
 
   /**
-    * Builds an [[PKGraphImpl]] from the given [[PKVertexRDDImpl]] and [[PKReplicatedVertexView]].
-    *
-    * @param vertices RDD with vertices
-    * @param replicatedVertexView replicated vertex view
-    * @tparam V Type of vertex attributes
-    * @tparam E Type of edge attributes
-    * @return new [[PKGraphImpl]]
+    * Create a graph from edges, setting referenced vertices to `defaultVertexAttr`.
     */
   def apply[V: ClassTag, E: ClassTag](
-      vertices: PKVertexRDDImpl[V],
-      replicatedVertexView: PKReplicatedVertexView[V, E]
-  ): PKGraphImpl[V, E] = new PKGraphImpl(vertices, replicatedVertexView)
+      edges: RDD[Edge[E]],
+      defaultVertexAttr: V,
+      edgeStorageLevel: StorageLevel,
+      vertexStorageLevel: StorageLevel
+  ): PKGraphImpl[V, E] = {
+    fromEdgeRDD(PKEdgeRDDImpl.fromEdges(edges), defaultVertexAttr, edgeStorageLevel, vertexStorageLevel)
+  }
 
   /**
-    * Create a graph from a [[PKVertexRDDImpl]] and an [[PKEdgeRDDImpl]] with the same replicated vertex type as the
-    * vertices. The [[PKVertexRDD]] must already be set up for efficient joins with the [[PKEdgeRDDImpl]] by calling
+    * Create a graph from EdgePartitions, setting referenced vertices to `defaultVertexAttr`.
+    */
+  def fromEdgePartitions[V: ClassTag, E: ClassTag](
+      edgePartitions: RDD[(PartitionID, PKEdgePartition[V, E])],
+      defaultVertexAttr: V,
+      edgeStorageLevel: StorageLevel,
+      vertexStorageLevel: StorageLevel
+  ): PKGraphImpl[V, E] = {
+    fromEdgeRDD(
+      PKEdgeRDDImpl.fromEdgePartitions(edgePartitions),
+      defaultVertexAttr,
+      edgeStorageLevel,
+      vertexStorageLevel
+    )
+  }
+
+  /**
+    * Create a graph from vertices and edges, setting missing vertices to `defaultVertexAttr`.
+    */
+  def apply[V: ClassTag, E: ClassTag](
+      vertices: RDD[(VertexId, V)],
+      edges: RDD[Edge[E]],
+      defaultVertexAttr: V,
+      edgeStorageLevel: StorageLevel,
+      vertexStorageLevel: StorageLevel
+  ): PKGraphImpl[V, E] = {
+    val edgeRDD = PKEdgeRDDImpl
+      .fromEdges(edges)(classTag[V], classTag[E])
+      .withTargetStorageLevel(edgeStorageLevel)
+    val vertexRDD = PKVertexRDDImpl(vertices, edgeRDD, defaultVertexAttr)
+      .withTargetStorageLevel(vertexStorageLevel)
+    PKGraphImpl(vertexRDD, edgeRDD)
+  }
+
+  /**
+    * Create a graph from a VertexRDD and an EdgeRDD with arbitrary replicated vertices. The
+    * VertexRDD must already be set up for efficient joins with the EdgeRDD by calling
     * `VertexRDD.withEdges` or an appropriate VertexRDD constructor.
-    *
-    * @param vertices RDD with vertices
-    * @param edges RDD with edges
-    * @tparam V Vertex attribute type
-    * @tparam E Edge attribute type
-    * @return new [[PKGraphImpl]] from existing vertex and edge RDDs
     */
   def apply[V: ClassTag, E: ClassTag](vertices: PKVertexRDDImpl[V], edges: PKEdgeRDDImpl[V, E]): PKGraphImpl[V, E] = {
+    vertices.cache()
+
+    // Convert the vertex partitions in edges to the correct type
+    val newEdges = edges
+      .mapEdgePartitions[V, E]((_, part) => part.withoutVertexAttributes[V]())
+      .cache()
+
+    fromExistingRDDs(vertices, newEdges)
+  }
+
+  /**
+    * Create a graph from a VertexRDD and an EdgeRDD with the same replicated vertex type as the
+    * vertices. The VertexRDD must already be set up for efficient joins with the EdgeRDD by calling
+    * `VertexRDD.withEdges` or an appropriate VertexRDD constructor.
+    */
+  def fromExistingRDDs[V: ClassTag, E: ClassTag](
+      vertices: PKVertexRDDImpl[V],
+      edges: PKEdgeRDDImpl[V, E]
+  ): PKGraphImpl[V, E] = {
     new PKGraphImpl(vertices, new PKReplicatedVertexView(edges))
+  }
+
+  /**
+    * Create a graph from an EdgeRDD with the correct vertex type, setting missing vertices to
+    * `defaultVertexAttr`. The vertices will have the same number of partitions as the EdgeRDD.
+    */
+  private def fromEdgeRDD[V: ClassTag, E: ClassTag](
+      edges: PKEdgeRDDImpl[V, E],
+      defaultVertexAttr: V,
+      edgeStorageLevel: StorageLevel,
+      vertexStorageLevel: StorageLevel
+  ): PKGraphImpl[V, E] = {
+    val edgesCached = edges.withTargetStorageLevel(edgeStorageLevel).cache()
+    val vertices = PKVertexRDDImpl
+      .fromEdges(edgesCached, edgesCached.partitions.length, defaultVertexAttr)
+      .withTargetStorageLevel(vertexStorageLevel)
+    fromExistingRDDs(vertices, edgesCached)
   }
 }
