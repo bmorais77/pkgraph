@@ -2,14 +2,14 @@ package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.HashPartitioner
 import org.apache.spark.graphx._
-import org.apache.spark.graphx.pkgraph.graph.{PKEdgeRDD, PKGraph, PKVertexRDD}
+import org.apache.spark.graphx.pkgraph.graph.{PKGraph, PKVertexRDD}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 
 import scala.reflect.{ClassTag, classTag}
 
 class PKGraphImpl[V: ClassTag, E: ClassTag] private (
-    override val vertices: PKVertexRDD[V],
+    override val vertices: PKVertexRDDImpl[V],
     val replicatedVertexView: PKReplicatedVertexView[V, E]
 ) extends PKGraph[V, E] {
   override val edges: PKEdgeRDDImpl[V, E] = replicatedVertexView.edges
@@ -154,7 +154,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
       )
 
     val newEdges = edges.withEdgePartitions(partitions).cache()
-    PKGraphImpl.fromExistingRDDs(vertices.withEdges(newEdges), newEdges)
+    PKGraphImpl(vertices.withEdges(newEdges), newEdges)
   }
 
   /**
@@ -279,7 +279,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
   ): Graph[V, E] = {
     vertices.cache()
     // Filter the vertices, reusing the partitioner and the index from this graph
-    val newVerts = vertices.filterVertices(vpred)
+    val newVerts = vertices.mapShippablePartitions(_.filter(vpred))
     // Filter the triplets. We must always upgrade the triplet view fully because vpred always runs
     // on both src and dst vertices
     replicatedVertexView.upgrade(vertices, includeSrc = true, includeDst = true)
@@ -418,7 +418,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
 object PKGraphImpl {
 
   /**
-    * Builds an [[PKGraphImpl]] from the given [[VertexRDD]] and [[PKReplicatedVertexView]].
+    * Builds an [[PKGraphImpl]] from the given [[PKVertexRDDImpl]] and [[PKReplicatedVertexView]].
     *
     * @param vertices RDD with vertices
     * @param replicatedVertexView replicated vertex view
@@ -427,56 +427,22 @@ object PKGraphImpl {
     * @return new [[PKGraphImpl]]
     */
   def apply[V: ClassTag, E: ClassTag](
-      vertices: VertexRDD[V],
+      vertices: PKVertexRDDImpl[V],
       replicatedVertexView: PKReplicatedVertexView[V, E]
-  ): PKGraphImpl[V, E] = new PKGraphImpl(new PKVertexRDDImpl(vertices), replicatedVertexView)
+  ): PKGraphImpl[V, E] = new PKGraphImpl(vertices, replicatedVertexView)
 
   /**
-    * Builds an [[PKGraphImpl]] from the given [[VertexRDD]] and [[PKEdgeRDD]].
-    *
-    * @param vertices RDD with vertices
-    * @param edges RDD with edges
-    * @tparam V Type of vertex attributes
-    * @tparam E Type of edge attributes
-    * @return new [[PKGraphImpl]]
-    */
-  def apply[V: ClassTag, E: ClassTag](vertices: VertexRDD[V], edges: PKEdgeRDDImpl[V, E]): PKGraphImpl[V, E] = {
-    new PKGraphImpl(new PKVertexRDDImpl(vertices), new PKReplicatedVertexView(edges))
-  }
-
-  /**
-    * Create a graph from a [[PKVertexRDD]] and an [[PKEdgeRDDImpl]] with the same replicated vertex type as the
-    * vertices. The [[PKVertexRDD]] must already be set up for efficient joins with the [[PKEdgeRDDImpl]] by calling
-    * `VertexRDD.withEdges` or an appropriate VertexRDD constructor.
-    *
-    * @param vertices RDD with vertices
-    * @param edges RDD with edges
-    * @tparam V Vertex attribute type
-    * @tparam E Edge attribute type
-    * @return new [[PKGraphImpl]] from existing vertex and edge RDDs
-    */
-  def fromExistingRDDs[V: ClassTag, E: ClassTag](
-      vertices: PKVertexRDD[V],
-      edges: PKEdgeRDDImpl[V, E]
-  ): PKGraphImpl[V, E] = {
+   * Create a graph from a [[PKVertexRDDImpl]] and an [[PKEdgeRDDImpl]] with the same replicated vertex type as the
+   * vertices. The [[PKVertexRDD]] must already be set up for efficient joins with the [[PKEdgeRDDImpl]] by calling
+   * `VertexRDD.withEdges` or an appropriate VertexRDD constructor.
+   *
+   * @param vertices RDD with vertices
+   * @param edges RDD with edges
+   * @tparam V Vertex attribute type
+   * @tparam E Edge attribute type
+   * @return new [[PKGraphImpl]] from existing vertex and edge RDDs
+   */
+  def apply[V: ClassTag, E: ClassTag](vertices: PKVertexRDDImpl[V], edges: PKEdgeRDDImpl[V, E]): PKGraphImpl[V, E] = {
     new PKGraphImpl(vertices, new PKReplicatedVertexView(edges))
-  }
-
-  /**
-    * Create a graph from a [[VertexRDD]] and an [[PKEdgeRDDImpl]] with the same replicated vertex type as the
-    * vertices. The [[VertexRDD]] must already be set up for efficient joins with the [[PKEdgeRDDImpl]] by calling
-    * `VertexRDD.withEdges` or an appropriate VertexRDD constructor.
-    *
-    * @param vertices RDD with vertices
-    * @param edges RDD with edges
-    * @tparam V Vertex attribute type
-    * @tparam E Edge attribute type
-    * @return new [[PKGraphImpl]] from existing vertex and edge RDDs
-    */
-  def fromExistingRDDs[V: ClassTag, E: ClassTag](
-      vertices: VertexRDD[V],
-      edges: PKEdgeRDDImpl[V, E]
-  ): PKGraphImpl[V, E] = {
-    new PKGraphImpl(new PKVertexRDDImpl(vertices), new PKReplicatedVertexView(edges))
   }
 }

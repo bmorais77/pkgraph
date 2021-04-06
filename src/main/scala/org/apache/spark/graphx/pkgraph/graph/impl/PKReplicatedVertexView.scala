@@ -2,7 +2,6 @@ package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.graphx.impl.VertexAttributeBlock
 import org.apache.spark.graphx.VertexRDD
-import org.apache.spark.graphx.pkgraph.graph.PKVertexRDD
 import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
@@ -35,13 +34,13 @@ class PKReplicatedVertexView[V: ClassTag, E: ClassTag](
     * `vertices`. This operation modifies the `ReplicatedVertexView`, and callers can access `edges`
     * afterwards to obtain the upgraded view.
     */
-  def upgrade(vertices: PKVertexRDD[V], includeSrc: Boolean, includeDst: Boolean): Unit = {
+  def upgrade(vertices: PKVertexRDDImpl[V], includeSrc: Boolean, includeDst: Boolean): Unit = {
     val shipSrc = includeSrc && !hasSrcId
     val shipDst = includeDst && !hasDstId
     if (shipSrc || shipDst) {
       val shippedVerts: RDD[(Int, VertexAttributeBlock[V])] =
         vertices
-          .shipVertexAttributes(shipSrc, shipDst)
+          .shipAttributes(shipSrc, shipDst)
           .setName(
             "ReplicatedVertexView.upgrade(%s, %s) - shippedVerts %s %s (broadcast)"
               .format(includeSrc, includeDst, shipSrc, shipDst)

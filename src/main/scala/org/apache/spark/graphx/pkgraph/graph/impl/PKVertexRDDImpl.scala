@@ -1,77 +1,302 @@
 package org.apache.spark.graphx.pkgraph.graph.impl
 
-import org.apache.spark.graphx.pkgraph.graph.PKVertexRDD
 import org.apache.spark.graphx.{EdgeRDD, PartitionID, VertexId, VertexRDD}
+import org.apache.spark.{HashPartitioner, OneToOneDependency, Partition, Partitioner}
+import org.apache.spark.graphx.impl.{RoutingTablePartition, ShippableVertexPartition, VertexAttributeBlock}
+import org.apache.spark.graphx.pkgraph.graph.{PKEdgeRDD, PKVertexRDD}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 
 import scala.reflect.ClassTag
 
-private[pkgraph] class PKVertexRDDImpl[V](val rdd: VertexRDD[V])(implicit
-    override protected val vdTag: ClassTag[V]
-) extends PKVertexRDD[V](rdd.context, rdd.dependencies) {
+private[pkgraph] class PKVertexRDDImpl[V](
+    val vertexPartitions: RDD[PKVertexPartition[V]],
+    val targetStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+)(implicit override protected val vdTag: ClassTag[V])
+    extends PKVertexRDD[V](vertexPartitions.context, List(new OneToOneDependency(vertexPartitions))) {
+
+  require(vertexPartitions.partitioner.isDefined)
+
+  override val partitioner: Option[Partitioner] = vertexPartitions.partitioner
+
+  override protected def getPreferredLocations(s: Partition): Seq[String] = vertexPartitions.preferredLocations(s)
+
+  override def setName(_name: String): this.type = {
+    if (vertexPartitions.name != null) {
+      vertexPartitions.setName(vertexPartitions.name + ", " + _name)
+    } else {
+      vertexPartitions.setName(_name)
+    }
+    this
+  }
+
+  setName("PKVertexRDD")
 
   /**
-    * Prepare the vertex attributes in this [[PKVertexRDD]] to be shipped to an edge partition.
-    *
-    * @param shipSrc Include source vertex attributes
-    * @param shipDst Include destination vertex attributes
-    * @return RDD with shipped attributes
+    * Persists the vertex partitions at the specified storage level, ignoring any existing target
+    * storage level.
     */
-  override def shipAttributes(shipSrc: Boolean, shipDst: Boolean): RDD[(PartitionID, B)] forSome { type B } =
-    rdd.shipVertexAttributes(shipSrc, shipDst)
+  override def persist(newLevel: StorageLevel): this.type = {
+    vertexPartitions.persist(newLevel)
+    this
+  }
+
+  override def unpersist(blocking: Boolean = false): this.type = {
+    vertexPartitions.unpersist(blocking)
+    this
+  }
 
   /**
-    * Filters all vertices according to the given user predicate.
-    *
-    * @param pred User predicate
-    * @return new [[PKVertexRDD]] with only vertices that passed the predicate
+    * Persists the vertex partitions at `targetStorageLevel`, which defaults to MEMORY_ONLY.
     */
-  override def filterVertices(pred: (VertexId, V) => Boolean): PKVertexRDD[V] =
-    new PKVertexRDDImpl(rdd.filter(Function.tupled(pred)))
+  override def cache(): this.type = {
+    vertexPartitions.persist(targetStorageLevel)
+    this
+  }
 
-  // TODO: Implement this without using partitionsRDD from PKEdgeRDD
-  override def withEdges(edges: EdgeRDD[_]): PKVertexRDDImpl[V] = new PKVertexRDDImpl(rdd.withEdges(edges))
+  override def getStorageLevel: StorageLevel = vertexPartitions.getStorageLevel
 
-  override def reverseRoutingTables(): PKVertexRDD[V] = new PKVertexRDDImpl(rdd.reverseRoutingTables())
+  override def checkpoint(): Unit = {
+    vertexPartitions.checkpoint()
+  }
 
-  override def reindex(): PKVertexRDD[V] = new PKVertexRDDImpl(rdd.reindex())
+  override def isCheckpointed: Boolean = {
+    firstParent[ShippableVertexPartition[V]].isCheckpointed
+  }
 
-  override def mapValues[VD2: ClassTag](f: V => VD2): PKVertexRDD[VD2] =
-    new PKVertexRDDImpl(rdd.mapValues(f))
+  override def getCheckpointFile: Option[String] = {
+    vertexPartitions.getCheckpointFile
+  }
 
-  override def mapValues[VD2: ClassTag](f: (VertexId, V) => VD2): PKVertexRDD[VD2] =
-    new PKVertexRDDImpl(rdd.mapValues(f))
+  /** The number of vertices in the RDD. */
+  /**
+    * Get the number of vertices in this RDD.
+    *
+    * @return number of vertices
+    */
+  override def count(): Long = vertexPartitions.map(_.size.toLong).fold(0)(_ + _)
 
-  override def minus(other: RDD[(VertexId, V)]): PKVertexRDD[V] =
-    new PKVertexRDDImpl(rdd.minus(other))
+  /**
+    * Construct a new [[VertexRDD]] that is indexed by only the visible vertices. The resulting
+    * VertexRDD will be based on a different index and can no longer be quickly joined with this
+    * RDD.
+    *
+    * @return re-indexed [[VertexRDD]]
+    */
+  override def reindex(): PKVertexRDDImpl[V] = withVertexPartitions(vertexPartitions.map(_.reindex()))
 
-  override def minus(other: VertexRDD[V]): PKVertexRDD[V] =
-    new PKVertexRDDImpl(rdd.minus(other))
+  /**
+    * Apply the given user function to each vertex attribute in this RDD.
+    *
+    * @param f User function apply
+    * @tparam V2 New type of vertex attributes
+    * @return new [[VertexRDD]] with mapped attributes
+    */
+  override def mapValues[V2: ClassTag](f: V => V2): PKVertexRDDImpl[V2] =
+    mapShippablePartitions(_.map((_, attr) => f(attr)))
 
-  override def diff(other: RDD[(VertexId, V)]): PKVertexRDD[V] =
-    new PKVertexRDDImpl(rdd.diff(other))
+  /**
+    * Apply the given user function to each vertex in this RDD.
+    *
+    * @param f User function apply
+    * @tparam V2 New type of vertex attributes
+    * @return new [[VertexRDD]] with mapped attributes
+    */
+  override def mapValues[V2: ClassTag](f: (VertexId, V) => V2): PKVertexRDDImpl[V2] = mapShippablePartitions(_.map(f))
 
-  override def diff(other: VertexRDD[V]): PKVertexRDD[V] =
-    new PKVertexRDDImpl(rdd.diff(other))
+  override def minus(other: RDD[(VertexId, V)]): PKVertexRDDImpl[V] = {
+    minus(aggregateUsingIndex(other, (a: V, _: V) => a))
+  }
 
-  override def leftZipJoin[V2: ClassTag, V3: ClassTag](other: VertexRDD[V2])(
-      f: (VertexId, V, Option[V2]) => V3
-  ): PKVertexRDD[V3] = new PKVertexRDDImpl(rdd.leftZipJoin(other)(f))
+  override def minus(other: VertexRDD[V]): PKVertexRDDImpl[V] = {
+    val otherRDD = other.asInstanceOf[PKVertexRDDImpl[V]]
+    otherRDD match {
+      case other: VertexRDD[_] if this.partitioner == other.partitioner =>
+        withVertexPartitions[V](vertexPartitions.zipPartitions(other.vertexPartitions, preservesPartitioning = true) {
+          (thisIter, otherIter) =>
+            val thisPart = thisIter.next()
+            val otherPart = otherIter.next()
+            Iterator(thisPart.minus(otherPart))
+        })
+      case _ =>
+        withVertexPartitions[V](
+          vertexPartitions.zipPartitions(otherRDD.partitionBy(partitioner.get), preservesPartitioning = true) {
+            (partIter, msgs) => partIter.map(_.minus(msgs))
+          }
+        )
+    }
+  }
 
-  override def leftJoin[V2: ClassTag, V3: ClassTag](other: RDD[(VertexId, V2)])(
-      f: (VertexId, V, Option[V2]) => V3
-  ): PKVertexRDD[V3] = new PKVertexRDDImpl(rdd.leftJoin(other)(f))
+  override def diff(other: RDD[(VertexId, V)]): PKVertexRDDImpl[V] = {
+    diff(aggregateUsingIndex(other, (a: V, _: V) => a))
+  }
 
-  override def innerZipJoin[U: ClassTag, V2: ClassTag](other: VertexRDD[U])(
-      f: (VertexId, V, U) => V2
-  ): PKVertexRDD[V2] = new PKVertexRDDImpl(rdd.innerZipJoin(other)(f))
+  override def diff(other: VertexRDD[V]): PKVertexRDDImpl[V] = {
+    val otherRDD = other.asInstanceOf[PKVertexRDDImpl[V]]
+    val otherPartition = otherRDD match {
+      case other: VertexRDD[_] if this.partitioner == other.partitioner =>
+        other.vertexPartitions
+      case _ => PKVertexRDDImpl(otherRDD.partitionBy(partitioner.get)).vertexPartitions
+    }
+    val newPartitionsRDD = vertexPartitions.zipPartitions(otherPartition, preservesPartitioning = true) {
+      (thisIter, otherIter) =>
+        val thisPart = thisIter.next()
+        val otherPart = otherIter.next()
+        Iterator(thisPart.diff(otherPart))
+    }
+    withVertexPartitions(newPartitionsRDD)
+  }
 
-  override def innerJoin[U: ClassTag, V2: ClassTag](other: RDD[(VertexId, U)])(
-      f: (VertexId, V, U) => V2
-  ): PKVertexRDD[V2] = new PKVertexRDDImpl(rdd.innerJoin(other)(f))
+  override def leftZipJoin[V2: ClassTag, V3: ClassTag](
+      other: VertexRDD[V2]
+  )(f: (VertexId, V, Option[V2]) => V3): PKVertexRDDImpl[V3] = {
+    val otherRDD = other.asInstanceOf[PKVertexRDDImpl[V2]]
+    val newPartitionsRDD = vertexPartitions.zipPartitions(otherRDD.vertexPartitions, preservesPartitioning = true) {
+      (thisIter, otherIter) =>
+        val thisPart = thisIter.next()
+        val otherPart = otherIter.next()
+        Iterator(thisPart.leftJoin(otherPart)(f))
+    }
+    withVertexPartitions(newPartitionsRDD)
+  }
+
+  override def leftJoin[V2: ClassTag, V3: ClassTag](
+      other: RDD[(VertexId, V2)]
+  )(f: (VertexId, V, Option[V2]) => V3): PKVertexRDDImpl[V3] = {
+    // Test if the other vertex is a VertexRDD to choose the optimal join strategy.
+    // If the other set is a VertexRDD then we use the much more efficient leftZipJoin
+    other match {
+      case other: VertexRDD[_] if this.partitioner == other.partitioner =>
+        leftZipJoin(other)(f)
+      case _ =>
+        withVertexPartitions[V3](
+          vertexPartitions.zipPartitions(other.partitionBy(this.partitioner.get), preservesPartitioning = true) {
+            (partIter, msgs) => partIter.map(_.leftJoin(msgs)(f))
+          }
+        )
+    }
+  }
+
+  override def innerZipJoin[U: ClassTag, V2: ClassTag](
+      other: VertexRDD[U]
+  )(f: (VertexId, V, U) => V2): PKVertexRDDImpl[V2] = {
+    val otherRDD = other.asInstanceOf[PKVertexRDDImpl[U]]
+    val newPartitionsRDD = vertexPartitions.zipPartitions(otherRDD.vertexPartitions, preservesPartitioning = true) {
+      (thisIter, otherIter) =>
+        val thisPart = thisIter.next()
+        val otherPart = otherIter.next()
+        Iterator(thisPart.innerJoin(otherPart)(f))
+    }
+    withVertexPartitions(newPartitionsRDD)
+  }
+
+  override def innerJoin[U: ClassTag, V2: ClassTag](
+      other: RDD[(VertexId, U)]
+  )(f: (VertexId, V, U) => V2): PKVertexRDDImpl[V2] = {
+    // Test if the other vertex is a VertexRDD to choose the optimal join strategy.
+    // If the other set is a VertexRDD then we use the much more efficient innerZipJoin
+    other match {
+      case other: VertexRDD[_] if this.partitioner == other.partitioner =>
+        innerZipJoin(other)(f)
+      case _ =>
+        withVertexPartitions(
+          vertexPartitions.zipPartitions(other.partitionBy(this.partitioner.get), preservesPartitioning = true) {
+            (partIter, msgs) => partIter.map(_.innerJoin(msgs)(f))
+          }
+        )
+    }
+  }
 
   override def aggregateUsingIndex[V2: ClassTag](
       messages: RDD[(VertexId, V2)],
       reduceFunc: (V2, V2) => V2
-  ): PKVertexRDD[V2] = new PKVertexRDDImpl(rdd.aggregateUsingIndex(messages, reduceFunc))
+  ): PKVertexRDDImpl[V2] = {
+    val shuffled = messages.partitionBy(this.partitioner.get)
+    val parts = vertexPartitions.zipPartitions(shuffled, preservesPartitioning = true) { (thisIter, msgIter) =>
+      thisIter.map(_.aggregateUsingIndex(msgIter, reduceFunc))
+    }
+    withVertexPartitions[V2](parts)
+  }
+
+  override def reverseRoutingTables(): PKVertexRDDImpl[V] =
+    mapShippablePartitions(vPart => vPart.withRoutingTable(vPart.routingTable.reverse))
+
+  override def withEdges(edges: EdgeRDD[_]): PKVertexRDDImpl[V] = {
+    val edgesRDD = edges.asInstanceOf[PKEdgeRDDImpl[V, _]]
+    val routingTables = createRoutingTables(edgesRDD, this.partitioner.get)
+    val partitions = vertexPartitions.zipPartitions(routingTables, preservesPartitioning = true) {
+      (partIter, routingTableIter) =>
+        val routingTable = if (routingTableIter.hasNext) routingTableIter.next() else PKRoutingTablePartition.empty
+        partIter.map(_.withRoutingTable(routingTable))
+    }
+    withVertexPartitions(partitions)
+  }
+
+  /**
+    * Generates an RDD of vertex attributes suitable for shipping to the edge partitions.
+    *
+    * @param shipSrc Include source vertex attributes
+    * @param shipDst Include destination vertex attributes
+    * @return new [[PKEdgeRDD]] with cached vertex attributes
+    */
+  def shipAttributes(shipSrc: Boolean, shipDst: Boolean): RDD[(PartitionID, VertexAttributeBlock[V])] = {
+    vertexPartitions.mapPartitions(_.flatMap(_.shipVertexAttributes(shipSrc, shipDst)))
+  }
+
+  /**
+    * Map each vertex partition in this RDD using the given user function.
+    *
+    * @param f User function to apply
+    * @tparam V2 New type of vertex attributes
+    * @return
+    */
+  def mapShippablePartitions[V2: ClassTag](
+      f: PKVertexPartition[V] => PKVertexPartition[V2]
+  ): PKVertexRDDImpl[V2] = {
+    val newPartitionsRDD = vertexPartitions.mapPartitions(_.map(f), preservesPartitioning = true)
+    withVertexPartitions(newPartitionsRDD)
+  }
+
+  /**
+    * Creates a new [[PKVertexRDD]] with the given vertex partitions, using the same storage level.
+    *
+    * @param partitionsRDD New vertex partitions
+    * @tparam V2 New type of vertex attribute
+    * @return new [[PKVertexRDD]] with given vertex partitions
+    */
+  private def withVertexPartitions[V2: ClassTag](
+      partitionsRDD: RDD[PKVertexPartition[V2]]
+  ): PKVertexRDDImpl[V2] = {
+    new PKVertexRDDImpl(partitionsRDD, targetStorageLevel)
+  }
+
+  private def createRoutingTables(
+      edges: PKEdgeRDDImpl[V, _],
+      partitioner: Partitioner
+  ): RDD[PKRoutingTablePartition] = {
+    // Determine which vertices each edge partition needs by creating a mapping from vid to pid.
+    val vid2pid = edges.edgePartitions
+      .mapPartitions(_.flatMap(Function.tupled(PKRoutingTablePartition.edgePartitionToMsgs)))
+      .setName("VertexRDD.createRoutingTables - vid2pid (aggregation)")
+
+    val numEdgePartitions = edges.partitions.length
+    vid2pid
+      .partitionBy(partitioner)
+      .mapPartitions(
+        iter => Iterator(PKRoutingTablePartition.fromMsgs(numEdgePartitions, iter)),
+        preservesPartitioning = true
+      )
+  }
+}
+
+object PKVertexRDDImpl {
+  def apply[V: ClassTag](vertices: RDD[(VertexId, V)]): PKVertexRDDImpl[V] = {
+    val vPartitioned: RDD[(VertexId, V)] = vertices.partitioner match {
+      case Some(_) => vertices
+      case None    => vertices.partitionBy(new HashPartitioner(vertices.partitions.length))
+    }
+    val vertexPartitions =
+      vPartitioned.mapPartitions(iter => Iterator(PKVertexPartition(iter)), preservesPartitioning = true)
+    new PKVertexRDDImpl[V](vertexPartitions)
+  }
 }

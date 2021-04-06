@@ -4,6 +4,7 @@ import org.apache.spark.graphx.impl.EdgePartition
 import org.apache.spark.graphx.{EdgeRDD, PartitionID, VertexId}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.OneToOneDependency
+import org.apache.spark.graphx.pkgraph.graph.impl.{PKEdgePartition, PKEdgeRDDImpl}
 
 import scala.reflect.ClassTag
 
