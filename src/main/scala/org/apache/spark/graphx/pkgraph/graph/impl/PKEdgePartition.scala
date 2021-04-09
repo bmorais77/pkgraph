@@ -74,7 +74,7 @@ private[impl] class PKEdgePartition[V: ClassTag, E: ClassTag](
 
     // Add existing edges
     var i = 0
-    val newEdgeAttrs = new mutable.TreeSet[(K2TreeIndex, E)]()((a, b) => a._1.compare(b._1))
+    val newEdgeAttrs = new mutable.TreeSet[(Int, E)]()((a, b) => a._1 - b._1)
     for (edge <- newTree.iterator) {
       newEdgeAttrs.add((edge.index, edgeAttrs(i)))
       i += 1
@@ -253,6 +253,8 @@ private[impl] class PKEdgePartition[V: ClassTag, E: ClassTag](
       other: PKEdgePartition[_, E2]
   )(f: (VertexId, VertexId, E, E2) => E3): PKEdgePartition[V, E3] = {
     val builder = PKEdgePartitionBuilder[V, E3](tree.k)
+    val comparator = new PKEdgeComparator[E, E2](this, other)
+
     val it1 = iteratorWithIndex
     val it2 = other.iteratorWithIndex
 
@@ -260,7 +262,7 @@ private[impl] class PKEdgePartition[V: ClassTag, E: ClassTag](
     while (it1.hasNext && it2.hasNext) {
       val edge1 = it1.next()
 
-      while (it2.hasNext && edge2.index < edge1.index) {
+      while (it2.hasNext && comparator.compare(edge1, edge2) > 0) {
         edge2 = it2.next()
       }
 

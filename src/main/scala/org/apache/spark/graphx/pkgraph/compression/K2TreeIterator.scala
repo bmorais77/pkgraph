@@ -105,13 +105,7 @@ class K2TreeIterator(tree: K2Tree, reverse: Boolean = false) extends Iterator[K2
     * @return [[K2TreeEdge]]
     */
   private def buildEdgeFromPath(): K2TreeEdge = {
-    // Building the index
-    val indices = new Array[Int](path.length - 1)
-    for (i <- 0 until path.length - 1) {
-      indices(path.length - 2 - i) = (path(i).line % tree.k) * tree.k + (path(i).col % tree.k)
-    }
-
-    val index = K2TreeIndex(tree.k, tree.size / tree.k, indices)
+    val index = K2TreeIndex.fromEdge(tree.k, path.length - 1, path.top.line, path.top.col)
     K2TreeEdge(index, path.top.line, path.top.col)
   }
 
