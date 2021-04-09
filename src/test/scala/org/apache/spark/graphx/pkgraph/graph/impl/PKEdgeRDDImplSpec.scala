@@ -54,7 +54,7 @@ class PKEdgeRDDImplSpec extends FlatSpec with SparkSessionTestWrapper {
 
   it should "change the current storage level" in {
     val rdd = PKEdgeRDDImpl.fromEdges(sc.parallelize(edges))
-    val newRDD = rdd.withTargetStorageLevel(StorageLevel.DISK_ONLY)
+    val newRDD = rdd.withStorageLevel(StorageLevel.DISK_ONLY)
     assert(newRDD.targetStorageLevel == StorageLevel.DISK_ONLY)
   }
 }

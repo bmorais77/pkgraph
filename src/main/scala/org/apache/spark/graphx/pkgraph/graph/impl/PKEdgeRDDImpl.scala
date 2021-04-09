@@ -148,9 +148,14 @@ private[graph] class PKEdgeRDDImpl[V: ClassTag, E: ClassTag](
     new PKEdgeRDDImpl(partitionsRDD, targetStorageLevel)
   }
 
-  override def withTargetStorageLevel(targetStorageLevel: StorageLevel): PKEdgeRDDImpl[V, E] = {
-    new PKEdgeRDDImpl(edgePartitions, targetStorageLevel)
-  }
+  /**
+   * Changes the target storage level while preserving all other properties of the
+   * EdgeRDD. Operations on the returned EdgeRDD will preserve this storage level.
+   *
+   * This does not actually trigger a cache; to do this, call
+   * [[org.apache.spark.graphx.EdgeRDD#cache]] on the returned EdgeRDD.
+   */
+  def withStorageLevel(level: StorageLevel): PKEdgeRDDImpl[V, E] = new PKEdgeRDDImpl(edgePartitions, level)
 }
 
 object PKEdgeRDDImpl {

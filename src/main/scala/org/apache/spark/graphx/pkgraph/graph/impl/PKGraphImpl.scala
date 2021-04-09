@@ -181,7 +181,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
       vertices.cache()
       // The map preserves type, so we can use incremental replication
       val newVerts = vertices.mapValues(f).cache()
-      val changedVerts = vertices.asInstanceOf[PKVertexRDD[V2]].diff(newVerts)
+      val changedVerts = vertices.asInstanceOf[PKVertexRDDImpl[V2]].diff(newVerts)
       val newReplicatedVertexView = replicatedVertexView
         .asInstanceOf[PKReplicatedVertexView[V2, E]]
         .updateVertices(changedVerts)
@@ -279,7 +279,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
   ): Graph[V, E] = {
     vertices.cache()
     // Filter the vertices, reusing the partitioner and the index from this graph
-    val newVerts = vertices.mapShippablePartitions(_.filter(vpred))
+    val newVerts = vertices.mapPKVertexPartitions(_.filter(vpred))
     // Filter the triplets. We must always upgrade the triplet view fully because vpred always runs
     // on both src and dst vertices
     replicatedVertexView.upgrade(vertices, includeSrc = true, includeDst = true)
@@ -402,7 +402,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
       vertices.cache()
       // updateF preserves type, so we can use incremental replication
       val newVerts = vertices.leftJoin(other)(updateF).cache()
-      val changedVerts = vertices.asInstanceOf[PKVertexRDD[V2]].diff(newVerts)
+      val changedVerts = vertices.asInstanceOf[PKVertexRDDImpl[V2]].diff(newVerts)
       val newReplicatedVertexView = replicatedVertexView
         .asInstanceOf[PKReplicatedVertexView[V2, E]]
         .updateVertices(changedVerts)
@@ -430,23 +430,6 @@ object PKGraphImpl {
   }
 
   /**
-    * Create a graph from EdgePartitions, setting referenced vertices to `defaultVertexAttr`.
-    */
-  def fromEdgePartitions[V: ClassTag, E: ClassTag](
-      edgePartitions: RDD[(PartitionID, PKEdgePartition[V, E])],
-      defaultVertexAttr: V,
-      edgeStorageLevel: StorageLevel,
-      vertexStorageLevel: StorageLevel
-  ): PKGraphImpl[V, E] = {
-    fromEdgeRDD(
-      PKEdgeRDDImpl.fromEdgePartitions(edgePartitions),
-      defaultVertexAttr,
-      edgeStorageLevel,
-      vertexStorageLevel
-    )
-  }
-
-  /**
     * Create a graph from vertices and edges, setting missing vertices to `defaultVertexAttr`.
     */
   def apply[V: ClassTag, E: ClassTag](
@@ -458,9 +441,8 @@ object PKGraphImpl {
   ): PKGraphImpl[V, E] = {
     val edgeRDD = PKEdgeRDDImpl
       .fromEdges(edges)(classTag[V], classTag[E])
-      .withTargetStorageLevel(edgeStorageLevel)
-    val vertexRDD = PKVertexRDDImpl(vertices, edgeRDD, defaultVertexAttr)
-      .withTargetStorageLevel(vertexStorageLevel)
+      .withStorageLevel(edgeStorageLevel)
+    val vertexRDD = PKVertexRDDImpl(vertices, edgeRDD, defaultVertexAttr).withStorageLevel(vertexStorageLevel)
     PKGraphImpl(vertexRDD, edgeRDD)
   }
 
@@ -478,6 +460,23 @@ object PKGraphImpl {
       .cache()
 
     fromExistingRDDs(vertices, newEdges)
+  }
+
+  /**
+    * Create a graph from EdgePartitions, setting referenced vertices to `defaultVertexAttr`.
+    */
+  def fromEdgePartitions[V: ClassTag, E: ClassTag](
+      edgePartitions: RDD[(PartitionID, PKEdgePartition[V, E])],
+      defaultVertexAttr: V,
+      edgeStorageLevel: StorageLevel,
+      vertexStorageLevel: StorageLevel
+  ): PKGraphImpl[V, E] = {
+    fromEdgeRDD(
+      PKEdgeRDDImpl.fromEdgePartitions(edgePartitions),
+      defaultVertexAttr,
+      edgeStorageLevel,
+      vertexStorageLevel
+    )
   }
 
   /**
@@ -502,10 +501,10 @@ object PKGraphImpl {
       edgeStorageLevel: StorageLevel,
       vertexStorageLevel: StorageLevel
   ): PKGraphImpl[V, E] = {
-    val edgesCached = edges.withTargetStorageLevel(edgeStorageLevel).cache()
+    val edgesCached = edges.withStorageLevel(edgeStorageLevel).cache()
     val vertices = PKVertexRDDImpl
       .fromEdges(edgesCached, edgesCached.partitions.length, defaultVertexAttr)
-      .withTargetStorageLevel(vertexStorageLevel)
+      .withStorageLevel(vertexStorageLevel)
     fromExistingRDDs(vertices, edgesCached)
   }
 }

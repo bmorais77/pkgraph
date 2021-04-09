@@ -240,7 +240,7 @@ private[impl] class PKVertexPartition[@specialized(Long, Int, Double) V: ClassTa
     * `VertexAttributeBlock` contains the vertex attributes from the current partition that are
     * referenced in the specified positions in the edge partition.
     */
-  def shipVertexAttributes(shipSrc: Boolean, shipDst: Boolean): Iterator[(PartitionID, VertexAttributeBlock[V])] = {
+  def shipVertexAttributes(shipSrc: Boolean, shipDst: Boolean): Iterator[(PartitionID, PKVertexAttributeBlock[V])] = {
     Iterator.tabulate(routingTable.numEdgePartitions) { pid =>
       val initialSize = if (shipSrc && shipDst) routingTable.partitionSize(pid) else 64
       val vids = new PrimitiveVector[VertexId](initialSize)
@@ -251,7 +251,7 @@ private[impl] class PKVertexPartition[@specialized(Long, Int, Double) V: ClassTa
           attrs += this(vid)
         }
       }
-      (pid, new VertexAttributeBlock(vids.trim().array, attrs.trim().array))
+      (pid, new PKVertexAttributeBlock(vids.trim().array, attrs.trim().array))
     }
   }
 

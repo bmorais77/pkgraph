@@ -1,8 +1,8 @@
 package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.graphx.{EdgeRDD, PartitionID, VertexId, VertexRDD}
-import org.apache.spark.{HashPartitioner, OneToOneDependency, Partition, Partitioner}
-import org.apache.spark.graphx.impl.{ShippableVertexPartition, VertexAttributeBlock}
+import org.apache.spark.{HashPartitioner, OneToOneDependency, Partition, Partitioner, TaskContext}
+import org.apache.spark.graphx.impl.{ShippableVertexPartition}
 import org.apache.spark.graphx.pkgraph.graph.{PKEdgeRDD, PKVertexRDD}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -32,6 +32,15 @@ private[pkgraph] class PKVertexRDDImpl[V](
   }
 
   setName("PKVertexRDD")
+
+  override def getPartitions: Array[Partition] = vertexPartitions.partitions
+
+  /**
+   * Provides the `RDD[(VertexId, V)]` equivalent output.
+   */
+  override def compute(part: Partition, context: TaskContext): Iterator[(VertexId, V)] = {
+    firstParent[PKVertexPartition[V]].iterator(part, context).next().iterator
+  }
 
   /**
     * Persists the vertex partitions at the specified storage level, ignoring any existing target
@@ -94,7 +103,7 @@ private[pkgraph] class PKVertexRDDImpl[V](
     * @return new [[VertexRDD]] with mapped attributes
     */
   override def mapValues[V2: ClassTag](f: V => V2): PKVertexRDDImpl[V2] =
-    mapShippablePartitions(_.map((_, attr) => f(attr)))
+    mapPKVertexPartitions(_.map((_, attr) => f(attr)))
 
   /**
     * Apply the given user function to each vertex in this RDD.
@@ -103,7 +112,7 @@ private[pkgraph] class PKVertexRDDImpl[V](
     * @tparam V2 New type of vertex attributes
     * @return new [[VertexRDD]] with mapped attributes
     */
-  override def mapValues[V2: ClassTag](f: (VertexId, V) => V2): PKVertexRDDImpl[V2] = mapShippablePartitions(_.map(f))
+  override def mapValues[V2: ClassTag](f: (VertexId, V) => V2): PKVertexRDDImpl[V2] = mapPKVertexPartitions(_.map(f))
 
   override def minus(other: RDD[(VertexId, V)]): PKVertexRDDImpl[V] = {
     minus(aggregateUsingIndex(other, (a: V, _: V) => a))
@@ -146,6 +155,22 @@ private[pkgraph] class PKVertexRDDImpl[V](
         Iterator(thisPart.diff(otherPart))
     }
     withVertexPartitions(newPartitionsRDD)
+  }
+
+
+  /**
+   * Restricts the vertex set to the set of vertices satisfying the given predicate. This operation
+   * preserves the index for efficient joins with the original RDD, and it sets bits in the bitmask
+   * rather than allocating new memory.
+   *
+   * It is declared and defined here to allow refining the return type from `RDD[(VertexId, VD)]` to
+   * `VertexRDD[VD]`.
+   *
+   * @param pred the user defined predicate, which takes a tuple to conform to the
+   * `RDD[(VertexId, VD)]` interface
+   */
+  override def filter(pred: ((VertexId, V)) => Boolean): PKVertexRDDImpl[V] = {
+    mapPKVertexPartitions(_.filter(Function.untupled(pred)))
   }
 
   override def leftZipJoin[V2: ClassTag, V3: ClassTag](
@@ -220,7 +245,7 @@ private[pkgraph] class PKVertexRDDImpl[V](
   }
 
   override def reverseRoutingTables(): PKVertexRDDImpl[V] =
-    mapShippablePartitions(vPart => vPart.withRoutingTable(vPart.routingTable.reverse))
+    mapPKVertexPartitions(vPart => vPart.withRoutingTable(vPart.routingTable.reverse))
 
   override def withEdges(edges: EdgeRDD[_]): PKVertexRDDImpl[V] = {
     val edgesRDD = edges.asInstanceOf[PKEdgeRDDImpl[V, _]]
@@ -240,7 +265,7 @@ private[pkgraph] class PKVertexRDDImpl[V](
     * @param shipDst Include destination vertex attributes
     * @return new [[PKEdgeRDD]] with cached vertex attributes
     */
-  def shipAttributes(shipSrc: Boolean, shipDst: Boolean): RDD[(PartitionID, VertexAttributeBlock[V])] = {
+  def shipAttributes(shipSrc: Boolean, shipDst: Boolean): RDD[(PartitionID, PKVertexAttributeBlock[V])] = {
     vertexPartitions.mapPartitions(_.flatMap(_.shipVertexAttributes(shipSrc, shipDst)))
   }
 
@@ -251,12 +276,20 @@ private[pkgraph] class PKVertexRDDImpl[V](
     * @tparam V2 New type of vertex attributes
     * @return
     */
-  def mapShippablePartitions[V2: ClassTag](
+  def mapPKVertexPartitions[V2: ClassTag](
       f: PKVertexPartition[V] => PKVertexPartition[V2]
   ): PKVertexRDDImpl[V2] = {
     val newPartitionsRDD = vertexPartitions.mapPartitions(_.map(f), preservesPartitioning = true)
     withVertexPartitions(newPartitionsRDD)
   }
+
+  /**
+   * Creates a new [[PKVertexRDDImpl]] with the same vertex partitions and using the given storage level.
+   *
+   * @param level Storage level to use
+   * @return new [[PKVertexRDDImpl]] with the given storage level
+   */
+  def withStorageLevel(level: StorageLevel): PKVertexRDDImpl[V] = new PKVertexRDDImpl(vertexPartitions, level)
 
   /**
     * Creates a new [[PKVertexRDD]] with the given vertex partitions, using the same storage level.
@@ -353,7 +386,7 @@ object PKVertexRDDImpl {
     * @param numPartitions the desired number of partitions for the resulting `VertexRDD`
     * @param defaultVal the vertex attribute to use when creating missing vertices
     */
-  def fromEdges[V: ClassTag](edges: PKEdgeRDDImpl[V, _], numPartitions: Int, defaultVal: V): PKVertexRDD[V] = {
+  def fromEdges[V: ClassTag](edges: PKEdgeRDDImpl[V, _], numPartitions: Int, defaultVal: V): PKVertexRDDImpl[V] = {
     val routingTables = createRoutingTables(edges, new HashPartitioner(numPartitions))
     val vertexPartitions = routingTables.mapPartitions(
       { routingTableIter =>

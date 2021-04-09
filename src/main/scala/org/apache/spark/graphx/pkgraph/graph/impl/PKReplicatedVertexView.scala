@@ -1,7 +1,6 @@
 package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.graphx.impl.VertexAttributeBlock
-import org.apache.spark.graphx.VertexRDD
 import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
@@ -38,7 +37,7 @@ class PKReplicatedVertexView[V: ClassTag, E: ClassTag](
     val shipSrc = includeSrc && !hasSrcId
     val shipDst = includeDst && !hasDstId
     if (shipSrc || shipDst) {
-      val shippedVerts: RDD[(Int, VertexAttributeBlock[V])] =
+      val shippedVerts: RDD[(Int, PKVertexAttributeBlock[V])] =
         vertices
           .shipAttributes(shipSrc, shipDst)
           .setName(
@@ -66,9 +65,9 @@ class PKReplicatedVertexView[V: ClassTag, E: ClassTag](
     * `updates`. This ships a vertex attribute only to the edge partitions where it is in the
     * position(s) specified by the attribute shipping level.
     */
-  def updateVertices(updates: VertexRDD[V]): PKReplicatedVertexView[V, E] = {
+  def updateVertices(updates: PKVertexRDDImpl[V]): PKReplicatedVertexView[V, E] = {
     val shippedVerts = updates
-      .shipVertexAttributes(hasSrcId, hasDstId)
+      .shipAttributes(hasSrcId, hasDstId)
       .setName("ReplicatedVertexView.updateVertices - shippedVerts %s %s (broadcast)".format(hasSrcId, hasDstId))
       .partitionBy(edges.partitioner.get)
 

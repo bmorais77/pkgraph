@@ -1,8 +1,7 @@
 package org.apache.spark.graphx.pkgraph.graph
 
-import org.apache.spark.graphx.impl.GraphImpl
 import org.apache.spark.graphx.pkgraph.graph.impl.PKGraphImpl
-import org.apache.spark.graphx.{Edge, EdgeContext, EdgeDirection, Graph, GraphOps, PartitionStrategy, TripletFields, VertexId, VertexRDD}
+import org.apache.spark.graphx.{Edge, EdgeContext, EdgeDirection, Graph, GraphOps, TripletFields, VertexId, VertexRDD}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 
