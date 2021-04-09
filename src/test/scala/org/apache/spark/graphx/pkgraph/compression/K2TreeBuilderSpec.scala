@@ -64,4 +64,12 @@ class K2TreeBuilderSpec extends FlatSpec {
     val builder = K2TreeBuilder.fromK2Tree(tree)
     TestUtils.assertBitSet(builder.bits, "1001 1001 0000 0000 1001 1001 0000 0000 1001 0000 0000 0000 0000 0000 0000 0000 0000 1001 0000 0000 1001")
   }
+
+  it should "round the size of the tree to the nearest power of k" in {
+    val b1 = K2TreeBuilder(2, 10)
+    assert(b1.size == 16)
+
+    val b2 = K2TreeBuilder(2, 8)
+    assert(b2.size == 8)
+  }
 }

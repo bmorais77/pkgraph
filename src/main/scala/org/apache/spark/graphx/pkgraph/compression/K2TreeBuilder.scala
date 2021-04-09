@@ -202,13 +202,9 @@ object K2TreeBuilder {
     * @return empty builder for a compressed K²-Tree
     */
   def apply(k: Int, size: Int): K2TreeBuilder = {
-    var actualSize = size
-
-    // Size is not a power of K, so we need to find the nearest power
-    if (size % k != 0) {
-      val exp = math.ceil(mathx.log(k, size))
-      actualSize = math.pow(k, exp).toInt
-    }
+    // Make sure size is a power of K
+    val exp = math.ceil(mathx.log(k, size))
+    val actualSize = math.pow(k, exp).toInt
 
     val k2 = k * k
     val height = math.ceil(mathx.log(k, actualSize)).toInt

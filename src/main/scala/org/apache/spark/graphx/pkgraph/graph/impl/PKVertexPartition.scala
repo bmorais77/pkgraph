@@ -1,10 +1,10 @@
 package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.graphx.{PartitionID, VertexId}
-import org.apache.spark.graphx.impl.{RoutingTablePartition, VertexAttributeBlock, VertexIdToIndexMap}
+import org.apache.spark.graphx.impl.VertexAttributeBlock
 import org.apache.spark.graphx.pkgraph.util.collection.PrimitiveHashMap
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
-import org.apache.spark.util.collection.{BitSet, PrimitiveVector}
+import org.apache.spark.util.collection.{BitSet, OpenHashSet, PrimitiveVector}
 
 import scala.reflect.ClassTag
 
@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
   * each vertex attribute, enabling joining with an [[org.apache.spark.graphx.EdgeRDD]].
   */
 private[impl] class PKVertexPartition[@specialized(Long, Int, Double) V: ClassTag](
-    val index: VertexIdToIndexMap,
+    val index: OpenHashSet[VertexId],
     val values: Array[V],
     val mask: BitSet,
     val routingTable: PKRoutingTablePartition
@@ -272,7 +272,7 @@ private[impl] class PKVertexPartition[@specialized(Long, Int, Double) V: ClassTa
     }
   }
 
-  def withIndex(index: VertexIdToIndexMap): PKVertexPartition[V] = {
+  def withIndex(index: OpenHashSet[VertexId]): PKVertexPartition[V] = {
     new PKVertexPartition(index, values, mask, routingTable)
   }
 
@@ -317,6 +317,7 @@ private[impl] object PKVertexPartition {
       mergeFunc: (V, V) => V
   ): PKVertexPartition[V] = {
     val map = new PrimitiveHashMap[VertexId, V]
+
     // Merge the given vertices using mergeFunc
     iter.foreach { pair =>
       map.setMerge(pair._1, pair._2, mergeFunc)

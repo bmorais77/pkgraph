@@ -4,8 +4,8 @@ import org.apache.spark.graphx.impl.EdgePartition
 import org.apache.spark.graphx.{EdgeRDD, PartitionID, VertexId}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.OneToOneDependency
-import org.apache.spark.graphx.pkgraph.graph.impl.{PKEdgePartition, PKEdgeRDDImpl}
 
+import scala.language.existentials
 import scala.reflect.ClassTag
 
 abstract class PKEdgeRDD[E: ClassTag](rdd: RDD[_]) extends EdgeRDD[E](rdd.context, List(new OneToOneDependency(rdd))) {

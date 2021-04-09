@@ -1,7 +1,6 @@
 package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.graphx._
-import org.apache.spark.graphx.impl.EdgeActiveness
 import org.apache.spark.graphx.pkgraph.compression.{K2Tree, K2TreeIndex}
 import org.apache.spark.graphx.pkgraph.util.collection.PrimitiveHashMap
 import org.apache.spark.graphx.pkgraph.util.mathx
@@ -10,7 +9,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
-private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
+private[impl] class PKEdgePartition[V: ClassTag, E: ClassTag](
     val vertexAttrs: PrimitiveHashMap[VertexId, V],
     val edgeAttrs: Array[E],
     val tree: K2Tree,
@@ -257,9 +256,9 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     val it1 = iteratorWithIndex
     val it2 = other.iteratorWithIndex
 
+    var edge2: PKEdge[E2] = PKEdge()
     while (it1.hasNext && it2.hasNext) {
       val edge1 = it1.next()
-      var edge2 = it2.next()
 
       while (it2.hasNext && edge2.index < edge1.index) {
         edge2 = it2.next()

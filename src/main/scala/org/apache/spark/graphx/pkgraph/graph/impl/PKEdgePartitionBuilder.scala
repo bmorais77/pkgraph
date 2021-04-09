@@ -17,6 +17,8 @@ private[impl] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private(
 
   private var startX: Long = 0
   private var startY: Long = 0
+
+  // Start at -1 so that if no edges are added the builder will build a K²-Tree with size 0
   private var endX: Long = 0
   private var endY: Long = 0
 
@@ -36,7 +38,7 @@ private[impl] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private(
   }
 
   def build: PKEdgePartition[V, E] = {
-    val treeBuilder = K2TreeBuilder(k, math.max(endX - startX, endY - startY).toInt)
+    val treeBuilder = K2TreeBuilder(k, math.max(endX - startX + 1, endY - startY + 1).toInt)
     val data = new mutable.TreeSet[(Int, E)]()((x, y) => x._1 - y._1)
 
     var i = 0

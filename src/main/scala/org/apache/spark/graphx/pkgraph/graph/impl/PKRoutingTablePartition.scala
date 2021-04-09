@@ -106,7 +106,6 @@ private[impl] class PKRoutingTablePartition(private val routingTable: Array[(Arr
       f: VertexId => Unit
   ): Unit = {
     val (vidsCandidate, srcVids, dstVids) = routingTable(pid)
-    val size = vidsCandidate.length
     if (includeSrc && includeDst) {
       // Avoid checks for performance
       vidsCandidate.iterator.foreach(f)

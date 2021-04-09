@@ -1,20 +1,15 @@
 package org.apache.spark.graphx.pkgraph.graph.impl
 
-import org.apache.spark.graphx.VertexRDD.createRoutingTables
 import org.apache.spark.graphx.{EdgeRDD, PartitionID, VertexId, VertexRDD}
 import org.apache.spark.{HashPartitioner, OneToOneDependency, Partition, Partitioner}
-import org.apache.spark.graphx.impl.{
-  RoutingTablePartition,
-  ShippableVertexPartition,
-  VertexAttributeBlock,
-  VertexRDDImpl
-}
+import org.apache.spark.graphx.impl.{ShippableVertexPartition, VertexAttributeBlock}
 import org.apache.spark.graphx.pkgraph.graph.{PKEdgeRDD, PKVertexRDD}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 
 import scala.reflect.ClassTag
 
+// TODO: Check if we can create a new VertexRDD from the constructors in GraphX, this way we can avoid this class
 private[pkgraph] class PKVertexRDDImpl[V](
     val vertexPartitions: RDD[PKVertexPartition[V]],
     val targetStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY

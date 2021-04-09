@@ -5,7 +5,7 @@ import org.apache.spark.graphx.impl.{EdgePartition, EdgePartitionBuilder, EdgeRD
 import org.apache.spark.graphx.pkgraph.graph.PKEdgeRDD
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.{HashPartitioner, Partition, Partitioner}
+import org.apache.spark.{HashPartitioner, Partition, Partitioner, TaskContext}
 
 import scala.reflect.ClassTag
 
@@ -13,6 +13,16 @@ private[graph] class PKEdgeRDDImpl[V: ClassTag, E: ClassTag](
     val edgePartitions: RDD[(PartitionID, PKEdgePartition[V, E])],
     val targetStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
 ) extends PKEdgeRDD[E](edgePartitions) {
+
+  override def compute(part: Partition, context: TaskContext): Iterator[Edge[E]] = {
+    val p = firstParent[(PartitionID, PKEdgePartition[_, E])].iterator(part, context)
+    if (p.hasNext) {
+      val partition = p.next()._2
+      partition.iterator.map(_.copy())
+    } else {
+      Iterator.empty
+    }
+  }
 
   override def setName(_name: String): this.type = {
     if (edgePartitions.name != null) {
@@ -33,7 +43,7 @@ private[graph] class PKEdgeRDDImpl[V: ClassTag, E: ClassTag](
   override val partitioner: Option[Partitioner] =
     edgePartitions.partitioner.orElse(Some(new HashPartitioner(partitions.length)))
 
-  override def collect(): Array[Edge[E]] = this.map(_.copy()).collect()
+  override def collect(): Array[Edge[E]] = map(_.copy()).collect()
 
   /**
     * Persists the edge partitions at the specified storage level, ignoring any existing target
@@ -73,8 +83,6 @@ private[graph] class PKEdgeRDDImpl[V: ClassTag, E: ClassTag](
   override def count(): Long = {
     edgePartitions.map(_._2.size.toLong).fold(0)(_ + _)
   }
-
-  override def partitionsRDD = throw new NotImplementedError
 
   override def getPartitions: Array[Partition] = edgePartitions.partitions
 
