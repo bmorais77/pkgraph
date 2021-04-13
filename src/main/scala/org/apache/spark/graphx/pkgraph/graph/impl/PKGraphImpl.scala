@@ -2,6 +2,7 @@ package org.apache.spark.graphx.pkgraph.graph.impl
 
 import org.apache.spark.HashPartitioner
 import org.apache.spark.graphx._
+import org.apache.spark.graphx.impl.EdgeActiveness
 import org.apache.spark.graphx.pkgraph.graph.{PKGraph, PKVertexRDD}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -315,7 +316,7 @@ class PKGraphImpl[V: ClassTag, E: ClassTag] private (
   override def groupEdges(merge: (E, E) => E): PKGraphImpl[V, E] = {
     // Our solution does not support multi-graphs so identical edges are already grouped when adding them
     // for the first time, so this method does nothing
-    this
+    throw new UnsupportedOperationException
   }
 
   /**

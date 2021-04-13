@@ -5,9 +5,11 @@ import org.apache.spark.graphx.{Edge, EdgeContext, EdgeDirection, Graph, GraphOp
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 
+import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
 abstract class PKGraph[V: ClassTag, E: ClassTag] extends Graph[V, E] {
+  override val ops: GraphOps[V, E] = new PKGraphOps(this)
 
   /**
     * Package-private feature that is leaked in the public interface.
@@ -20,7 +22,7 @@ abstract class PKGraph[V: ClassTag, E: ClassTag] extends Graph[V, E] {
       mergeMsg: (A, A) => A,
       tripletFields: TripletFields,
       activeSetOpt: Option[(VertexRDD[_], EdgeDirection)]
-  ): VertexRDD[A] = throw new NotImplementedError
+  ): VertexRDD[A] = aggregateMessages(sendMsg, mergeMsg, tripletFields)
 }
 
 object PKGraph {

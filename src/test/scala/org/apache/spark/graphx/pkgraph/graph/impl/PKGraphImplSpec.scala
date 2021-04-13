@@ -1,6 +1,6 @@
 package org.apache.spark.graphx.pkgraph.graph.impl
 
-import org.apache.spark.graphx.Edge
+import org.apache.spark.graphx.{Edge, VertexId}
 import org.apache.spark.graphx.pkgraph.util.SparkSessionTestWrapper
 import org.apache.spark.storage.StorageLevel
 import org.scalatest.FlatSpec
@@ -29,7 +29,7 @@ class PKGraphImplSpec extends FlatSpec with SparkSessionTestWrapper {
     assert(triplets.length == graph.numEdges)
 
     var i = 0
-    for(triplet <- triplets) {
+    for (triplet <- triplets) {
       assert(triplet.srcId == i)
       assert(triplet.dstId == i)
       assert(triplet.attr == i * 10)
@@ -37,20 +37,6 @@ class PKGraphImplSpec extends FlatSpec with SparkSessionTestWrapper {
       assert(triplet.srcAttr == triplet.dstAttr)
       i += 1
     }
-  }
-
-  it should "persist vertices and edges" in {
-    buildGraph().persist(StorageLevel.DISK_ONLY)
-  }
-
-  it should "cache vertices and edges" in {
-    buildGraph().cache()
-  }
-
-  it should "checkpoint vertices and edges" in {
-    val graph = buildGraph()
-    graph.checkpoint()
-    assert(graph.isCheckpointed)
   }
 
   it should "map vertices" in {
@@ -71,6 +57,15 @@ class PKGraphImplSpec extends FlatSpec with SparkSessionTestWrapper {
     assert(actualEdges sameElements expectedEdges)
   }
 
+  it should "map triplets" in {
+    val graph = buildGraph()
+    val newGraph = graph.mapTriplets(e => e.attr * 2)
+
+    val actualEdges = newGraph.edges.collect().sortWith((a, b) => a.attr < b.attr)
+    val expectedEdges = edges.map(e => e.copy(attr = e.attr * 2)).toArray.sortWith((a, b) => a.attr < b.attr)
+    assert(actualEdges sameElements expectedEdges)
+  }
+
   it should "reverse edges" in {
     val graph = buildGraph()
     val newGraph = graph.reverse
@@ -80,7 +75,53 @@ class PKGraphImplSpec extends FlatSpec with SparkSessionTestWrapper {
     assert(actualEdges sameElements expectedEdges)
   }
 
-  private def buildGraph(): PKGraphImpl[Int, Int] = {
+  it should "subgraph original graph" in {
+    val graph = buildGraph()
+    val newGraph = graph.subgraph(e => e.attr % 2 == 0)
+
+    val actualEdges = newGraph.edges.collect().sortWith((a, b) => a.attr < b.attr)
+    val expectedEdges = edges.filter(_.attr % 2 == 0).toArray.sortWith((a, b) => a.attr < b.attr)
+    assert(actualEdges sameElements expectedEdges)
+  }
+
+  it should "inner join with another graph" in {
+    val edges1 = (0 to 6).map(i => Edge(i, i, i))
+    val edges2 = (4 until 9).map(i => Edge(i, i, i))
+
+    val graph1 = buildGraph(edges1)
+    val graph2 = buildGraph(edges2)
+    val newGraph = graph1.mask(graph2)
+
+    val actualEdges = newGraph.edges.collect().sortWith((a, b) => a.attr < b.attr)
+    val expectedEdges = (4 to 6).map(i => Edge(i, i, i)).sortWith((a, b) => a.attr < b.attr).toArray
+    assert(actualEdges sameElements expectedEdges)
+  }
+
+  it should "group edges" in assertThrows[UnsupportedOperationException] {
+    buildGraph().groupEdges((a, b) => a + b)
+  }
+
+  it should "left outer join vertices" in {
+    val newVertices = sc.parallelize((5 until 10).map(i => (i.toLong, i * 20)))
+
+    val graph = buildGraph()
+    val newGraph = graph.outerJoinVertices(newVertices) { (_, attr, other) => attr + other.getOrElse(0) }
+
+    val actualVertices = newGraph.vertices.collect().sortWith((a, b) => a._1 < b._1)
+    val expectedVertices = (0 until 10).map(i => {
+      if(i >= 5) {
+        (i.toLong, i * 20 * 2)
+      } else {
+        (i.toLong, i * 20)
+      }
+    }).toArray
+    assert(actualVertices sameElements expectedVertices)
+  }
+
+  private def buildGraph(
+      edges: Seq[Edge[Int]] = edges,
+      vertices: Seq[(VertexId, Int)] = vertices
+  ): PKGraphImpl[Int, Int] = {
     val edgeRDD = sc.parallelize(edges)
     val vertexRDD = sc.parallelize(vertices)
     PKGraphImpl(vertexRDD, edgeRDD, 0, StorageLevel.MEMORY_ONLY, StorageLevel.MEMORY_ONLY)

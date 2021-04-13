@@ -9,6 +9,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
+// TODO: Maybe implement active set to more efficiently perform aggregate
 private[impl] class PKEdgePartition[V: ClassTag, E: ClassTag](
     val vertexAttrs: PrimitiveHashMap[VertexId, V],
     val edgeAttrs: Array[E],
