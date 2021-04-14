@@ -90,7 +90,7 @@ class PKGraphOpsSpec extends FlatSpec with SparkSessionTestWrapper {
   }
 
   it should "perform page rank" in {
-    val newGraph = ops.pageRank(0.001)
+    val newGraph = ops.pageRank(0.2)
     val expectedVertices = (0 until 10).map(i => (i.toLong, 1)).toArray
     val actualVertices = newGraph.vertices.collect().sortWith((a, b) => a._1 < b._1).map(v => (v._1, math.round(v._2)))
     assert(expectedVertices sameElements actualVertices)
