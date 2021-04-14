@@ -1,63 +1,133 @@
 package org.apache.spark.graphx.pkgraph.graph
 
-import org.apache.spark.{Dependency, SparkContext}
-import org.apache.spark.graphx.{PartitionID, VertexRDD}
-import org.apache.spark.graphx.impl.{ShippableVertexPartition, VertexAttributeBlock}
+import org.apache.spark.graphx.impl.RoutingTablePartition.RoutingTableMessage
+import org.apache.spark.graphx.impl.{RoutingTablePartition, ShippableVertexPartition, VertexRDDImpl}
+import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
+import org.apache.spark.graphx.{PartitionID, VertexId, VertexRDD}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.StorageLevel
+import org.apache.spark.{HashPartitioner, Partitioner}
 
 import scala.reflect.ClassTag
 
-abstract class PKVertexRDD[V](sc: SparkContext, deps: Seq[Dependency[_]]) extends VertexRDD[V](sc, deps) {
+object PKVertexRDD {
+  implicit class PKVertexRDDWrapper[V](rdd: VertexRDD[V]) {
+    def addVertices(vertices: RDD[(VertexId, V)]): VertexRDD[V] = {
+      ???
+    }
+
+    def removeVertices(vertices: RDD[(VertexId, V)]): VertexRDD[V] = {
+      ???
+    }
+  }
 
   /**
-    * Package-private feature that is leaked in the public interface.
-    * Should not be used outside of GraphX.
+    * Constructs a `VertexRDD` from an RDD of vertex-attribute pairs. Duplicate vertex entries are
+    * removed arbitrarily. The resulting `VertexRDD` will be joinable with `edges`, and any missing
+    * vertices referred to by `edges` will be created with the attribute `defaultVal`.
     *
-    * @return [[NotImplementedError]]
+    * @tparam V the vertex attribute type
+    *
+    * @param vertices the collection of vertex-attribute pairs
+    * @param edges the [[PKEdgeRDD]] that these vertices may be joined with
+    * @param defaultVal the vertex attribute to use when creating missing vertices
     */
-  override def partitionsRDD = throw new NotImplementedError
+  def apply[V: ClassTag](vertices: RDD[(VertexId, V)], edges: PKEdgeRDD[V, _], defaultVal: V): VertexRDD[V] = {
+    PKVertexRDD(vertices, edges, defaultVal, (a, _) => a)
+  }
 
   /**
-    * Package-private feature that is leaked in the public interface.
-    * Should not be used outside of GraphX.
+    * Constructs a `VertexRDD` from an RDD of vertex-attribute pairs. Duplicate vertex entries are
+    * merged using `mergeFunc`. The resulting `VertexRDD` will be joinable with `edges`, and any
+    * missing vertices referred to by `edges` will be created with the attribute `defaultVal`.
     *
-    * @return [[NotImplementedError]]
+    * @tparam V the vertex attribute type
+    *
+    * @param vertices the collection of vertex-attribute pairs
+    * @param edges the [[PKEdgeRDD]] that these vertices may be joined with
+    * @param defaultVal the vertex attribute to use when creating missing vertices
+    * @param mergeFunc the commutative, associative duplicate vertex attribute merge function
     */
-  override def mapVertexPartitions[V2: ClassTag](f: ShippableVertexPartition[V] => ShippableVertexPartition[V2]) =
-    throw new NotImplementedError
+  def apply[V: ClassTag](
+      vertices: RDD[(VertexId, V)],
+      edges: PKEdgeRDD[V, _],
+      defaultVal: V,
+      mergeFunc: (V, V) => V
+  ): VertexRDD[V] = {
+    val vPartitioned: RDD[(VertexId, V)] = vertices.partitioner match {
+      case Some(_) => vertices
+      case None    => vertices.partitionBy(new HashPartitioner(vertices.partitions.length))
+    }
+    val routingTables = createRoutingTables(edges, vPartitioned.partitioner.get)
+    val vertexPartitions = vPartitioned.zipPartitions(routingTables, preservesPartitioning = true) {
+      (vertexIter, routingTableIter) =>
+        val routingTable =
+          if (routingTableIter.hasNext) routingTableIter.next() else RoutingTablePartition.empty
+        Iterator(ShippableVertexPartition(vertexIter, routingTable, defaultVal, mergeFunc))
+    }
+    new VertexRDDImpl(vertexPartitions)
+  }
 
   /**
-    * Package-private feature that is leaked in the public interface.
-    * Should not be used outside of GraphX.
+    * Constructs a `VertexRDD` containing all vertices referred to in `edges`. The vertices will be
+    * created with the attribute `defaultVal`. The resulting `VertexRDD` will be joinable with
+    * `edges`.
     *
-    * @return [[NotImplementedError]]
+    * @tparam V the vertex attribute type
+    *
+    * @param edges the [[PKEdgeRDD]] referring to the vertices to create
+    * @param numPartitions the desired number of partitions for the resulting `VertexRDD`
+    * @param defaultVal the vertex attribute to use when creating missing vertices
     */
-  override def withPartitionsRDD[V2: ClassTag](partitionsRDD: RDD[ShippableVertexPartition[V2]]) =
-    throw new NotImplementedError
+  def fromEdges[V: ClassTag](edges: PKEdgeRDD[V, _], numPartitions: Int, defaultVal: V): VertexRDD[V] = {
+    val routingTables = createRoutingTables(edges, new HashPartitioner(numPartitions))
+    val vertexPartitions = routingTables.mapPartitions(
+      { routingTableIter =>
+        val routingTable =
+          if (routingTableIter.hasNext) routingTableIter.next() else RoutingTablePartition.empty
+        Iterator(ShippableVertexPartition(Iterator.empty, routingTable, defaultVal))
+      },
+      preservesPartitioning = true
+    )
+    new VertexRDDImpl(vertexPartitions)
+  }
 
-  /**
-    * Package-private feature that is leaked in the public interface.
-    * Should not be used outside of GraphX.
-    *
-    * @return [[NotImplementedError]]
-    */
-  override def withTargetStorageLevel(targetStorageLevel: StorageLevel) = throw new NotImplementedError
+  private def createRoutingTables(
+      edges: PKEdgeRDD[_, _],
+      vertexPartitioner: Partitioner
+  ): RDD[RoutingTablePartition] = {
+    // Determine which vertices each edge partition needs by creating a mapping from vid to pid.
+    val vid2pid = edges.edgePartitions
+      .mapPartitions(_.flatMap(Function.tupled(edgePartitionToMsgs)))
+      .setName("VertexRDD.createRoutingTables - vid2pid (aggregation)")
 
-  /**
-    * Package-private feature that is leaked in the public interface.
-    * Should not be used outside of GraphX.
-    *
-    * @return [[NotImplementedError]]
-    */
-  override def shipVertexAttributes(shipSrc: Boolean, shipDst: Boolean): RDD[(PartitionID, VertexAttributeBlock[V])] =
-    throw new NotImplementedError
+    val numEdgePartitions = edges.partitions.length
+    vid2pid
+      .partitionBy(vertexPartitioner)
+      .mapPartitions(
+        iter => Iterator(RoutingTablePartition.fromMsgs(numEdgePartitions, iter)),
+        preservesPartitioning = true
+      )
+  }
 
-  /**
-    * Package-private feature that is leaked in the public interface.
-    * Should not be used outside of GraphX.
-    *
-    * @return [[NotImplementedError]]
-    */
-  override def shipVertexIds() = throw new NotImplementedError
+  /** Generate a `RoutingTableMessage` for each vertex referenced in `edgePartition`. */
+  private def edgePartitionToMsgs(pid: PartitionID, partition: PKEdgePartition[_, _]): Iterator[RoutingTableMessage] = {
+    // Determine which positions each vertex id appears in using a map where the low 2 bits
+    // represent src and dst
+    val map = new GraphXPrimitiveKeyOpenHashMap[VertexId, Byte]
+    partition.iterator.foreach { e =>
+      map.changeValue(e.srcId, 0x1, (b: Byte) => (b | 0x1).toByte)
+      map.changeValue(e.dstId, 0x2, (b: Byte) => (b | 0x2).toByte)
+    }
+    map.iterator.map { vidAndPosition =>
+      val vid = vidAndPosition._1
+      val position = vidAndPosition._2
+      toRoutingTableMessage(vid, pid, position)
+    }
+  }
+
+  private def toRoutingTableMessage(vid: VertexId, pid: PartitionID, position: Byte): RoutingTableMessage = {
+    val positionUpper2 = position << 30
+    val pidLower30 = pid & 0x3FFFFFFF
+    (vid, positionUpper2 | pidLower30)
+  }
 }

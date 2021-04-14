@@ -1,24 +1,24 @@
-package org.apache.spark.graphx.pkgraph.graph.impl
+package org.apache.spark.graphx.pkgraph.graph
 
-import org.apache.spark.graphx.{Edge, VertexId}
 import org.apache.spark.graphx.pkgraph.util.SparkSessionTestWrapper
+import org.apache.spark.graphx.{Edge, VertexId}
 import org.apache.spark.storage.StorageLevel
 import org.scalatest.FlatSpec
 
-class PKGraphImplSpec extends FlatSpec with SparkSessionTestWrapper {
+class PKGraphSpec extends FlatSpec with SparkSessionTestWrapper {
   private val vertices = (0 until 10).map(i => (i.toLong, i * 20))
   private val edges = (0 until 10).map(i => Edge(i, i, i * 10))
 
   "A PKGraphImpl" should "build from edges" in {
     val edges = sc.parallelize((0 until 10).map(i => Edge(i, i, i * 10)))
-    val graph = PKGraphImpl(edges, 0, StorageLevel.MEMORY_ONLY, StorageLevel.MEMORY_ONLY)
+    val graph = PKGraph.fromEdges(edges, 0)
     assert(graph.numEdges == edges.count())
   }
 
   it should "build from edges and vertices" in {
     val edges = sc.parallelize((0 until 10).map(i => Edge(i, i, i * 10)))
     val vertices = sc.parallelize((0 until 10).map(i => (i.toLong, i * 20)))
-    val graph = PKGraphImpl(vertices, edges, 0, StorageLevel.MEMORY_ONLY, StorageLevel.MEMORY_ONLY)
+    val graph = PKGraph(vertices, edges, 0, StorageLevel.MEMORY_ONLY, StorageLevel.MEMORY_ONLY)
     assert(graph.numEdges == edges.count())
     assert(graph.numVertices == vertices.count())
   }
@@ -77,7 +77,7 @@ class PKGraphImplSpec extends FlatSpec with SparkSessionTestWrapper {
 
   it should "subgraph original graph" in {
     val graph = buildGraph()
-    val newGraph = graph.subgraph(e => e.attr % 2 == 0)
+    val newGraph = graph.subgraph(_.attr % 2 == 0)
 
     val actualEdges = newGraph.edges.collect().sortWith((a, b) => a.attr < b.attr)
     val expectedEdges = edges.filter(_.attr % 2 == 0).toArray.sortWith((a, b) => a.attr < b.attr)
@@ -121,9 +121,9 @@ class PKGraphImplSpec extends FlatSpec with SparkSessionTestWrapper {
   private def buildGraph(
       edges: Seq[Edge[Int]] = edges,
       vertices: Seq[(VertexId, Int)] = vertices
-  ): PKGraphImpl[Int, Int] = {
+  ): PKGraph[Int, Int] = {
     val edgeRDD = sc.parallelize(edges)
     val vertexRDD = sc.parallelize(vertices)
-    PKGraphImpl(vertexRDD, edgeRDD, 0, StorageLevel.MEMORY_ONLY, StorageLevel.MEMORY_ONLY)
+    PKGraph(vertexRDD, edgeRDD, 0, StorageLevel.MEMORY_ONLY, StorageLevel.MEMORY_ONLY)
   }
 }

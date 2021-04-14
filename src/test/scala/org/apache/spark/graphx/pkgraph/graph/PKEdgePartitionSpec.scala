@@ -1,5 +1,6 @@
-package org.apache.spark.graphx.pkgraph.graph.impl
+package org.apache.spark.graphx.pkgraph.graph
 
+import org.apache.spark.graphx.impl.EdgeActiveness
 import org.apache.spark.graphx.{Edge, TripletFields}
 import org.scalatest.FlatSpec
 
@@ -14,38 +15,38 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   /**
-   * Matrix 16x16:
-   * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-   * | 1   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   1   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   1   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   1 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * |---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---|
-   * | 0   0   0   0 | 1   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   1   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   1   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   1 | 0   0   0   0 | 0   0   0   0 |
-   * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-   * | 0   0   0   0 | 0   0   0   0 | 1   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   1   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * |---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---|
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-   *
-   * T: 1001 1001 1000 1001 1001 1000
-   * L: 1001 1001 1001 1001 1001
-   */
+    * Matrix 16x16:
+    * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+    * | 1   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * | 0   1   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * | 0   0   1   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * | 0   0   0   1 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * |---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---|
+    * | 0   0   0   0 | 1   0   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * | 0   0   0   0 | 0   1   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * | 0   0   0   0 | 0   0   1   0 | 0   0   0   0 | 0   0   0   0 |
+    * | 0   0   0   0 | 0   0   0   1 | 0   0   0   0 | 0   0   0   0 |
+    * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+    * | 0   0   0   0 | 0   0   0   0 | 1   0   0   0 | 0   0   0   0 |
+    * | 0   0   0   0 | 0   0   0   0 | 0   1   0   0 | 0   0   0   0 |
+    * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * |---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---|
+    * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+    *
+    * T: 1001 1001 1000 1001 1001 1000
+    * L: 1001 1001 1001 1001 1001
+    */
   it should "add new edges" in {
     val partition = buildPartition
     val newEdges = Seq(
       Edge[Int](10, 10, 10),
       Edge[Int](11, 11, 11),
-      Edge[Int](12, 12, 12),
+      Edge[Int](12, 12, 12)
     )
 
     val newPartition = partition.addEdges(newEdges.iterator)
@@ -53,7 +54,7 @@ class PKEdgePartitionSpec extends FlatSpec {
 
     var i = 0
     val it = newPartition.iterator
-    while(it.hasNext) {
+    while (it.hasNext) {
       val edge = it.next()
       assert(edge.srcId == i)
       assert(edge.dstId == i)
@@ -71,7 +72,7 @@ class PKEdgePartitionSpec extends FlatSpec {
 
     var i = 3L
     val it = newPartition.iterator
-    while(it.hasNext) {
+    while (it.hasNext) {
       val edge = it.next()
       assert(edge.srcId == i)
       assert(edge.dstId == i)
@@ -90,7 +91,7 @@ class PKEdgePartitionSpec extends FlatSpec {
 
     var i = 0
     val it = newPartition.tripletIterator()
-    while(it.hasNext && i < vertices.length) {
+    while (it.hasNext && i < vertices.length) {
       val edge = it.next()
       assert(edge.srcId == i)
       assert(edge.dstId == i)
@@ -107,7 +108,7 @@ class PKEdgePartitionSpec extends FlatSpec {
     val partition = buildPartition
     var i = 0
     val it = partition.iterator
-    while(it.hasNext) {
+    while (it.hasNext) {
       val edge = it.next()
       assert(edge.srcId == i)
       assert(edge.dstId == i)
@@ -119,7 +120,7 @@ class PKEdgePartitionSpec extends FlatSpec {
     val reversedPartition = partition.reverse
     i = reversedPartition.size - 1
     val reversedIt = reversedPartition.iterator
-    while(reversedIt.hasNext) {
+    while (reversedIt.hasNext) {
       val edge = reversedIt.next()
       assert(edge.srcId == i)
       assert(edge.dstId == i)
@@ -135,7 +136,7 @@ class PKEdgePartitionSpec extends FlatSpec {
     val newPartition = partition.map(_.attr * 10)
     var i = 0
     val it = newPartition.iterator
-    while(it.hasNext) {
+    while (it.hasNext) {
       val edge = it.next()
       assert(edge.srcId == i)
       assert(edge.dstId == i)
@@ -151,7 +152,7 @@ class PKEdgePartitionSpec extends FlatSpec {
     val newPartition = partition.map(newAttributes.iterator)
     var i = 0
     val it = newPartition.iterator
-    while(it.hasNext) {
+    while (it.hasNext) {
       val edge = it.next()
       assert(edge.srcId == i)
       assert(edge.dstId == i)
@@ -168,7 +169,7 @@ class PKEdgePartitionSpec extends FlatSpec {
 
     var i = 0
     val it = newPartition.iterator
-    while(it.hasNext) {
+    while (it.hasNext) {
       val edge = it.next()
       assert(edge.srcId == i)
       assert(edge.dstId == i)
@@ -180,11 +181,11 @@ class PKEdgePartitionSpec extends FlatSpec {
 
   it should "inner join with another partition" in {
     val p1 = buildPartition
-    val p2 = buildPartition.map(- _.attr)
+    val p2 = buildPartition.map(-_.attr)
     val joinedPartition = p1.innerJoin(p2)((_, _, attr1, attr2) => attr1 + attr2)
     var i = 0
     val it = joinedPartition.iterator
-    while(it.hasNext) {
+    while (it.hasNext) {
       val edge = it.next()
       assert(edge.srcId == i)
       assert(edge.dstId == i)
@@ -199,11 +200,12 @@ class PKEdgePartitionSpec extends FlatSpec {
     val it = partition.aggregateMessagesEdgeScan[Int](
       context => context.sendToDst(1),
       (a, b) => a + b,
-      TripletFields.None
+      TripletFields.None,
+      EdgeActiveness.Neither
     )
 
     var i = 0
-    while(it.hasNext) {
+    while (it.hasNext) {
       val (_, attr) = it.next()
       assert(attr == 1)
       i += 1
@@ -218,7 +220,7 @@ class PKEdgePartitionSpec extends FlatSpec {
 
   private def buildPartition: PKEdgePartition[Int, Int] = {
     val builder = PKEdgePartitionBuilder[Int, Int](2)
-    for(i <- 0 until 10) {
+    for (i <- 0 until 10) {
       builder.add(i, i, i)
     }
     builder.build

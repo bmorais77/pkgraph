@@ -1,9 +1,9 @@
 package org.apache.spark.graphx.pkgraph.compression
 
-import org.apache.spark.util.collection.BitSet
-import K2TreeBuilder.calculateLevelOffsets
-import org.apache.spark.graphx.pkgraph.util.mathx
+import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder.calculateLevelOffsets
 import org.apache.spark.graphx.pkgraph.util.collection.BitSetExtensions
+import org.apache.spark.graphx.pkgraph.util.mathx
+import org.apache.spark.util.collection.BitSet
 
 import scala.collection.mutable
 
@@ -41,14 +41,8 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
       // Index relative to the beginning of the tree
       val index = levelOffset + chunkOffset + localIndex
 
-      // Check only if leaf was already set
-      var position = index
-      if (h == height && bits.get(index)) {
-        position = -1
-      }
-
       bits.set(index)
-      (chunkOffset * k2 + localIndex * k2, position)
+      (chunkOffset * k2 + localIndex * k2, index)
     }
 
     val (_, position) = recursiveNavigation(height, line, col)

@@ -1,8 +1,8 @@
 package org.apache.spark.graphx.pkgraph.compression
 
-import org.apache.spark.util.collection.BitSet
 import org.apache.spark.graphx.pkgraph.util.collection.BitSetExtensions
 import org.apache.spark.graphx.pkgraph.util.mathx
+import org.apache.spark.util.collection.BitSet
 
 class K2Tree(
     val k: Int,

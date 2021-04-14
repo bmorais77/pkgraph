@@ -1,13 +1,13 @@
-package org.apache.spark.graphx.pkgraph.graph.impl
+package org.apache.spark.graphx.pkgraph.graph
 
-import org.apache.spark.graphx.pkgraph.util.collection.PrimitiveHashMap
+import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.graphx.{EdgeContext, VertexId}
 
 import scala.reflect.ClassTag
 
-private[impl] class PKAggregatingEdgeContext[V, E, A] private (
+private[graph] class PKAggregatingEdgeContext[V, E, A] private (
     mergeMsg: (A, A) => A,
-    aggregates: PrimitiveHashMap[VertexId, A]
+    aggregates: GraphXPrimitiveKeyOpenHashMap[VertexId, A]
 ) extends EdgeContext[V, E, A] {
 
   private[this] var _srcId: VertexId = _
@@ -31,10 +31,9 @@ private[impl] class PKAggregatingEdgeContext[V, E, A] private (
     _srcAttr = srcAttr
   }
 
-  def setDest(dstId: VertexId, dstAttr: V, attr: E): Unit = {
+  def setDstOnly(dstId: VertexId, dstAttr: V): Unit = {
     _dstId = dstId
     _dstAttr = dstAttr
-    _attr = attr
   }
 
   override def srcId: VertexId = _srcId
@@ -57,5 +56,5 @@ private[impl] class PKAggregatingEdgeContext[V, E, A] private (
 
 object PKAggregatingEdgeContext {
   def apply[V, E, A: ClassTag](mergeMsg: (A, A) => A): PKAggregatingEdgeContext[V, E, A] =
-    new PKAggregatingEdgeContext(mergeMsg, new PrimitiveHashMap[VertexId, A])
+    new PKAggregatingEdgeContext(mergeMsg, new GraphXPrimitiveKeyOpenHashMap[VertexId, A])
 }

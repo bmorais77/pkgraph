@@ -1,4 +1,4 @@
-package org.apache.spark.graphx.pkgraph.graph.impl
+package org.apache.spark.graphx.pkgraph.graph
 
 case class PKEdge[E](
     var index: Int = -1,

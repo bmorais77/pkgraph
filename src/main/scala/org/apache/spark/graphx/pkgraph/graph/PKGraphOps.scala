@@ -3,7 +3,7 @@ package org.apache.spark.graphx.pkgraph.graph
 import org.apache.spark.graphx.{Edge, Graph, GraphOps}
 import spire.ClassTag
 
-class PKGraphOps[V: ClassTag, E: ClassTag](graph: Graph[V, E]) extends GraphOps[V, E](graph) {
+class PKGraphOps[V: ClassTag, E: ClassTag](graph: PKGraph[V, E]) extends GraphOps[V, E](graph) {
   override def convertToCanonicalEdges(mergeFunc: (E, E) => E): Graph[V, E] = {
     val newEdges =
       graph.edges
