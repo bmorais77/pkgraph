@@ -11,11 +11,8 @@ import scala.reflect.ClassTag
 
 object PKVertexRDD {
   implicit class PKVertexRDDWrapper[V](rdd: VertexRDD[V]) {
+    // TODO: Very inefficient implementation
     def addVertices(vertices: RDD[(VertexId, V)]): VertexRDD[V] = {
-      ???
-    }
-
-    def removeVertices(vertices: RDD[(VertexId, V)]): VertexRDD[V] = {
       ???
     }
   }

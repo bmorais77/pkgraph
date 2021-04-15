@@ -93,50 +93,15 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @return new partition with edges added
     */
   def addEdges(edges: Iterator[Edge[E]]): PKEdgePartition[V, E] = {
-    var newSrcOffset = srcOffset
-    var newDstOffset = dstOffset
-    var newSrcEnd = srcOffset + tree.size
-    var newDstEnd = dstOffset + tree.size
-
-    // Traverse edges to check if there are any behind the virtual origin (lineOffset, colOffset) or
-    // after the size of the current matrix
-    val newEdges = new ArrayBuffer[Edge[E]]
-    for (edge <- edges) {
-      newSrcOffset = math.min(edge.srcId, srcOffset)
-      newDstOffset = math.min(edge.dstId, dstOffset)
-      newSrcEnd = math.max(edge.srcId, newSrcEnd)
-      newDstEnd = math.max(edge.dstId, newDstEnd)
-      newEdges += edge
-    }
-
-    var newTree = tree
-
-    // Check if new edges are behind virtual origin
-    if (newSrcOffset < srcOffset || newDstOffset < dstOffset) {
-      // TODO: Grow K²-Tree to the left and up
-      newTree = tree
-    }
-
-    // Check if new edges are after the end of the adjacency matrix
-    if (newSrcEnd > srcOffset + tree.size || newDstEnd > dstOffset + tree.size) {
-      // We need to first grow the tree
-      var newSize = math.max(newSrcEnd - newSrcOffset, newDstEnd - newDstOffset).toInt
-
-      // Size is not a power of K, so we need to find the nearest power
-      if (newSize % tree.k != 0) {
-        val exp = math.ceil(mathx.log(tree.k, newSize))
-        newSize = math.pow(tree.k, exp).toInt
-      }
-
-      newTree = tree.grow(newSize)
-    }
+    val (newTree, newEdges, newSrcOffset, newDstOffset) = preprocessNewEdges(edges)
+    var newSrcIndex = srcIndex
+    var newDstIndex = dstIndex
 
     // Check if the start or end of the adjacency matrix changed, only then do we need to rebuild the indexes
-    val buildSrcIndex = newSrcOffset < srcOffset || newTree.size > tree.size
-    val buildDstIndex = newDstOffset < dstOffset || newTree.size > tree.size
-
-    val newSrcIndex = if (buildSrcIndex) new BitSet(newTree.size) else srcIndex
-    val newDstIndex = if (buildDstIndex) new BitSet(newTree.size) else dstIndex
+    if (newTree.size > tree.size) {
+      newSrcIndex = new BitSet(newTree.size)
+      newDstIndex = new BitSet(newTree.size)
+    }
 
     // Add existing edges
     var i = 0
@@ -144,11 +109,9 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     for (edge <- newTree.iterator) {
       newEdgeAttrs.add((edge.index, edgeAttrs(i)))
 
-      if (buildSrcIndex) {
+      // If tree size did not change, then the indexes are still correct
+      if (newTree.size > tree.size) {
         newSrcIndex.set(edge.line)
-      }
-
-      if (buildDstIndex) {
         newDstIndex.set(edge.col)
       }
 
@@ -161,15 +124,10 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     for (edge <- newEdges) {
       val line = (edge.srcId - newSrcOffset).toInt
       val col = (edge.dstId - newDstOffset).toInt
+
       builder.addEdge(line, col)
-
-      if(buildSrcIndex) {
-        newSrcIndex.set(line)
-      }
-
-      if(buildDstIndex) {
-        newDstIndex.set(col)
-      }
+      newSrcIndex.set(line)
+      newDstIndex.set(col)
 
       val index = K2TreeIndex.fromEdge(builder.k, builder.height, line, col)
       newEdgeAttrs.add((index, edge.attr))
@@ -642,5 +600,69 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       case EdgeActiveness.Either  => isActive(edge.srcId) || isActive(edge.dstId)
       case EdgeActiveness.Neither => true
     }
+  }
+
+  /**
+    * Pre-process new edges to add, to check if the existing K²-Tree needs to grow and
+    * calculate new src/dst offsets.
+    *
+    * @param edges New edges to be added to K²-Tree
+    * @return [[Tuple4]] with K²-Tree, new edges, source offset and destination offset
+    */
+  private def preprocessNewEdges(edges: Iterator[Edge[E]]): (K2Tree, ArrayBuffer[Edge[E]], Long, Long) = {
+    var newSrcOffset = srcOffset
+    var newDstOffset = dstOffset
+    var newSrcEnd = srcOffset + tree.size
+    var newDstEnd = dstOffset + tree.size
+
+    // Traverse edges to check if there are any behind the virtual origin (lineOffset, colOffset) or
+    // after the size of the current matrix
+    val newEdges = new ArrayBuffer[Edge[E]]
+    for (edge <- edges) {
+      newSrcOffset = math.min(edge.srcId, srcOffset)
+      newDstOffset = math.min(edge.dstId, dstOffset)
+      newSrcEnd = math.max(edge.srcId, newSrcEnd)
+      newDstEnd = math.max(edge.dstId, newDstEnd)
+      newEdges += edge
+    }
+
+    val newTree = growK2Tree(newSrcOffset, newSrcEnd, newDstOffset, newDstEnd)
+    (newTree, newEdges, newSrcOffset, newDstOffset)
+  }
+
+  /**
+    * Creates a new K²-Tree by growing the one in this partition.
+    * The adjacency matrix of the K²-Tree either grows to the right and down if the new size exceeds the
+    * original size of the matrix, or to the left and up if the new offset is 'behind' the original offset.
+    *
+    * @param newSrcOffset New source offset
+    * @param newSrcEnd New source end
+    * @param newDstOffset New destination offset
+    * @param newDstEnd New destination end
+    * @return K²-Tree with new size
+    */
+  private def growK2Tree(newSrcOffset: Long, newSrcEnd: Long, newDstOffset: Long, newDstEnd: Long): K2Tree = {
+    var newTree = tree
+
+    // Check if new edges are behind virtual origin
+    if (newSrcOffset < srcOffset || newDstOffset < dstOffset) {
+      // TODO: Grow K²-Tree to the left and up
+      newTree = tree
+    }
+
+    // Check if new edges are after the end of the adjacency matrix
+    if (newSrcEnd > srcOffset + tree.size || newDstEnd > dstOffset + tree.size) {
+      var newSize = math.max(newSrcEnd - newSrcOffset, newDstEnd - newDstOffset).toInt
+
+      // Size is not a power of K, so we need to find the nearest power
+      if (newSize % tree.k != 0) {
+        val exp = math.ceil(mathx.log(tree.k, newSize))
+        newSize = math.pow(tree.k, exp).toInt
+      }
+
+      newTree = tree.grow(newSize)
+    }
+
+    newTree
   }
 }
