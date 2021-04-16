@@ -367,37 +367,28 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
       .mapPartitions(_.flatMap {
         case (_, edgePartition) =>
           // Choose scan method
-          val srcActiveFraction = edgePartition.numActives / edgePartition.tree.size.toFloat
-          val dstActiveFraction = edgePartition.numActives / edgePartition.tree.size.toFloat
+          val activeFraction = edgePartition.numActives / edgePartition.tree.size.toFloat
           activeDirectionOpt match {
             case Some(EdgeDirection.Both) =>
-              if (srcActiveFraction < 0.8 || dstActiveFraction < 0.8) {
-                if (srcActiveFraction <= dstActiveFraction) {
-                  edgePartition.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
-                } else {
-                  edgePartition.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
-                }
+              if (activeFraction < 0.8) {
+                edgePartition.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
               } else {
                 edgePartition.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
               }
             case Some(EdgeDirection.Either) =>
-              if (srcActiveFraction < 0.8 || dstActiveFraction < 0.8) {
-                if (srcActiveFraction <= dstActiveFraction) {
-                  edgePartition.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
-                } else {
-                  edgePartition.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
-                }
+              if (activeFraction < 0.8) {
+                edgePartition.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
               } else {
                 edgePartition.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
               }
             case Some(EdgeDirection.Out) =>
-              if (srcActiveFraction < 0.8) {
+              if (activeFraction < 0.8) {
                 edgePartition.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
               } else {
                 edgePartition.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
               }
             case Some(EdgeDirection.In) =>
-              if (dstActiveFraction < 0.8) {
+              if (activeFraction < 0.8) {
                 edgePartition.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
               } else {
                 edgePartition.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
