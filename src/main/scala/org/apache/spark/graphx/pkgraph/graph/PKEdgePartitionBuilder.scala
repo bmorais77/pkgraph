@@ -42,10 +42,15 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
     var pos = 0
     val unsortedAttrs = new Array[(Int, E)](edges.size)
     val edgeIndices = new BitSet(treeBuilder.size * treeBuilder.size)
+    val srcIndex = new BitSet(treeBuilder.size)
+    val dstIndex = new BitSet(treeBuilder.size)
 
     for (edge <- edges) {
       val localSrcId = (edge.srcId - startX).toInt
       val localDstId = (edge.dstId - startY).toInt
+
+      srcIndex.set(localSrcId)
+      dstIndex.set(localDstId)
 
       treeBuilder.addEdge(localSrcId, localDstId)
       val index = K2TreeIndex.fromEdge(treeBuilder.k, treeBuilder.height, localSrcId, localDstId)
@@ -58,7 +63,17 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
 
     val edgeAttrs = unsortedAttrs.sortWith((a, b) => a._1 < b._1).map(_._2)
     val activeSet = new BitSet(0)
-    new PKEdgePartition[V, E](vertexAttrs, edgeAttrs, edgeIndices, treeBuilder.build, startX, startY, activeSet)
+    new PKEdgePartition[V, E](
+      vertexAttrs,
+      edgeAttrs,
+      edgeIndices,
+      treeBuilder.build,
+      startX,
+      startY,
+      activeSet,
+      srcIndex,
+      dstIndex
+    )
   }
 }
 
