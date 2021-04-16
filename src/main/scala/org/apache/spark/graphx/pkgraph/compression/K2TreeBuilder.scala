@@ -21,7 +21,7 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
     *
     * @param line Edge line (source)
     * @param col Edge column (destination)
-    * @return index of the inserted edge or -1 if the edge already existed
+    * @return index of the inserted edge
     */
   def addEdge(line: Int, col: Int): Int = {
     def recursiveNavigation(h: Int, line: Int, col: Int): (Int, Int) = {

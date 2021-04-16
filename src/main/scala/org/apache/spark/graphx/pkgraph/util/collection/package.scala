@@ -2,6 +2,8 @@ package org.apache.spark.graphx.pkgraph.util
 
 import org.apache.spark.util.collection.BitSet
 
+import scala.reflect.ClassTag
+
 package object collection {
 
   implicit class BitSetExtensions(bits: BitSet) {
@@ -21,6 +23,27 @@ package object collection {
       }
       count
     }
+
+    def reverse: BitSet = {
+      val reversedSet = new BitSet(bits.capacity)
+      for(i <- bits.iterator) {
+        reversedSet.set(bits.capacity - i - 1)
+      }
+      reversedSet
+    }
   }
 
+  def splitIntoArrays[A: ClassTag, B: ClassTag](it: Iterable[(A, B)], size: Int): (Array[A], Array[B]) = {
+    val first = new Array[A](size)
+    val second = new Array[B](size)
+
+    var i = 0
+    for((a, b) <- it) {
+      first(i) = a
+      second(i) = b
+      i += 1
+    }
+
+    (first, second)
+  }
 }

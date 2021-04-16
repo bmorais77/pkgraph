@@ -9,7 +9,7 @@ class K2Tree(
     val size: Int,
     val bits: BitSet,
     val internalCount: Int,
-    val leavesCount: Int,
+    val leavesCount: Int
 ) {
 
   /**
@@ -27,10 +27,10 @@ class K2Tree(
   def height: Int = math.ceil(mathx.log(k, size)).toInt
 
   /**
-   * Returns whether this tree is empty or not.
-   *
-   * @return true if tree has no edges, false otherwise
-   */
+    * Returns whether this tree is empty or not.
+    *
+    * @return true if tree has no edges, false otherwise
+    */
   def isEmpty: Boolean = leavesCount == 0
 
   /**
@@ -165,10 +165,68 @@ class K2Tree(
   final def reverse: K2Tree = new ReversedK2Tree(this)
 
   /**
-   * Returns a [[K2TreeBuilder]] with the edges from this tree already added.
+    * Finds all direct neighbors of the vertex with the `line` identifier
+    * and calls the user function with their corresponding column.
+    *
+    * @param line Vertex identifier
+    * @param f User function called for each neighbor
+    */
+  final def iterateDirectNeighbors(line: Int)(f: Int => Unit): Unit = {
+    val k2 = k * k
+
+    def findDirectNeighbors(size: Int, l: Int, c: Int, pos: Int): Unit = {
+      if(pos > internalCount) { // Is leaf
+        if(bits.get(pos)) {
+          f(c)
+        }
+      } else {
+        if(pos == -1 || bits.get(pos)) {
+          val newSize = size / k
+          val y = rank(pos) * k2 + k * (l / newSize)
+          for(i <- 0 until k) {
+            findDirectNeighbors(newSize, l % newSize, c + newSize * i, y + i)
+          }
+        }
+      }
+    }
+
+    findDirectNeighbors(size, line, 0, -1)
+  }
+
+  /**
+   * Finds all reverse neighbors of the vertex with the `col` identifier
+   * and calls the user function with their corresponding line.
    *
-   * @return [[K2TreeBuilder]] from this tree
+   * @param col Vertex identifier
+   * @param f User function called for each neighbor
    */
+  final def iterateReverseNeighbors(col: Int)(f: Int => Unit): Unit = {
+    val k2 = k * k
+
+    def findReverseNeighbors(size: Int, c: Int, l: Int, pos: Int): Unit = {
+      if(pos > internalCount) { // Is leaf
+        if(bits.get(pos)) {
+          f(c)
+        }
+      } else {
+        if(pos == -1 || bits.get(pos)) {
+          val newSize = size / k
+          val y = rank(pos) * k2 + k * (c / newSize)
+          for(i <- 0 until k) {
+            findReverseNeighbors(newSize, c % newSize, l + newSize * i, y + i * k)
+          }
+        }
+      }
+    }
+
+    findReverseNeighbors(size, col, 0, -1)
+  }
+
+  /**
+    * Returns a [[K2TreeBuilder]] with the edges from this tree already added.
+    *
+    * @return [[K2TreeBuilder]] from this tree
+    */
   final def toBuilder: K2TreeBuilder = K2TreeBuilder.fromK2Tree(this)
 
   /**

@@ -26,16 +26,6 @@ private[graph] class PKAggregatingEdgeContext[V, E, A] private (
     _attr = attr
   }
 
-  def setSrcOnly(srcId: VertexId, srcAttr: V): Unit = {
-    _srcId = srcId
-    _srcAttr = srcAttr
-  }
-
-  def setDstOnly(dstId: VertexId, dstAttr: V): Unit = {
-    _dstId = dstId
-    _dstAttr = dstAttr
-  }
-
   override def srcId: VertexId = _srcId
   override def dstId: VertexId = _dstId
   override def srcAttr: V = _srcAttr

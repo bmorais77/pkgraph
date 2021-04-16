@@ -367,8 +367,8 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
       .mapPartitions(_.flatMap {
         case (_, edgePartition) =>
           // Choose scan method
-          val srcActiveFraction = edgePartition.numActives / edgePartition.srcIndexSize.toFloat
-          val dstActiveFraction = edgePartition.numActives / edgePartition.dstIndexSize.toFloat
+          val srcActiveFraction = edgePartition.numActives / edgePartition.tree.size.toFloat
+          val dstActiveFraction = edgePartition.numActives / edgePartition.tree.size.toFloat
           activeDirectionOpt match {
             case Some(EdgeDirection.Both) =>
               if (srcActiveFraction < 0.8 || dstActiveFraction < 0.8) {
