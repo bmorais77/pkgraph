@@ -2,7 +2,7 @@ package org.apache.spark.graphx.pkgraph.compression
 
 import scala.collection.mutable
 
-class K2TreeIterator(tree: K2Tree, reverse: Boolean = false) extends Iterator[K2TreeEdge] {
+class K2TreeIterator(tree: K2Tree) extends Iterator[K2TreeEdge] {
   private val k2 = tree.k * tree.k
 
   // Keeps track of the path up to the current node
@@ -58,7 +58,7 @@ class K2TreeIterator(tree: K2Tree, reverse: Boolean = false) extends Iterator[K2
       if (top.pos == -1 || tree.bits.get(top.pos)) {
         val y = tree.rank(top.pos) * k2
 
-        for (i <- childIndices(top)) {
+        for (i <- top.childIndex until k2) {
           val newSegment = Node(top.line * tree.k + i / tree.k, top.col * tree.k + i % tree.k, y + i, -1)
 
           path.push(newSegment)
@@ -81,20 +81,6 @@ class K2TreeIterator(tree: K2Tree, reverse: Boolean = false) extends Iterator[K2
       return findNextEdge
     }
     None
-  }
-
-  /**
-    * Builds a [[Range]] to traverse the child nodes of the given node.
-    * This is separated into a function to handle the case that the iterator is reversed.
-    *
-    * @param node Node to get child indices of.
-    * @return
-    */
-  private def childIndices(node: Node): Range = {
-    if (reverse)
-      (k2 - node.childIndex - 1) to 0 by -1
-    else
-      node.childIndex until k2
   }
 
   /**

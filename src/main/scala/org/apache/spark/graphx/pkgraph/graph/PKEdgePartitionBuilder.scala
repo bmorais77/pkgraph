@@ -1,20 +1,19 @@
 package org.apache.spark.graphx.pkgraph.graph
 
-import org.apache.spark.graphx.pkgraph.compression.{K2TreeBuilder, K2TreeIndex}
+import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder
+import org.apache.spark.graphx.pkgraph.util.collection.OrderedHashMap
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.graphx.{Edge, VertexId}
-import org.apache.spark.util.collection.BitSet
+import org.apache.spark.util.collection.{BitSet, PrimitiveVector}
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
     k: Int,
     vertexAttrs: GraphXPrimitiveKeyOpenHashMap[VertexId, V]
 ) {
-  // Inserts the edges in a ordered fashion
-  private val edges = new ArrayBuffer[Edge[E]]
+  private val edges = new PrimitiveVector[Edge[E]]
 
   private var startX: Long = 0
   private var startY: Long = 0
@@ -39,14 +38,13 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
   }
 
   def build: PKEdgePartition[V, E] = {
+    val edgeArray = edges.trim().array
     val treeBuilder = K2TreeBuilder(k, math.max(endX - startX + 1, endY - startY + 1).toInt)
-    var pos = 0
     val attrs = mutable.TreeSet[(Int, E)]()((a, b) => a._1 - b._1)
-    val edgeIndices = new BitSet(treeBuilder.size * treeBuilder.size)
     val srcIndex = new BitSet(treeBuilder.size)
     val dstIndex = new BitSet(treeBuilder.size)
 
-    for (edge <- edges) {
+    for (edge <- edgeArray) {
       val localSrcId = (edge.srcId - startX).toInt
       val localDstId = (edge.dstId - startY).toInt
 
@@ -57,16 +55,21 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
 
       // Our solution does not support multi-graphs, so we ignore repeated edges
       attrs.add((index, edge.attr))
-      edgeIndices.set(index)
+    }
+
+    val edgeIndices = new GraphXPrimitiveKeyOpenHashMap[Int, Int]
+    var pos = 0
+    for((index, _) <- attrs) {
+      edgeIndices(index) = pos
       pos += 1
     }
 
-    val edgeAttrs = attrs.toArray.map(_._2)
     val activeSet = new BitSet(0)
+    val attrValues = attrs.toArray.map(_._2)
+    val edgeAttrs = new OrderedHashMap[Int, E](edgeIndices, attrValues)
     new PKEdgePartition[V, E](
       vertexAttrs,
       edgeAttrs,
-      edgeIndices,
       treeBuilder.build,
       startX,
       startY,
@@ -80,12 +83,5 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
 object PKEdgePartitionBuilder {
   def apply[V: ClassTag, E: ClassTag](k: Int): PKEdgePartitionBuilder[V, E] = {
     new PKEdgePartitionBuilder[V, E](k, new GraphXPrimitiveKeyOpenHashMap[VertexId, V])
-  }
-
-  def existing[V: ClassTag, E: ClassTag](
-      k: Int,
-      vertexAttrs: GraphXPrimitiveKeyOpenHashMap[VertexId, V]
-  ): PKEdgePartitionBuilder[V, E] = {
-    new PKEdgePartitionBuilder[V, E](k, vertexAttrs)
   }
 }

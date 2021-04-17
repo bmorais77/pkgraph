@@ -8,7 +8,7 @@ import org.scalatest.FlatSpec
 class PKEdgeRDDSpec extends FlatSpec with SparkSessionTestWrapper {
   private val edges: Seq[Edge[Int]] = (0 until 10).map(i => Edge(i, i, i * 10))
 
-  "A PKEdgeRDDImpl" should "build from edge RDD" in {
+  "A PKEdgeRDD" should "build from edge RDD" in {
     val rdd = PKEdgeRDD.fromEdges(sc.parallelize(edges))
     assert(rdd.count() == edges.length)
   }
@@ -22,7 +22,8 @@ class PKEdgeRDDSpec extends FlatSpec with SparkSessionTestWrapper {
   it should "reverse edges" in {
     val rdd = PKEdgeRDD.fromEdges(sc.parallelize(edges))
     val newRDD = rdd.reverse
-    assert(newRDD.collect() sameElements edges.reverse)
+    val expectedEdges = edges.map(e => Edge(e.dstId, e.srcId, e.attr)).toArray
+    assert(newRDD.collect() sameElements expectedEdges)
   }
 
   it should "filter edges and vertices" in {

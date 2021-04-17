@@ -71,7 +71,7 @@ class K2Tree(
     *
     * @return K²-Tree iterator
     */
-  def iterator: K2TreeIterator = new K2TreeIterator(this)
+  def iterator: Iterator[K2TreeEdge] = new K2TreeIterator(this)
 
   /**
     * Returns a new K²-Tree with the given edges added.
@@ -182,13 +182,6 @@ class K2Tree(
     val newTree = new K2Tree(k, size / k, tree, internalCount - k2, leavesCount)
     newTree.trim()
   }
-
-  /**
-    * Reverses the order of edges in this K²-Tree
-    *
-    * @return K²-Tree which iterates the edges in reverse order
-    */
-  final def reverse: K2Tree = new ReversedK2Tree(this)
 
   /**
     * Finds all direct neighbors of the vertex with the `line` identifier

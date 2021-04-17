@@ -105,30 +105,36 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "reverse partition" in {
-    val partition = buildPartition
+    val builder = PKEdgePartitionBuilder[Int, Int](2)
+    for (i <- 0 until 10) {
+      builder.add(i, i + 1, i)
+    }
+
+    val partition = builder.build
     var i = 0
     val it = partition.iterator
     while (it.hasNext) {
       val edge = it.next()
       assert(edge.srcId == i)
-      assert(edge.dstId == i)
+      assert(edge.dstId == i + 1)
       assert(edge.attr == i)
       i += 1
     }
     assert(i == partition.size)
 
     val reversedPartition = partition.reverse
-    i = reversedPartition.size - 1
+    i = 0
+
     val reversedIt = reversedPartition.iterator
     while (reversedIt.hasNext) {
       val edge = reversedIt.next()
-      assert(edge.srcId == i)
+      assert(edge.srcId == i + 1)
       assert(edge.dstId == i)
       assert(edge.attr == i)
-      i -= 1
+      i += 1
     }
 
-    assert(i == -1)
+    assert(i == partition.size)
   }
 
   it should "map edge attributes" in {
