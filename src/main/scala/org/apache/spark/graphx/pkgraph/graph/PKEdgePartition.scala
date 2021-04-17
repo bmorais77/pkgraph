@@ -100,13 +100,13 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     val newSrcIndex = new BitSet(newTree.size)
     val newDstIndex = new BitSet(newTree.size)
 
-    val buffer = ArrayBuffer[(Int, E)]()
+    val buffer = mutable.TreeSet[(Int, E)]()((a, b) => a._1 - b._1)
     val newEdgeIndices = new BitSet(newTree.size * newTree.size)
 
     // Add existing edges
     var i = 0
     for (edge <- newTree.iterator) {
-      buffer.append((edge.index, edgeAttrs(i)))
+      buffer.add((edge.index, edgeAttrs(i)))
       newEdgeIndices.set(edge.index)
       newSrcIndex.set(edge.line)
       newDstIndex.set(edge.col)
@@ -125,11 +125,11 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       newDstIndex.set(col)
 
       val index = K2TreeIndex.fromEdge(builder.k, builder.height, line, col)
-      buffer.append((index, edge.attr))
+      buffer.add((index, edge.attr))
       newEdgeIndices.set(index)
     }
 
-    val newEdgeAttrs = buffer.toArray.sortWith((a, b) => a._1 < b._1).map(_._2)
+    val newEdgeAttrs = buffer.toArray.map(_._2)
     val k2tree = builder.build
     new PKEdgePartition[V, E](
       vertexAttrs,
@@ -215,7 +215,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     new PKEdgePartition(
       vertexAttrs,
       edgeAttrs.reverse,
-      edgeIndices.reverse, // TODO: Could implement ReversedBitSet to make it more efficient
+      edgeIndices.reverse,
       tree.reverse,
       srcOffset,
       dstOffset,
@@ -269,7 +269,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       i += 1
     }
     assert(newData.length == i)
-    this.withEdgeAttrs(newData)
+    withEdgeAttrs(newData)
   }
 
   /**
