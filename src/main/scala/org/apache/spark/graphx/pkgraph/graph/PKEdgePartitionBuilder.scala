@@ -1,7 +1,6 @@
 package org.apache.spark.graphx.pkgraph.graph
 
 import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder
-import org.apache.spark.graphx.pkgraph.util.collection.OrderedHashMap
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.graphx.{Edge, VertexId}
 import org.apache.spark.util.collection.{BitSet, PrimitiveVector}
@@ -41,6 +40,7 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
     val edgeArray = edges.trim().array
     val treeBuilder = K2TreeBuilder(k, math.max(endX - startX + 1, endY - startY + 1).toInt)
     val attrs = mutable.TreeSet[(Int, E)]()((a, b) => a._1 - b._1)
+    val edgeIndices = new BitSet(treeBuilder.size * treeBuilder.size)
     val srcIndex = new BitSet(treeBuilder.size)
     val dstIndex = new BitSet(treeBuilder.size)
 
@@ -55,18 +55,12 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
 
       // Our solution does not support multi-graphs, so we ignore repeated edges
       attrs.add((index, edge.attr))
-    }
-
-    val edgeIndices = new GraphXPrimitiveKeyOpenHashMap[Int, Int]
-    var pos = 0
-    for((index, _) <- attrs) {
-      edgeIndices(index) = pos
-      pos += 1
+      edgeIndices.set(index)
     }
 
     val activeSet = new BitSet(0)
     val attrValues = attrs.toArray.map(_._2)
-    val edgeAttrs = new OrderedHashMap[Int, E](edgeIndices, attrValues)
+    val edgeAttrs = new EdgeAttributesMap[E](edgeIndices, attrValues)
     new PKEdgePartition[V, E](
       vertexAttrs,
       edgeAttrs,

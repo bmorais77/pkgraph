@@ -3,7 +3,6 @@ package org.apache.spark.graphx.pkgraph.graph
 import org.apache.spark.graphx._
 import org.apache.spark.graphx.impl.EdgeActiveness
 import org.apache.spark.graphx.pkgraph.compression.{K2Tree, K2TreeBuilder, K2TreeIndex}
-import org.apache.spark.graphx.pkgraph.util.collection.OrderedHashMap
 import org.apache.spark.graphx.pkgraph.util.mathx
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.util.collection.{BitSet, PrimitiveVector}
@@ -31,7 +30,7 @@ import scala.reflect.ClassTag
   */
 private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     val vertexAttrs: GraphXPrimitiveKeyOpenHashMap[VertexId, V],
-    val edgeAttrs: OrderedHashMap[Int, E],
+    val edgeAttrs: EdgeAttributesMap[E],
     val tree: K2Tree,
     val srcOffset: Long,
     val dstOffset: Long,
@@ -449,11 +448,12 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       val clusterId: Long = src + srcOffset
       if (isSrcClusterActive(clusterId, activeness)) {
         val srcAttr = if (tripletFields.useSrc) vertexAttrs(clusterId) else null.asInstanceOf[V]
+        val it = edgeAttrs.iterable
         tree.iterateDirectNeighbors(src) { dst =>
           val globalDstId: Long = dst + dstOffset
           val dstAttr = if (tripletFields.useDst) vertexAttrs(globalDstId) else null.asInstanceOf[V]
           val index = K2TreeIndex.fromEdge(tree.k, tree.height, src, dst)
-          val attr = edgeAttrs(index)
+          val attr = it.nextAttribute(index)
           ctx.set(clusterId, globalDstId, srcAttr, dstAttr, attr)
           sendMsg(ctx)
         }
@@ -484,11 +484,12 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       val clusterId: Long = dst + dstOffset
       if (isDstClusterActive(clusterId, activeness)) {
         val dstAttr = if (tripletFields.useDst) vertexAttrs(clusterId) else null.asInstanceOf[V]
+        val it = edgeAttrs.iterable
         tree.iterateReverseNeighbors(dst) { src =>
           val globalSrcId: Long = src + srcOffset
           val srcAttr = if (tripletFields.useSrc) vertexAttrs(globalSrcId) else null.asInstanceOf[V]
           val index = K2TreeIndex.fromEdge(tree.k, tree.height, src, dst)
-          val attr = edgeAttrs(index)
+          val attr = it.nextAttribute(index)
           ctx.set(globalSrcId, clusterId, srcAttr, dstAttr, attr)
           sendMsg(ctx)
         }
@@ -506,7 +507,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @return edge partition with given edge data
     */
   private def withEdgeAttrs[E2: ClassTag](attrs: Array[E2]): PKEdgePartition[V, E2] = {
-    val newEdgeAttrs = new OrderedHashMap[Int, E2](edgeAttrs.indices, attrs)
+    val newEdgeAttrs = new EdgeAttributesMap[E2](edgeAttrs.indices, attrs)
     new PKEdgePartition(vertexAttrs, newEdgeAttrs, tree, srcOffset, dstOffset, activeSet, srcIndex, dstIndex)
   }
 
