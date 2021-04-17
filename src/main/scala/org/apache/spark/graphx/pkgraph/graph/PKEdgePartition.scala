@@ -120,11 +120,10 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       val line = (edge.srcId - newSrcOffset).toInt
       val col = (edge.dstId - newDstOffset).toInt
 
-      builder.addEdge(line, col)
+      val index = builder.addEdge(line, col)
       newSrcIndex.set(line)
       newDstIndex.set(col)
 
-      val index = K2TreeIndex.fromEdge(builder.k, builder.height, line, col)
       buffer.add((index, edge.attr))
       newEdgeIndices.set(index)
     }
@@ -163,14 +162,13 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     for ((srcId, dstId) <- edges) {
       val line = (srcId - srcOffset).toInt
       val col = (dstId - dstOffset).toInt
-      builder.removeEdge(line, col)
+      val index = builder.removeEdge(line, col)
 
       // Update indexes
       srcIndex.unset(line)
       dstIndex.unset(col)
 
       // Update attributes
-      val index = K2TreeIndex.fromEdge(builder.k, builder.height, line, col)
       buffer.remove(index)
       edgeIndices.unset(index)
     }

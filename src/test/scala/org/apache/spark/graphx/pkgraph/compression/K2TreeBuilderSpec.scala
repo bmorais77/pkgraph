@@ -72,4 +72,27 @@ class K2TreeBuilderSpec extends FlatSpec {
     val b2 = K2TreeBuilder(2, 8)
     assert(b2.size == 8)
   }
+
+  /**
+   * Indices of a matrix 8x8 with k=2:
+   * +---+---+---+---+---+---+---+---+
+   * | 0   1   4   5 | 16 17   20 21 |
+   * | 2   3   6   7 | 18 19   22 23 |
+   * | 8   9   12 13 | 24 25   28 29 |
+   * | 10 11   14 15 | 26 27   30 31 |
+   * |---+---+---+---|---+---+---+---|
+   * | 32 33   36 37 | 48 49   52 53 |
+   * | 34 35   38 39 | 50 51   54 55 |
+   * | 40 41   44 45 | 56 57   60 61 |
+   * | 42 43   46 47 | 58 59   62 63 |
+   * +---+---+---+---+---+---+---+---+
+   */
+  it should "add/remove edge and return correct index" in {
+    val builder = K2TreeBuilder(2, 8)
+    val insertIndex = builder.addEdge(4, 1)
+    assert(insertIndex == 33)
+
+    val removeIndex = builder.removeEdge(4, 1)
+    assert(removeIndex == insertIndex)
+  }
 }

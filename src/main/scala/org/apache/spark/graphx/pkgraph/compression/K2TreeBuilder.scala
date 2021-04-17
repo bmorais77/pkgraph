@@ -24,16 +24,16 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
     * @return index of the inserted edge
     */
   def addEdge(line: Int, col: Int): Int = {
-    def recursiveNavigation(h: Int, line: Int, col: Int): (Int, Int) = {
+    def recursiveNavigation(currSize: Int, h: Int, line: Int, col: Int): (Int, Int) = {
       if (h == 0) {
-        return (0, -1)
+        return (0, 0)
       }
 
       // Offset to the beginning of this level
       val levelOffset = levelOffsets(h)
 
       // Offset to the beginning of this chunk
-      val (chunkOffset, _) = recursiveNavigation(h - 1, line / k, col / k)
+      val (chunkOffset, subIndex) = recursiveNavigation(currSize * k2, h - 1, line / k, col / k)
 
       // Offset from the beginning of this chunk to the desired position
       val localIndex = (line % k) * k + (col % k)
@@ -42,11 +42,11 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
       val index = levelOffset + chunkOffset + localIndex
 
       bits.set(index)
-      (chunkOffset * k2 + localIndex * k2, index)
+      (chunkOffset * k2 + localIndex * k2, subIndex + localIndex * currSize)
     }
 
-    val (_, position) = recursiveNavigation(height, line, col)
-    position
+    val (_, index) = recursiveNavigation(1, height, line, col)
+    index
   }
 
   /**
@@ -55,24 +55,25 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
     *
     * @param line Line of the edge (Source)
     * @param col Column of the edge (Destination)
+    * @return index of the removed edge
     */
-  def removeEdge(line: Int, col: Int): Unit = {
-    def tracePath(path: Array[(Int, Int)], h: Int, line: Int, col: Int): Int = {
+  def removeEdge(line: Int, col: Int): Int = {
+    def tracePath(path: Array[(Int, Int)], currSize: Int, h: Int, line: Int, col: Int): (Int, Int) = {
       if (h == 0) {
-        return 0
+        return (0, 0)
       }
 
       // Offset to the beginning of this level
       val levelOffset = levelOffsets(h)
 
       // Offset to the beginning of this chunk
-      val chunkOffset = tracePath(path, h - 1, line / k, col / k)
+      val (chunkOffset, subIndex) = tracePath(path, currSize * k2, h - 1, line / k, col / k)
 
       // Offset from the beginning of this chunk to the desired position
       val localIndex = (line % k) * k + (col % k)
 
       path(h - 1) = (levelOffset + chunkOffset, levelOffset + chunkOffset + localIndex)
-      chunkOffset * k2 + localIndex * k2
+      (chunkOffset * k2 + localIndex * k2, subIndex + localIndex * currSize)
     }
 
     def updateBits(path: Array[(Int, Int)]): Unit = {
@@ -88,8 +89,9 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
 
     // Keeps track of the path we traversed in the tree
     val path = new Array[(Int, Int)](height)
-    tracePath(path, height, line, col)
+    val (_, index) = tracePath(path, 1, height, line, col)
     updateBits(path)
+    index
   }
 
   /**
@@ -222,8 +224,8 @@ object K2TreeBuilder {
     var bitCursor = 0
     var treeCursor = 0
 
-    while(treeCursor < tree.length) {
-      if(builderCursor == -1 || builder.bits.get(builderCursor)) {
+    while (treeCursor < tree.length) {
+      if (builderCursor == -1 || builder.bits.get(builderCursor)) {
         // Copy next K² bits from tree
         for (i <- treeCursor until treeCursor + k2) {
           if (tree.bits.get(i)) {

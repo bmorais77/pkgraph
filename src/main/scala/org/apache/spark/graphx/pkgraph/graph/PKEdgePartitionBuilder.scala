@@ -53,8 +53,7 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
       srcIndex.set(localSrcId)
       dstIndex.set(localDstId)
 
-      treeBuilder.addEdge(localSrcId, localDstId)
-      val index = K2TreeIndex.fromEdge(treeBuilder.k, treeBuilder.height, localSrcId, localDstId)
+      val index = treeBuilder.addEdge(localSrcId, localDstId)
 
       // Our solution does not support multi-graphs, so we ignore repeated edges
       attrs.add((index, edge.attr))

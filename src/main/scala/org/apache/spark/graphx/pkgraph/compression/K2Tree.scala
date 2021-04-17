@@ -4,6 +4,8 @@ import org.apache.spark.graphx.pkgraph.util.collection.BitSetExtensions
 import org.apache.spark.graphx.pkgraph.util.mathx
 import org.apache.spark.util.collection.BitSet
 
+import scala.collection.mutable.ArrayBuffer
+
 class K2Tree(
     val k: Int,
     val size: Int,
@@ -39,6 +41,30 @@ class K2Tree(
     * @return sequence of edges encoded in this K²-Tree
     */
   def edges: Seq[(Int, Int)] = iterator.map(e => (e.line, e.col)).toSeq
+
+  /**
+   * Collects the direct neighbors of the vertex with the given line.
+   *
+   * @param line Vertex identifier in the adjacency matrix
+   * @return sequence containing column of corresponding neighbors
+   */
+  def directNeighbors(line: Int): Seq[Int] = {
+    val buffer = new ArrayBuffer[Int](size)
+    iterateDirectNeighbors(line)(buffer.append(_))
+    buffer
+  }
+
+  /**
+   * Collects the reverse neighbors of the vertex with the given column.
+   *
+   * @param col Vertex identifier in the adjacency matrix
+   * @return sequence containing line of corresponding neighbor
+   */
+  def reverseNeighbors(col: Int): Seq[Int] = {
+    val buffer = new ArrayBuffer[Int](size)
+    iterateReverseNeighbors(col)(buffer.append(_))
+    buffer
+  }
 
   /**
     * Get this tree's iterator.
@@ -206,12 +232,12 @@ class K2Tree(
     def findReverseNeighbors(size: Int, c: Int, l: Int, pos: Int): Unit = {
       if(pos > internalCount) { // Is leaf
         if(bits.get(pos)) {
-          f(c)
+          f(l)
         }
       } else {
         if(pos == -1 || bits.get(pos)) {
           val newSize = size / k
-          val y = rank(pos) * k2 + k * (c / newSize)
+          val y = rank(pos) * k2 + (c / newSize)
           for(i <- 0 until k) {
             findReverseNeighbors(newSize, c % newSize, l + newSize * i, y + i * k)
           }

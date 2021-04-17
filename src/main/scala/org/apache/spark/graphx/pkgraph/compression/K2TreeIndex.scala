@@ -9,7 +9,7 @@ object K2TreeIndex {
     var h = height
     var index = 0
 
-    while (h >= 0) {
+    while (h > 0) {
       val localIndex = (currLine % k) * k + (currCol % k)
       index += localIndex * currSize
 

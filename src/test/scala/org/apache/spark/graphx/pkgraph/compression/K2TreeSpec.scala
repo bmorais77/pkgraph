@@ -483,4 +483,48 @@ class K2TreeSpec extends FlatSpec {
     val treeEdges = tree.edges
     assert(edges sameElements treeEdges)
   }
+
+  /**
+   * Matrix 8x8:
+   * +---+---+---+---+---+---+---+---+
+   * | 0   0   0   0   0   0   0   0 |
+   * | 1   0   1   1   1   0   0   1 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * +---+---+---+---+---+---+---+---+
+   */
+  it should "find all direct neighbors of vertex" in {
+    val edges = Array((1, 0), (1, 2), (1, 3), (1, 4), (1, 7))
+    val tree = K2Tree(2, 8, edges)
+
+    val neighbors = tree.directNeighbors(1).toArray
+    val expected = Array(0, 2, 3, 4, 7)
+    assert(expected sameElements neighbors)
+  }
+
+  /**
+   * Matrix 8x8:
+   * +---+---+---+---+---+---+---+---+
+   * | 0   1   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   1   0   0   0   0   0   0 |
+   * | 0   1   0   0   0   0   0   0 |
+   * | 0   1   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   1   0   0   0   0   0   0 |
+   * +---+---+---+---+---+---+---+---+
+   */
+  it should "find all reverse neighbors of vertex" in {
+    val edges = Array((0, 1), (2, 1), (3, 1), (4, 1), (7, 1))
+    val tree = K2Tree(2, 8, edges)
+
+    val neighbors = tree.reverseNeighbors(1).toArray
+    val expected = Array(0, 2, 3, 4, 7)
+    assert(expected sameElements neighbors)
+  }
 }
