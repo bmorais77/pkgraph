@@ -194,7 +194,7 @@ class K2Tree(
     val k2 = k * k
 
     def findDirectNeighbors(size: Int, l: Int, c: Int, pos: Int): Unit = {
-      if(pos > internalCount) { // Is leaf
+      if(pos >= internalCount) { // Is leaf
         if(bits.get(pos)) {
           f(c)
         }
@@ -223,7 +223,7 @@ class K2Tree(
     val k2 = k * k
 
     def findReverseNeighbors(size: Int, c: Int, l: Int, pos: Int): Unit = {
-      if(pos > internalCount) { // Is leaf
+      if(pos >= internalCount) { // Is leaf
         if(bits.get(pos)) {
           f(l)
         }

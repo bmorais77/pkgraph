@@ -8,7 +8,7 @@ class EdgeAttributesIterable[E: ClassTag](attrs: EdgeAttributesMap[E]) {
 
   def nextAttribute(index: Int): E = {
     while (currIndex != index) {
-      currIndex = attrs.indices.nextSetBit(currIndex)
+      currIndex = attrs.indices.nextSetBit(currIndex + 1)
       pos += 1
     }
 
