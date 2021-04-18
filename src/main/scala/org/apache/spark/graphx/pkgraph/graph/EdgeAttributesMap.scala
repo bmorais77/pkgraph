@@ -8,6 +8,8 @@ class EdgeAttributesMap[@specialized(Long, Int, Double) E: ClassTag](
     val indices: BitSet,
     val values: Array[E]
 ) extends Iterable[(Int, E)] {
+  override def size: Int = values.length
+
   def iterator: Iterator[(Int, E)] =
     new Iterator[(Int, E)] {
       private var pos = -1

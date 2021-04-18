@@ -8,11 +8,9 @@ import org.apache.spark.util.collection.{BitSet, PrimitiveVector}
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
-    k: Int,
-    vertexAttrs: GraphXPrimitiveKeyOpenHashMap[VertexId, V]
-) {
+private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (k: Int) {
   private val edges = new PrimitiveVector[Edge[E]]
+  private val vertices = new mutable.HashSet[VertexId]
 
   private var startX: Long = 0
   private var startY: Long = 0
@@ -34,6 +32,8 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
     startY = math.min(startY, dst)
     endX = math.max(endX, src)
     endY = math.max(endY, dst)
+    vertices.add(src)
+    vertices.add(dst)
   }
 
   def build: PKEdgePartition[V, E] = {
@@ -41,16 +41,10 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
     val treeBuilder = K2TreeBuilder(k, math.max(endX - startX + 1, endY - startY + 1).toInt)
     val attrs = mutable.TreeSet[(Int, E)]()((a, b) => a._1 - b._1)
     val edgeIndices = new BitSet(treeBuilder.size * treeBuilder.size)
-    val srcIndex = new BitSet(treeBuilder.size)
-    val dstIndex = new BitSet(treeBuilder.size)
 
     for (edge <- edgeArray) {
       val localSrcId = (edge.srcId - startX).toInt
       val localDstId = (edge.dstId - startY).toInt
-
-      srcIndex.set(localSrcId)
-      dstIndex.set(localDstId)
-
       val index = treeBuilder.addEdge(localSrcId, localDstId)
 
       // Our solution does not support multi-graphs, so we ignore repeated edges
@@ -60,6 +54,7 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
 
     val activeSet = new BitSet(0)
     val attrValues = attrs.toArray.map(_._2)
+    val vertexAttrs = new GraphXPrimitiveKeyOpenHashMap[VertexId, V](vertices.size)
     val edgeAttrs = new EdgeAttributesMap[E](edgeIndices, attrValues)
     new PKEdgePartition[V, E](
       vertexAttrs,
@@ -67,15 +62,13 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (
       treeBuilder.build,
       startX,
       startY,
-      activeSet,
-      srcIndex,
-      dstIndex
+      activeSet
     )
   }
 }
 
 object PKEdgePartitionBuilder {
   def apply[V: ClassTag, E: ClassTag](k: Int): PKEdgePartitionBuilder[V, E] = {
-    new PKEdgePartitionBuilder[V, E](k, new GraphXPrimitiveKeyOpenHashMap[VertexId, V])
+    new PKEdgePartitionBuilder[V, E](k)
   }
 }

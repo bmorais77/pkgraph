@@ -6,8 +6,8 @@ import org.scalatest.FlatSpec
 
 class PKEdgePartitionSpec extends FlatSpec {
   "A PKEdgePartition" should "create a new partition without vertex attributes" in {
-    val partition = buildPartition
-    partition.updateVertices(Seq((0L, 10), (1L, 20)).iterator)
+    var partition = buildPartition
+    partition = partition.updateVertices(Seq((0L, 10), (1L, 20)).iterator)
     assert(partition.vertexAttrs.size == 2)
 
     val partitionWithNoVerticesCached = partition.withoutVertexAttributes()
@@ -169,8 +169,8 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "filter edges" in {
-    val partition = buildPartition
-    updatePartitionVertices(partition)
+    var partition = buildPartition
+    partition = updatePartitionVertices(partition)
     val newPartition = partition.filter(_.attr % 2 == 0, (id, _) => id % 2 == 0)
 
     var i = 0

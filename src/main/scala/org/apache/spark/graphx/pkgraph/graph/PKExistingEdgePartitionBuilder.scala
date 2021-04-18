@@ -13,9 +13,7 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     builder: K2TreeBuilder,
     srcOffset: Long,
     dstOffset: Long,
-    activeSet: BitSet,
-    srcIndex: BitSet,
-    dstIndex: BitSet
+    activeSet: BitSet
 ) {
   private val edges = mutable.HashMap[Int, E]()
   private val edgeIndices = new BitSet(builder.size * builder.size)
@@ -26,8 +24,6 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     val index = builder.addEdge(line, col)
 
     edges(index) = attr
-    srcIndex.set(line)
-    dstIndex.set(col)
     edgeIndices.set(index)
   }
 
@@ -37,8 +33,6 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     val index = builder.removeEdge(line, col)
 
     edges.remove(index)
-    srcIndex.unset(line)
-    dstIndex.unset(col)
   }
 
   def build: PKEdgePartition[V, E] = {
@@ -51,9 +45,7 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
       builder.build,
       srcOffset,
       dstOffset,
-      activeSet,
-      srcIndex,
-      dstIndex
+      activeSet
     )
   }
 }
@@ -68,9 +60,7 @@ object PKExistingEdgePartitionBuilder {
       treeBuilder,
       partition.srcOffset,
       partition.dstOffset,
-      partition.activeSet,
-      partition.srcIndex,
-      partition.dstIndex
+      partition.activeSet
     )
   }
 
@@ -85,9 +75,7 @@ object PKExistingEdgePartitionBuilder {
       treeBuilder,
       srcOffset,
       dstOffset,
-      partition.activeSet,
-      partition.srcIndex,
-      partition.dstIndex
+      partition.activeSet
     )
   }
 }
