@@ -10,12 +10,6 @@ import org.apache.spark.{HashPartitioner, Partitioner}
 import scala.reflect.ClassTag
 
 object PKVertexRDD {
-  implicit class PKVertexRDDWrapper[V](rdd: VertexRDD[V]) {
-    // TODO: Very inefficient implementation
-    def addVertices(vertices: RDD[(VertexId, V)]): VertexRDD[V] = {
-      ???
-    }
-  }
 
   /**
     * Constructs a `VertexRDD` from an RDD of vertex-attribute pairs. Duplicate vertex entries are
@@ -124,7 +118,7 @@ object PKVertexRDD {
 
   private def toRoutingTableMessage(vid: VertexId, pid: PartitionID, position: Byte): RoutingTableMessage = {
     val positionUpper2 = position << 30
-    val pidLower30 = pid & 0x3FFFFFFF
+    val pidLower30 = pid & 0x3fffffff
     (vid, positionUpper2 | pidLower30)
   }
 }

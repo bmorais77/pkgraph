@@ -367,7 +367,7 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
       .mapPartitions(_.flatMap {
         case (_, part) =>
           // Choose scan method
-          val activeFraction = if(part.numVertices == 0) 1f else part.numActives / part.numVertices
+          val activeFraction = if (part.numVertices == 0) 1f else part.numActives / part.numVertices
           activeDirectionOpt match {
             case Some(EdgeDirection.Both) =>
               if (activeFraction < 0.8) {
@@ -448,6 +448,85 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
       val newVerts = vertices.leftJoin(other)(updateF)
       PKGraph(newVerts, replicatedVertexView.edges.asInstanceOf[PKEdgeRDD[V2, E]])
     }
+  }
+
+  /**
+    * Performs a full outer join the given vertices RDD.
+    *
+    * @param other Vertex RDD
+    * @return new Graph with added vertices
+    */
+  def fullOuterJoinVertices(other: RDD[(VertexId, V)]): Graph[V, E] = {
+    val partitions = vertices
+      .fullOuterJoin(other)
+      .map { v =>
+        v._2._2 match {
+          case Some(attr) => (v._1, attr)
+          case None =>
+            v._2._1 match {
+              case Some(attr) => (v._1, attr)
+              case None       => throw new Exception(s"no attribute for vertex ${v._1}")
+            }
+        }
+      }
+
+    val newVertices = PKVertexRDD(partitions, edges, null.asInstanceOf[V])
+    val changedVertices = vertices.diff(newVertices)
+    val newReplicatedVertexView = replicatedVertexView.updateVertices(changedVertices)
+    new PKGraph(k, newVertices, newReplicatedVertexView)
+  }
+
+  /**
+    * Performs a full outer join the given edge RDD.
+    * Note: The operation is optimized if the RDD is already partitioned as the existing edge
+    * RDD in this graph, if not a default partition strategy is used.
+    *
+    * @param other Edge RDD
+    * @return new Graph with added edges
+    */
+  def fullOuterJoinEdges(other: RDD[Edge[E]]): Graph[V, E] = {
+    fullOuterJoinEdges(other, PartitionStrategy.EdgePartition2D, edges.partitions.length)
+  }
+
+  /**
+    * Performs a full outer join the given edge RDD.
+    *
+    * @param other Edge RDD
+    * @param strategy [[PartitionStrategy]] to partition 'other' RDD with
+    * @return new Graph with added edges
+    */
+  def fullOuterJoinEdges(other: RDD[Edge[E]], strategy: PartitionStrategy): Graph[V, E] = {
+    fullOuterJoinEdges(other, strategy, edges.partitions.length)
+  }
+
+  /**
+    * Performs a full outer join the given edge RDD.
+    * If the 'other' RDD does not have the same partition has the current edge RDD in this graph,
+    * it will be partitioned using the given [[PartitionStrategy]] into the given number of partitions.
+    *
+    * @param other Edge RDD
+    * @param strategy [[PartitionStrategy]] to partition 'other' RDD with
+    * @param numPartitions Number of partitions to partition 'other' RDD in
+    * @return new Graph with added edges
+    */
+  def fullOuterJoinEdges(other: RDD[Edge[E]], strategy: PartitionStrategy, numPartitions: Int): Graph[V, E] = {
+    // Test if the other edge is already partitioned
+    val partitions = other match {
+      case other if edges.partitioner == other.partitioner =>
+        edges.edgePartitions.zipPartitions(other, preservesPartitioning = true) { (partIter, edges) =>
+          partIter.map(v => (v._1, v._2.addEdges(edges)))
+        }
+      case _ =>
+        other
+          .map(e => (strategy.getPartition(e.srcId, e.dstId, numPartitions), e))
+          .partitionBy(edges.partitioner.get)
+          .zipPartitions(edges.edgePartitions, preservesPartitioning = true) { (edges, partIter) =>
+            partIter.map(e => (e._1, e._2.addEdges(edges.map(_._2))))
+          }
+    }
+
+    val newEdges = edges.withEdgePartitions(partitions)
+    new PKGraph[V, E](k, vertices, replicatedVertexView.withEdges(newEdges))
   }
 
   override val ops: GraphOps[V, E] = new PKGraphOps(this)
