@@ -43,11 +43,11 @@ class K2Tree(
   def edges: Seq[(Int, Int)] = iterator.map(e => (e.line, e.col)).toSeq
 
   /**
-   * Collects the direct neighbors of the vertex with the given line.
-   *
-   * @param line Vertex identifier in the adjacency matrix
-   * @return sequence containing column of corresponding neighbors
-   */
+    * Collects the direct neighbors of the vertex with the given line.
+    *
+    * @param line Vertex identifier in the adjacency matrix
+    * @return sequence containing column of corresponding neighbors
+    */
   def directNeighbors(line: Int): Seq[Int] = {
     val buffer = new ArrayBuffer[Int](size)
     iterateDirectNeighbors(line)(buffer.append(_))
@@ -55,11 +55,11 @@ class K2Tree(
   }
 
   /**
-   * Collects the reverse neighbors of the vertex with the given column.
-   *
-   * @param col Vertex identifier in the adjacency matrix
-   * @return sequence containing line of corresponding neighbor
-   */
+    * Collects the reverse neighbors of the vertex with the given column.
+    *
+    * @param col Vertex identifier in the adjacency matrix
+    * @return sequence containing line of corresponding neighbor
+    */
   def reverseNeighbors(col: Int): Seq[Int] = {
     val buffer = new ArrayBuffer[Int](size)
     iterateReverseNeighbors(col)(buffer.append(_))
@@ -103,22 +103,29 @@ class K2Tree(
     * All edges are kept.
     *
     * @param newSize New size to grow to
+    * @param inverse True if the tree should go left and up, false to grow the tree right and down
     * @return K²-Tree representing a adjacency matrix with the given new size.
     */
-  def grow(newSize: Int): K2Tree = {
+  def grow(newSize: Int, inverse: Boolean = false): K2Tree = {
     if (newSize <= size) {
       return this
     }
 
     val k2 = k * k
-    val levelChange = (size / newSize) / k2 + 1
+    val levelChange = (newSize / size) / k
     val internalOffset = levelChange * k2
     val bitCount = internalOffset + length
 
     // Prefix the tree with K² bits for every level change
     val tree = new BitSet(bitCount)
     for (i <- 0 until levelChange) {
-      tree.set(i << k2)
+      // Inverse places a bit in the final child node of the given level
+      // example: 0001
+      //
+      // When inverse is false a bit is placed in the first child node of the given level
+      // example: 1000
+      val index = if(inverse) ((i + 1) * k2) - 1 else i * k2
+      tree.set(index)
     }
 
     // Add the original bits in the K²-Tree
@@ -194,15 +201,15 @@ class K2Tree(
     val k2 = k * k
 
     def findDirectNeighbors(size: Int, l: Int, c: Int, pos: Int): Unit = {
-      if(pos >= internalCount) { // Is leaf
-        if(bits.get(pos)) {
+      if (pos >= internalCount) { // Is leaf
+        if (bits.get(pos)) {
           f(c)
         }
       } else {
-        if(pos == -1 || bits.get(pos)) {
+        if (pos == -1 || bits.get(pos)) {
           val newSize = size / k
           val y = rank(pos) * k2 + k * (l / newSize)
-          for(i <- 0 until k) {
+          for (i <- 0 until k) {
             findDirectNeighbors(newSize, l % newSize, c + newSize * i, y + i)
           }
         }
@@ -213,25 +220,25 @@ class K2Tree(
   }
 
   /**
-   * Finds all reverse neighbors of the vertex with the `col` identifier
-   * and calls the user function with their corresponding line.
-   *
-   * @param col Vertex identifier
-   * @param f User function called for each neighbor
-   */
+    * Finds all reverse neighbors of the vertex with the `col` identifier
+    * and calls the user function with their corresponding line.
+    *
+    * @param col Vertex identifier
+    * @param f User function called for each neighbor
+    */
   final def iterateReverseNeighbors(col: Int)(f: Int => Unit): Unit = {
     val k2 = k * k
 
     def findReverseNeighbors(size: Int, c: Int, l: Int, pos: Int): Unit = {
-      if(pos >= internalCount) { // Is leaf
-        if(bits.get(pos)) {
+      if (pos >= internalCount) { // Is leaf
+        if (bits.get(pos)) {
           f(l)
         }
       } else {
-        if(pos == -1 || bits.get(pos)) {
+        if (pos == -1 || bits.get(pos)) {
           val newSize = size / k
           val y = rank(pos) * k2 + (c / newSize)
-          for(i <- 0 until k) {
+          for (i <- 0 until k) {
             findReverseNeighbors(newSize, c % newSize, l + newSize * i, y + i * k)
           }
         }

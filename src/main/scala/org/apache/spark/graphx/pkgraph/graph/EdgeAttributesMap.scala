@@ -12,17 +12,22 @@ class EdgeAttributesMap[@specialized(Long, Int, Double) E: ClassTag](
 
   def iterator: Iterator[(Int, E)] =
     new Iterator[(Int, E)] {
-      private var pos = -1
-      private var index = 0
+      private var pos = 0
+      private var index = -1
 
       override def hasNext: Boolean = pos < values.length
 
       override def next(): (Int, E) = {
-        index = indices.nextSetBit(index)
+        index = indices.nextSetBit(index + 1)
+        val next = (index, values(pos))
         pos += 1
-        (index, values(pos))
+        next
       }
     }
 
   def iterable: EdgeAttributesIterable[E] = new EdgeAttributesIterable[E](this)
+}
+
+object EdgeAttributesMap {
+  def empty[E: ClassTag]: EdgeAttributesMap[E] = new EdgeAttributesMap(new BitSet(0), Array.empty)
 }

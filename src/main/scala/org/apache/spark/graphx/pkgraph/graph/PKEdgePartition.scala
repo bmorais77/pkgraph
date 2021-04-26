@@ -5,7 +5,7 @@ import org.apache.spark.graphx.impl.EdgeActiveness
 import org.apache.spark.graphx.pkgraph.compression.{K2Tree, K2TreeBuilder, K2TreeIndex}
 import org.apache.spark.graphx.pkgraph.util.mathx
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
-import org.apache.spark.util.collection.{BitSet, OpenHashSet, PrimitiveVector}
+import org.apache.spark.util.collection.{BitSet, PrimitiveVector}
 
 import scala.reflect.ClassTag
 
@@ -75,10 +75,10 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
   def numActives: Int = activeSet.cardinality()
 
   /**
-   * Gives the number of vertices in this partition (estimate).
-   *
-   * @return number of vertices
-   */
+    * Gives the number of vertices in this partition (estimate).
+    *
+    * @return number of vertices
+    */
   def numVertices: Int = edgeAttrs.size / 2
 
   /**
@@ -89,12 +89,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     */
   def addEdges(edges: Iterator[Edge[E]]): PKEdgePartition[V, E] = {
     val (newTree, newEdges, newSrcOffset, newDstOffset) = preprocessNewEdges(edges)
-    val builder = PKExistingEdgePartitionBuilder[V, E](this, newTree.toBuilder, newSrcOffset, newDstOffset)
-
-    // Add existing edges to build indices
-    for (edge <- iterator) {
-      builder.addEdge(edge.srcId, edge.dstId, edge.attr)
-    }
+    val builder = PKExistingEdgePartitionBuilder[V, E](this, newTree.toBuilder, edgeAttrs, newSrcOffset, newDstOffset)
 
     for (edge <- newEdges) {
       builder.addEdge(edge.srcId, edge.dstId, edge.attr)
@@ -133,7 +128,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
   def updateVertices(iter: Iterator[(VertexId, V)]): PKEdgePartition[V, E] = {
     // Copy existing vertex attributes
     val newVertexAttrs = new GraphXPrimitiveKeyOpenHashMap[VertexId, V](vertexAttrs.keySet.capacity)
-    for((id, attr) <- vertexAttrs) {
+    for ((id, attr) <- vertexAttrs) {
       newVertexAttrs(id) = attr
     }
 
@@ -266,10 +261,10 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     val builder = PKExistingEdgePartitionBuilder[V, E3](this, newTreeBuilder)
     val comparator = new PKEdgeComparator[E, E2](this, other)
 
-    val it1 = iteratorWithIndex
-    val it2 = other.iteratorWithIndex
+    val it1 = iterator
+    val it2 = other.iterator
 
-    var edge2: PKEdge[E2] = PKEdge()
+    var edge2: Edge[E2] = Edge(-1, -1, null.asInstanceOf[E2])
     while (it1.hasNext && it2.hasNext) {
       val edge1 = it1.next()
 
@@ -277,8 +272,8 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
         edge2 = it2.next()
       }
 
-      if (edge1.line == edge2.line && edge1.col == edge2.col) {
-        builder.addEdge(edge1.line, edge1.col, f(edge1.line, edge1.col, edge1.attr, edge2.attr))
+      if (edge1.srcId == edge2.srcId && edge1.dstId == edge2.dstId) {
+        builder.addEdge(edge1.srcId, edge1.dstId, f(edge1.srcId, edge1.dstId, edge1.attr, edge2.attr))
       }
     }
 
@@ -565,6 +560,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @return [[Tuple4]] with K²-Tree, new edges, source offset and destination offset
     */
   private def preprocessNewEdges(edges: Iterator[Edge[E]]): (K2Tree, Array[Edge[E]], Long, Long) = {
+    val k2 = tree.k * tree.k
     var newSrcOffset = srcOffset
     var newDstOffset = dstOffset
     var newSrcEnd = srcOffset + tree.size
@@ -574,12 +570,16 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     // after the size of the current matrix
     val newEdges = new PrimitiveVector[Edge[E]]
     for (edge <- edges) {
-      newSrcOffset = math.min(edge.srcId, srcOffset)
-      newDstOffset = math.min(edge.dstId, dstOffset)
+      newSrcOffset = math.min(edge.srcId, newSrcOffset)
+      newDstOffset = math.min(edge.dstId, newDstOffset)
       newSrcEnd = math.max(edge.srcId, newSrcEnd)
       newDstEnd = math.max(edge.dstId, newDstEnd)
       newEdges += edge
     }
+
+    // Align offsets to multiple of K2
+    newSrcOffset = if (newSrcOffset % k2 == 0) newSrcOffset else newSrcOffset / k2
+    newDstOffset = if (newDstOffset % k2 == 0) newDstOffset else newDstOffset / k2
 
     val newTree = growK2Tree(newSrcOffset, newSrcEnd, newDstOffset, newDstEnd)
     (newTree, newEdges.trim().array, newSrcOffset, newDstOffset)
@@ -597,16 +597,11 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @return K²-Tree with new size
     */
   private def growK2Tree(newSrcOffset: Long, newSrcEnd: Long, newDstOffset: Long, newDstEnd: Long): K2Tree = {
-    var newTree = tree
+    val behindOrigin = newSrcOffset < srcOffset || newDstOffset < dstOffset
+    val afterEnd = newSrcEnd > srcOffset + tree.size || newDstEnd > dstOffset + tree.size
 
-    // Check if new edges are behind virtual origin
-    if (newSrcOffset < srcOffset || newDstOffset < dstOffset) {
-      // TODO: Grow K²-Tree to the left and up
-      newTree = tree
-    }
-
-    // Check if new edges are after the end of the adjacency matrix
-    if (newSrcEnd > srcOffset + tree.size || newDstEnd > dstOffset + tree.size) {
+    // Check if new edges are outside the current adjacency matrix
+    if (behindOrigin || afterEnd) {
       var newSize = math.max(newSrcEnd - newSrcOffset, newDstEnd - newDstOffset).toInt
 
       // Size is not a power of K, so we need to find the nearest power
@@ -615,9 +610,9 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
         newSize = math.pow(tree.k, exp).toInt
       }
 
-      newTree = tree.grow(newSize)
+      tree.grow(newSize, behindOrigin)
+    } else {
+      tree
     }
-
-    newTree
   }
 }

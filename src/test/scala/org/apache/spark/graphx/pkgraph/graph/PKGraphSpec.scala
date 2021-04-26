@@ -9,7 +9,7 @@ class PKGraphSpec extends FlatSpec with SparkSessionTestWrapper {
   private val vertices = (0 until 10).map(i => (i.toLong, i * 20))
   private val edges = (0 until 10).map(i => Edge(i, i, i * 10))
 
-  "A PKGraphImpl" should "build from edges" in {
+  "A PKGraph" should "build from edges" in {
     val edges = sc.parallelize((0 until 10).map(i => Edge(i, i, i * 10)))
     val graph = PKGraph.fromEdges(edges, 0)
     assert(graph.numEdges == edges.count())

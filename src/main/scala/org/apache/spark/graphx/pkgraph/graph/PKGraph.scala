@@ -628,7 +628,6 @@ object PKGraph {
       vertexStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY,
       k: Int = DefaultK
   ): PKGraph[V, Int] = {
-    // TODO: Could add a function here to merge the attributes of identical edges
     val edges = rawEdges.map(p => Edge(p._1, p._2, 1))
     fromEdges(edges, defaultValue, edgeStorageLevel, vertexStorageLevel, k)
   }

@@ -12,10 +12,9 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (k
   private val edges = new PrimitiveVector[Edge[E]]
   private val vertices = new mutable.HashSet[VertexId]
 
-  private var startX: Long = 0
-  private var startY: Long = 0
+  private var startX: Long = Long.MaxValue
+  private var startY: Long = Long.MaxValue
 
-  // Start at -1 so that if no edges are added the builder will build a K²-Tree with size 0
   private var endX: Long = 0
   private var endY: Long = 0
 
@@ -37,14 +36,25 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (k
   }
 
   def build: PKEdgePartition[V, E] = {
+    val k2 = k * k
+
+    // Align origin to nearest multiple of K
+    val srcOffset = if(startX % k2 == 0) startX else startX / k2
+    val dstOffset = if(startY % k2 == 0) startY else startY / k2
+
     val edgeArray = edges.trim().array
-    val treeBuilder = K2TreeBuilder(k, math.max(endX - startX + 1, endY - startY + 1).toInt)
+    val treeBuilder = if(edgeArray.isEmpty) {
+      K2TreeBuilder(k, 0)
+    } else {
+      K2TreeBuilder(k, math.max(endX - srcOffset + 1, endY - dstOffset + 1).toInt)
+    }
+
     val attrs = mutable.TreeSet[(Int, E)]()((a, b) => a._1 - b._1)
     val edgeIndices = new BitSet(treeBuilder.size * treeBuilder.size)
 
     for (edge <- edgeArray) {
-      val localSrcId = (edge.srcId - startX).toInt
-      val localDstId = (edge.dstId - startY).toInt
+      val localSrcId = (edge.srcId - srcOffset).toInt
+      val localDstId = (edge.dstId - dstOffset).toInt
       val index = treeBuilder.addEdge(localSrcId, localDstId)
 
       // Our solution does not support multi-graphs, so we ignore repeated edges
@@ -60,8 +70,8 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (k
       vertexAttrs,
       edgeAttrs,
       treeBuilder.build,
-      startX,
-      startY,
+      srcOffset,
+      dstOffset,
       activeSet
     )
   }

@@ -64,6 +64,69 @@ class PKEdgePartitionSpec extends FlatSpec {
     assert(i == newPartition.size)
   }
 
+  /**
+   * Before:
+   * Matrix 4x4:
+   * +---+---+---+---+
+   * | 1   1   0   0 |
+   * | 1   0   0   0 |
+   * | 0   0   1   0 |
+   * | 0   0   0   0 |
+   * +---+---+---+---+
+   *
+   * T: 1001
+   * L: 1110 1000
+   *
+   * After:
+   * Matrix 8x8:
+   * +---+---+---+---+---+---+---+---+
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   1   1   0   0   0   0   0 |
+   * | 0   1   0   0   0   0   0   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * | 0   0   0   0   1   1   0   0 |
+   * | 0   0   0   0   1   0   0   0 |
+   * | 0   0   0   0   0   0   1   0 |
+   * | 0   0   0   0   0   0   0   0 |
+   * +---+---+---+---+---+---+---+---+
+   *
+   * T: 1001 1110 1001
+   * L: 0001 0010 0100 1110 1000
+   */
+  it should "add new edges behind origin" in {
+    val builder = PKEdgePartitionBuilder[Int, Int](2)
+    val existingEdges = Array(
+      Edge[Int](4, 4, 4 * 4),
+      Edge[Int](4, 5, 4 * 5),
+      Edge[Int](5, 4, 5 * 4),
+      Edge[Int](6, 6, 6 * 6),
+    )
+
+    for(edge <- existingEdges) {
+      builder.add(edge.srcId, edge.dstId, edge.attr)
+    }
+
+    val partition = builder.build
+    val newEdges = Array(
+      Edge[Int](1, 1, 1),
+      Edge[Int](1, 2, 2),
+      Edge[Int](2, 1, 2)
+    )
+
+    val newPartition = partition.addEdges(newEdges.iterator)
+    assert(newPartition.size == partition.size + newEdges.length)
+
+    var i = 0
+    val it = newPartition.iterator
+    while (it.hasNext) {
+      val edge = it.next()
+      assert(existingEdges.contains(edge) || newEdges.contains(edge))
+      assert(edge.attr == edge.srcId * edge.dstId)
+      i += 1
+    }
+    assert(i == newPartition.size)
+  }
+
   it should "remove edges" in {
     val partition = buildPartition
     val edgesToRemove = Seq((0L, 0L), (1L, 1L), (2L, 2L))

@@ -198,6 +198,11 @@ object K2TreeBuilder {
     * @return empty builder for a compressed K²-Tree
     */
   def apply(k: Int, size: Int): K2TreeBuilder = {
+    // Special case where we are asked to build an empty tree
+    if(size == 0) {
+      return new K2TreeBuilder(k, 0, 0, new BitSet(0), 0)
+    }
+
     // Make sure size is a power of K
     val exp = math.ceil(mathx.log(k, size))
     val actualSize = math.pow(k, exp).toInt
