@@ -50,7 +50,7 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[K2TreeEdge] {
 
     if (top.pos >= tree.internalCount) { // Is leaf node
       if (tree.bits.get(top.pos)) {
-        val edge = buildEdgeFromPath()
+        val edge = K2TreeEdge(path.top.line, path.top.col)
         path.pop()
         return Some(edge)
       }
@@ -81,18 +81,6 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[K2TreeEdge] {
       return findNextEdge
     }
     None
-  }
-
-  /**
-    * Builds an [[K2TreeEdge]] from the current `path` in the iterator.
-    * More specifically, this structure is used to store an [[K2TreeIndex]] to later be
-    * used to compare 2 edges.
-    *
-    * @return [[K2TreeEdge]]
-    */
-  private def buildEdgeFromPath(): K2TreeEdge = {
-    val index = K2TreeIndex.fromEdge(tree.k, path.length - 1, path.top.line, path.top.col)
-    K2TreeEdge(index, path.top.line, path.top.col)
   }
 
   /**

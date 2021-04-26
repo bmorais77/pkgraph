@@ -316,35 +316,6 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     }
 
   /**
-    * Get an iterator over the edges in this partition with the edge index included.
-    * Note: This iterator can be slightly faster than the [[K2TreeIterator]] because it counts the number of edges,
-    * avoiding having to search the entire tree.
-    *
-    * Be careful not to keep references to the objects from this iterator.
-    * To improve GC performance the same object is re-used in `next()`.
-    *
-    * @return an iterator over edges in the partition
-    */
-  def iteratorWithIndex: Iterator[PKEdge[E]] =
-    new Iterator[PKEdge[E]] {
-      private val iterator = tree.iterator
-      private val edge = new PKEdge[E]
-      private var pos = 0
-
-      override def hasNext: Boolean = pos < edgeAttrs.values.length && iterator.hasNext
-
-      override def next(): PKEdge[E] = {
-        val nextEdge = iterator.next()
-        edge.index = nextEdge.index
-        edge.line = nextEdge.line + srcOffset
-        edge.col = nextEdge.col + dstOffset
-        edge.attr = edgeAttrs.values(pos)
-        pos += 1
-        edge
-      }
-    }
-
-  /**
     * Get an iterator over the edge triplets in this partition.
     * Note: This iterator can be slightly faster than the [[K2TreeIterator]] because it counts the number of edges,
     * avoiding having to search the entire tree.
