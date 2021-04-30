@@ -5,9 +5,21 @@ import org.apache.spark.graphx.impl.EdgeActiveness
 import org.apache.spark.graphx.pkgraph.compression.{K2Tree, K2TreeBuilder, K2TreeIndex}
 import org.apache.spark.graphx.pkgraph.util.mathx
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
-import org.apache.spark.util.collection.{BitSet, PrimitiveVector}
+import org.apache.spark.util.collection.PrimitiveVector
 
 import scala.reflect.ClassTag
+
+// TODO: activeSet - should use a HashSet because the min offset is used and can lead to very large indices
+// TODO: innerjoin - Compare offsets and size to determine if there is an intersection at all between the partitions
+// TODO: innerjoin - For partitions with same offsets and same sizes perform a K²-Tree inner join operation
+// TODO: innerjoin - For partitions with different offsets/sizes we could grow one of the trees to now have the same offset/size and perform a K²-Tree inner join operation
+
+/**
+ * Implementations:
+ * Constant Access Index (constantIndex) - Store a map from edge index to its position in the edge array
+ * Linear Access Index (linearIndex)     - Store a bitset with bits set to 1 for the edge indices that exist
+ * Storing vertex indices (vertexIndex)  - Store a bitset for source and one for destination vertices to keep track of the vertices that exist
+ */
 
 /**
   *
@@ -26,7 +38,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     val tree: K2Tree,
     val srcOffset: Long,
     val dstOffset: Long,
-    val activeSet: BitSet
+    val activeSet: Option[VertexSet]
 ) {
 
   /**
@@ -47,13 +59,11 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @return [[PKEdgePartition]] with given active set
     */
   def withActiveSet(iter: Iterator[VertexId]): PKEdgePartition[V, E] = {
-    val activeSet = new BitSet(tree.size)
-    val offset = math.min(srcOffset, dstOffset)
+    val activeSet = new VertexSet
     while (iter.hasNext) {
-      val vid = iter.next()
-      activeSet.set((vid - offset).toInt)
+      activeSet.add(iter.next())
     }
-    new PKEdgePartition(vertexAttrs, edgeAttrs, tree, srcOffset, dstOffset, activeSet)
+    new PKEdgePartition(vertexAttrs, edgeAttrs, tree, srcOffset, dstOffset, Some(activeSet))
   }
 
   /**
@@ -62,17 +72,14 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     * @param vid Vertex identifier
     * @return true if vertex is active, false otherwise
     */
-  def isActive(vid: VertexId): Boolean = {
-    val offset = math.min(srcOffset, dstOffset)
-    activeSet.get((vid - offset).toInt)
-  }
+  def isActive(vid: VertexId): Boolean = activeSet.get.contains(vid)
 
   /**
     * The number of active vertices.
     *
     * @return number of active vertices
     */
-  def numActives: Int = activeSet.cardinality()
+  def numActives: Int = activeSet.map(_.size).getOrElse(0)
 
   /**
     * Gives the number of vertices in this partition (estimate).
@@ -303,7 +310,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       private val edge = new Edge[E]
       private var pos = 0
 
-      override def hasNext: Boolean = pos < edgeAttrs.values.length && iterator.hasNext
+      override def hasNext: Boolean = pos < edgeAttrs.size && iterator.hasNext
 
       override def next(): Edge[E] = {
         val nextEdge = iterator.next()
@@ -331,7 +338,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       private val iterator = tree.iterator
       private var pos = 0
 
-      override def hasNext: Boolean = pos < edgeAttrs.values.length && iterator.hasNext
+      override def hasNext: Boolean = pos < edgeAttrs.size && iterator.hasNext
 
       override def next(): EdgeTriplet[V, E] = {
         val triplet = new EdgeTriplet[V, E]
@@ -438,6 +445,8 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       activeness: EdgeActiveness
   ): Iterator[(VertexId, A)] = {
     val ctx = PKAggregatingEdgeContext[V, E, A](mergeMsg)
+    var pos = 0
+
     for (dst <- 0 until tree.size) {
       val globalDst: VertexId = dst + dstOffset
       if (isDstVertexActive(globalDst, activeness)) {

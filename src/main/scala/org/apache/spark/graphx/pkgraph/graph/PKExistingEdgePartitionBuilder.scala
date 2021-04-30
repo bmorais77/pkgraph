@@ -1,6 +1,6 @@
 package org.apache.spark.graphx.pkgraph.graph
 
-import org.apache.spark.graphx.VertexId
+import org.apache.spark.graphx.{VertexId, VertexSet}
 import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.util.collection.BitSet
@@ -15,7 +15,7 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     existingEdges: EdgeAttributesMap[E],
     srcOffset: Long,
     dstOffset: Long,
-    activeSet: BitSet
+    activeSet: Option[VertexSet]
 ) {
   private val edges = mutable.HashMap[Int, E]()
   private val edgeIndices = new BitSet(builder.size * builder.size)
