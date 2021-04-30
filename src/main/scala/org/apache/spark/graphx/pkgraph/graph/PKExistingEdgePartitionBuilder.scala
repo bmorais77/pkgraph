@@ -3,7 +3,6 @@ package org.apache.spark.graphx.pkgraph.graph
 import org.apache.spark.graphx.{VertexId, VertexSet}
 import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
-import org.apache.spark.util.collection.BitSet
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -18,11 +17,9 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     activeSet: Option[VertexSet]
 ) {
   private val edges = mutable.HashMap[Int, E]()
-  private val edgeIndices = new BitSet(builder.size * builder.size)
 
   for ((index, attr) <- existingEdges) {
     edges(indexOffset + index) = attr
-    edgeIndices.set(indexOffset + index)
   }
 
   def addEdge(src: VertexId, dst: VertexId, attr: E): Unit = {
@@ -31,7 +28,6 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     val index = builder.addEdge(line, col)
 
     edges(index) = attr
-    edgeIndices.set(index)
   }
 
   def removeEdge(src: VertexId, dst: VertexId): Unit = {
@@ -44,6 +40,14 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
 
   def build: PKEdgePartition[V, E] = {
     val edgeArray = edges.toArray.sortWith((a, b) => a._1 < b._1)
+    val edgeIndices = new GraphXPrimitiveKeyOpenHashMap[Int, Int](existingEdges.indices.keySet.capacity)
+
+    var pos = 0
+    for((index, _) <- edgeArray) {
+      edgeIndices(index) = pos
+      pos += 1
+    }
+
     val attrValues = edgeArray.map(_._2)
     val edgeAttrs = new EdgeAttributesMap[E](edgeIndices, attrValues)
     new PKEdgePartition[V, E](

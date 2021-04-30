@@ -411,13 +411,12 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       val globalSrc: VertexId = src + srcOffset
       if (isSrcVertexActive(globalSrc, activeness)) {
         val srcAttr = if (tripletFields.useSrc) vertexAttrs(globalSrc) else null.asInstanceOf[V]
-        val it = edgeAttrs.iterable
         tree.iterateDirectNeighbors(src) { dst =>
           val globalDst: VertexId = dst + dstOffset
           if (isEdgeActive(globalSrc, globalDst, activeness)) {
             val dstAttr = if (tripletFields.useDst) vertexAttrs(globalDst) else null.asInstanceOf[V]
             val index = K2TreeIndex.fromEdge(tree.k, tree.height, src, dst)
-            val attr = it.nextAttribute(index)
+            val attr = edgeAttrs.getAttributeWithIndex(index)
             ctx.set(globalSrc, globalDst, srcAttr, dstAttr, attr)
             sendMsg(ctx)
           }
@@ -445,19 +444,16 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       activeness: EdgeActiveness
   ): Iterator[(VertexId, A)] = {
     val ctx = PKAggregatingEdgeContext[V, E, A](mergeMsg)
-    var pos = 0
-
     for (dst <- 0 until tree.size) {
       val globalDst: VertexId = dst + dstOffset
       if (isDstVertexActive(globalDst, activeness)) {
         val dstAttr = if (tripletFields.useDst) vertexAttrs(globalDst) else null.asInstanceOf[V]
-        val it = edgeAttrs.iterable
         tree.iterateReverseNeighbors(dst) { src =>
           val globalSrc: VertexId = src + srcOffset
           if (isEdgeActive(globalSrc, globalDst, activeness)) {
             val srcAttr = if (tripletFields.useSrc) vertexAttrs(globalSrc) else null.asInstanceOf[V]
             val index = K2TreeIndex.fromEdge(tree.k, tree.height, src, dst)
-            val attr = it.nextAttribute(index)
+            val attr = edgeAttrs.getAttributeWithIndex(index)
             ctx.set(globalSrc, globalDst, srcAttr, dstAttr, attr)
             sendMsg(ctx)
           }

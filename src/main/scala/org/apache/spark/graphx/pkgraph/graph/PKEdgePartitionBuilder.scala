@@ -39,19 +39,17 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (k
     val k2 = k * k
 
     // Align origin to nearest multiple of K
-    val srcOffset = if(startX % k2 == 0) startX else startX / k2
-    val dstOffset = if(startY % k2 == 0) startY else startY / k2
+    val srcOffset = if (startX % k2 == 0) startX else startX / k2
+    val dstOffset = if (startY % k2 == 0) startY else startY / k2
 
     val edgeArray = edges.trim().array
-    val treeBuilder = if(edgeArray.isEmpty) {
+    val treeBuilder = if (edgeArray.isEmpty) {
       K2TreeBuilder(k, 0)
     } else {
       K2TreeBuilder(k, math.max(endX - srcOffset + 1, endY - dstOffset + 1).toInt)
     }
 
     val attrs = mutable.TreeSet[(Int, E)]()((a, b) => a._1 - b._1)
-    val edgeIndices = new BitSet(treeBuilder.size * treeBuilder.size)
-
     for (edge <- edgeArray) {
       val localSrcId = (edge.srcId - srcOffset).toInt
       val localDstId = (edge.dstId - dstOffset).toInt
@@ -59,15 +57,19 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (k
 
       // Our solution does not support multi-graphs, so we ignore repeated edges
       attrs.add((index, edge.attr))
-      edgeIndices.set(index)
     }
 
-    val attrValues = attrs.toArray.map(_._2)
-    val vertexAttrs = new GraphXPrimitiveKeyOpenHashMap[VertexId, V](vertices.size)
-    val edgeAttrs = new EdgeAttributesMap[E](edgeIndices, attrValues)
+    var pos = 0
+    val indices = new GraphXPrimitiveKeyOpenHashMap[Int, Int]
+    for ((index, _) <- attrs) {
+      indices(index) = pos
+      pos += 1
+    }
+
+    val edgeAttrs = attrs.toArray.map(_._2)
     new PKEdgePartition[V, E](
-      vertexAttrs,
-      edgeAttrs,
+      new GraphXPrimitiveKeyOpenHashMap[VertexId, V](vertices.size),
+      new EdgeAttributesMap[E](indices, edgeAttrs),
       treeBuilder.build,
       srcOffset,
       dstOffset,
