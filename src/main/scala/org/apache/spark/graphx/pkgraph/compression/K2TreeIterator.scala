@@ -6,13 +6,13 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[K2TreeEdge] {
   private val k2 = tree.k * tree.k
 
   // Keeps track of the path up to the current node
-  // Note: At the top of the stack there will always be the `virtual` root node
-  private val path = mutable.Stack(Node(0, 0, -1, -1))
+  // Note: The stack starts with the virtual node
+  private val path = mutable.Stack(Node(0, 0, -1, 0))
 
   private var currentEdge: Option[K2TreeEdge] = None
 
   override def hasNext: Boolean = {
-    if(tree.isEmpty) {
+    if (tree.isEmpty) {
       return false
     }
 
@@ -20,9 +20,8 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[K2TreeEdge] {
       return true
     }
 
-    val edge = findNextEdge
-    currentEdge = edge
-    edge.isDefined
+    currentEdge = findNextEdge()
+    currentEdge.isDefined
   }
 
   override def next(): K2TreeEdge = {
@@ -40,45 +39,30 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[K2TreeEdge] {
     *
     * @return [[K2TreeEdge]] if there are any more edges, or [[None]] otherwise.
     */
-  private def findNextEdge: Option[K2TreeEdge] = {
-    if (path.isEmpty) {
-      return None
-    }
-
-    val top = path.top
-    top.childIndex += 1
-
-    if (top.pos >= tree.internalCount) { // Is leaf node
-      if (tree.bits.get(top.pos)) {
-        val edge = K2TreeEdge(path.top.line, path.top.col)
+  private def findNextEdge(): Option[K2TreeEdge] = {
+    while (path.nonEmpty) {
+      val node = path.top
+      if (node.pos >= tree.internalCount && tree.bits.get(node.pos)) { // Is non-zero leaf node
+        val edge = K2TreeEdge(node.line, node.col)
         path.pop()
         return Some(edge)
-      }
-    } else {
-      if (top.pos == -1 || tree.bits.get(top.pos)) {
-        val y = tree.rank(top.pos) * k2
+      } else if (node.pos == -1 || tree.bits.get(node.pos)) { // Is virtual node (-1) or non-zero internal node
+        val y = tree.rank(node.pos) * k2
 
-        for (i <- top.childIndex until k2) {
-          val newSegment = Node(top.line * tree.k + i / tree.k, top.col * tree.k + i % tree.k, y + i, -1)
-
-          path.push(newSegment)
-          val nextEdge = findNextEdge
-
-          if (nextEdge.isDefined) {
-            return nextEdge
-          }
-
-          if(path.isEmpty) {
-            return None
-          }
-
-          path.pop()
-          top.childIndex += 1
+        // Still have child nodes to iterate
+        if (node.childIndex < k2) {
+          val line = node.line * tree.k + node.childIndex / tree.k
+          val col = node.col * tree.k + node.childIndex % tree.k
+          val pos = y + node.childIndex
+          val childNode = Node(line, col, pos, 0)
+          path.push(childNode)
+          node.childIndex += 1
+        } else {
+          path.pop() // All child nodes have been iterated
         }
+      } else { // The node was neither a non-zero leaf node nor a non-zero internal node, so we skip it
+        path.pop()
       }
-
-      path.pop()
-      return findNextEdge
     }
     None
   }
