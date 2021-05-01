@@ -411,7 +411,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       val globalSrc: VertexId = src + srcOffset
       if (isSrcVertexActive(globalSrc, activeness)) {
         val srcAttr = if (tripletFields.useSrc) vertexAttrs(globalSrc) else null.asInstanceOf[V]
-        tree.iterateDirectNeighbors(src) { dst =>
+        for(dst <- tree.directNeighborIterator(src)) {
           val globalDst: VertexId = dst + dstOffset
           if (isEdgeActive(globalSrc, globalDst, activeness)) {
             val dstAttr = if (tripletFields.useDst) vertexAttrs(globalDst) else null.asInstanceOf[V]
@@ -448,7 +448,7 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       val globalDst: VertexId = dst + dstOffset
       if (isDstVertexActive(globalDst, activeness)) {
         val dstAttr = if (tripletFields.useDst) vertexAttrs(globalDst) else null.asInstanceOf[V]
-        tree.iterateReverseNeighbors(dst) { src =>
+        for(src <- tree.reverseNeighborIterator(dst)) {
           val globalSrc: VertexId = src + srcOffset
           if (isEdgeActive(globalSrc, globalDst, activeness)) {
             val srcAttr = if (tripletFields.useSrc) vertexAttrs(globalSrc) else null.asInstanceOf[V]

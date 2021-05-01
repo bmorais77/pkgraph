@@ -4,8 +4,6 @@ import org.apache.spark.graphx.pkgraph.util.collection.BitSetExtensions
 import org.apache.spark.graphx.pkgraph.util.mathx
 import org.apache.spark.util.collection.BitSet
 
-import scala.collection.mutable.ArrayBuffer
-
 class K2Tree(
     val k: Int,
     val size: Int,
@@ -40,7 +38,7 @@ class K2Tree(
     *
     * @return sequence of edges encoded in this K²-Tree
     */
-  def edges: Seq[(Int, Int)] = iterator.map(e => (e.line, e.col)).toSeq
+  def edges: Array[K2TreeEdge] = iterator.toArray
 
   /**
     * Collects the direct neighbors of the vertex with the given line.
@@ -48,11 +46,7 @@ class K2Tree(
     * @param line Vertex identifier in the adjacency matrix
     * @return sequence containing column of corresponding neighbors
     */
-  def directNeighbors(line: Int): Seq[Int] = {
-    val buffer = new ArrayBuffer[Int](size)
-    iterateDirectNeighbors(line)(buffer.append(_))
-    buffer
-  }
+  def directNeighbors(line: Int): Array[Int] = directNeighborIterator(line).toArray
 
   /**
     * Collects the reverse neighbors of the vertex with the given column.
@@ -60,11 +54,7 @@ class K2Tree(
     * @param col Vertex identifier in the adjacency matrix
     * @return sequence containing line of corresponding neighbor
     */
-  def reverseNeighbors(col: Int): Seq[Int] = {
-    val buffer = new ArrayBuffer[Int](size)
-    iterateReverseNeighbors(col)(buffer.append(_))
-    buffer
-  }
+  def reverseNeighbors(col: Int): Array[Int] = reverseNeighborIterator(col).toArray
 
   /**
     * Get this tree's iterator.
@@ -72,6 +62,22 @@ class K2Tree(
     * @return K²-Tree iterator
     */
   def iterator: Iterator[K2TreeEdge] = new K2TreeIterator(this)
+
+  /**
+    * Get an iterator that iterates the direct neighbors of the given line.
+    *
+    * @param line  Line to search direct neighbors of
+    * @return direct neighbor iterator
+    */
+  def directNeighborIterator(line: Int): Iterator[Int] = new K2TreeDirectNeighborIterator(this, line)
+
+  /**
+    * Get an iterator that iterates the reverse neighbors of the given line.
+    *
+    * @param col  Column to search reverse neighbors of
+    * @return reverse neighbor iterator
+    */
+  def reverseNeighborIterator(col: Int): Iterator[Int] = new K2TreeReverseNeighborIterator(this, col)
 
   /**
     * Returns a new K²-Tree with the given edges added.
@@ -124,7 +130,7 @@ class K2Tree(
       //
       // When inverse is false a bit is placed in the first child node of the given level
       // example: 1000
-      val index = if(inverse) ((i + 1) * k2) - 1 else i * k2
+      val index = if (inverse) ((i + 1) * k2) - 1 else i * k2
       tree.set(index)
     }
 
@@ -188,64 +194,6 @@ class K2Tree(
     // Keep trying to trim the tree
     val newTree = new K2Tree(k, size / k, tree, internalCount - k2, leavesCount)
     newTree.trim()
-  }
-
-  /**
-    * Finds all direct neighbors of the vertex with the `line` identifier
-    * and calls the user function with their corresponding column.
-    *
-    * @param line Vertex identifier
-    * @param f User function called for each neighbor
-    */
-  final def iterateDirectNeighbors(line: Int)(f: Int => Unit): Unit = {
-    val k2 = k * k
-
-    def findDirectNeighbors(size: Int, l: Int, c: Int, pos: Int): Unit = {
-      if (pos >= internalCount) { // Is leaf
-        if (bits.get(pos)) {
-          f(c)
-        }
-      } else {
-        if (pos == -1 || bits.get(pos)) {
-          val newSize = size / k
-          val y = rank(pos) * k2 + k * (l / newSize)
-          for (i <- 0 until k) {
-            findDirectNeighbors(newSize, l % newSize, c + newSize * i, y + i)
-          }
-        }
-      }
-    }
-
-    findDirectNeighbors(size, line, 0, -1)
-  }
-
-  /**
-    * Finds all reverse neighbors of the vertex with the `col` identifier
-    * and calls the user function with their corresponding line.
-    *
-    * @param col Vertex identifier
-    * @param f User function called for each neighbor
-    */
-  final def iterateReverseNeighbors(col: Int)(f: Int => Unit): Unit = {
-    val k2 = k * k
-
-    def findReverseNeighbors(size: Int, c: Int, l: Int, pos: Int): Unit = {
-      if (pos >= internalCount) { // Is leaf
-        if (bits.get(pos)) {
-          f(l)
-        }
-      } else {
-        if (pos == -1 || bits.get(pos)) {
-          val newSize = size / k
-          val y = rank(pos) * k2 + (c / newSize)
-          for (i <- 0 until k) {
-            findReverseNeighbors(newSize, c % newSize, l + newSize * i, y + i * k)
-          }
-        }
-      }
-    }
-
-    findReverseNeighbors(size, col, 0, -1)
   }
 
   /**
