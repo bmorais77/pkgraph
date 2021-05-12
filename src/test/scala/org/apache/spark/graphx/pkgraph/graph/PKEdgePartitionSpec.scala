@@ -264,6 +264,20 @@ class PKEdgePartitionSpec extends FlatSpec {
     assert(i == joinedPartition.size)
   }
 
+  it should "inner join with another non-intersecting partition" in {
+    val p1 = buildPartition
+
+    val builder = PKEdgePartitionBuilder[Int, Int](2)
+    for (i <- 20 until 30) {
+      builder.add(i, i, i)
+    }
+
+    val p2 = builder.build
+    val joinedPartition = p1.innerJoin(p2)((_, _, attr1, attr2) => attr1 + attr2)
+    val it = joinedPartition.iterator
+    assert(!it.hasNext)
+  }
+
   it should "aggregate messages with edge scan" in {
     val partition = buildPartition
     val it = partition.aggregateMessagesEdgeScan[Int](

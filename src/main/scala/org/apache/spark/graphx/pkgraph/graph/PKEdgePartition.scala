@@ -9,13 +9,8 @@ import org.apache.spark.util.collection.PrimitiveVector
 
 import scala.reflect.ClassTag
 
-// TODO: activeSet - should use a HashSet because the min offset is used and can lead to very large indices
-// TODO: innerjoin - Compare offsets and size to determine if there is an intersection at all between the partitions
-// TODO: innerjoin - For partitions with same offsets and same sizes perform a K²-Tree inner join operation
-// TODO: innerjoin - For partitions with different offsets/sizes we could grow one of the trees to now have the same offset/size and perform a K²-Tree inner join operation
-
 /**
- * Implementations:
+ * Possible Implementations:
  * Constant Access Index (constantIndex) - Store a map from edge index to its position in the edge array
  * Linear Access Index (linearIndex)     - Store a bitset with bits set to 1 for the edge indices that exist
  * Storing vertex indices (vertexIndex)  - Store a bitset for source and one for destination vertices to keep track of the vertices that exist
@@ -266,8 +261,14 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
   )(f: (VertexId, VertexId, E, E2) => E3): PKEdgePartition[V, E3] = {
     val newTreeBuilder = K2TreeBuilder(tree.k, tree.size)
     val builder = PKExistingEdgePartitionBuilder[V, E3](this, newTreeBuilder)
-    val comparator = new PKEdgeComparator[E, E2](this, other)
 
+    // Optimization: check if the partitions have any intersection at all, in which case
+    // the result of the inner join is always empty
+    if(!partitionIntersects(other)) {
+      return builder.build
+    }
+
+    val comparator = new PKEdgeComparator[E, E2](this, other)
     val it1 = iterator
     val it2 = other.iterator
 
@@ -590,5 +591,25 @@ private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     } else {
       tree
     }
+  }
+
+  /**
+   * Checks if this partition as any "possible" intersecting edges with the 'other' partition.
+   *
+   * @param other   Other partition to test
+   * @return true if there is an intersection, false otherwise
+   */
+  private def partitionIntersects(other: PKEdgePartition[_, _]): Boolean = {
+    // Before or after in the vertical axis
+    if(srcOffset > other.srcOffset + other.tree.size || srcOffset + tree.size < other.srcOffset) {
+      return false
+    }
+
+    // Before or after in the horizontal axis
+    if(dstOffset > other.dstOffset + other.tree.size || dstOffset + tree.size < other.dstOffset) {
+      return false
+    }
+
+    true
   }
 }
