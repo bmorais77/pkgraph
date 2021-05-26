@@ -27,7 +27,7 @@ import scala.reflect.ClassTag
   * @tparam V Vertex attribute type
   * @tparam E Edge attribute type
   */
-private[graph] class PKEdgePartition[V: ClassTag, E: ClassTag](
+private[pkgraph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     val vertexAttrs: GraphXPrimitiveKeyOpenHashMap[VertexId, V],
     val edgeAttrs: EdgeAttributesMap[E],
     val tree: K2Tree,

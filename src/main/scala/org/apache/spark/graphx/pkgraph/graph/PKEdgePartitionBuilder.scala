@@ -3,13 +3,13 @@ package org.apache.spark.graphx.pkgraph.graph
 import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.graphx.{Edge, VertexId}
-import org.apache.spark.util.collection.{BitSet, PrimitiveVector}
+import org.apache.spark.util.collection.PrimitiveVector
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (k: Int) {
-  private val edges = new PrimitiveVector[Edge[E]]
+private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (k: Int, size: Int) {
+  private val edges = new PrimitiveVector[Edge[E]](size)
   private val vertices = new mutable.HashSet[VertexId]
 
   private var startX: Long = Long.MaxValue
@@ -79,7 +79,7 @@ private[graph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (k
 }
 
 object PKEdgePartitionBuilder {
-  def apply[V: ClassTag, E: ClassTag](k: Int): PKEdgePartitionBuilder[V, E] = {
-    new PKEdgePartitionBuilder[V, E](k)
+  def apply[V: ClassTag, E: ClassTag](k: Int, size: Int = 64): PKEdgePartitionBuilder[V, E] = {
+    new PKEdgePartitionBuilder[V, E](k, size)
   }
 }

@@ -166,12 +166,12 @@ object PKEdgeRDD {
     *
     * @tparam V the type of the vertex attributes that may be joined with the returned EdgeRDD
     * @tparam E the edge attribute type
-    * @param edges to create RDD from
     * @param k K2Tree value
+    * @param edges to create RDD from
     */
   def fromEdges[V: ClassTag, E: ClassTag](
-      edges: RDD[Edge[E]],
-      k: Int = PKGraph.DefaultK
+      k: Int,
+      edges: RDD[Edge[E]]
   ): PKEdgeRDD[V, E] = {
     val edgePartitions = edges.mapPartitionsWithIndex { (pid, iter) =>
       val builder = PKEdgePartitionBuilder[V, E](k)

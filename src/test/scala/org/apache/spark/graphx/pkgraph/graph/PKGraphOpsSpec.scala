@@ -130,6 +130,6 @@ class PKGraphOpsSpec extends FlatSpec with SparkSessionTestWrapper {
   ): PKGraph[Int, Int] = {
     val edgeRDD = sc.parallelize(edges)
     val vertexRDD = sc.parallelize(vertices)
-    PKGraph(vertexRDD, edgeRDD)
+    PKGraph(2, vertexRDD, edgeRDD)
   }
 }

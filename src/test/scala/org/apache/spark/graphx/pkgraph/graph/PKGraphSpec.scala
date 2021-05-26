@@ -11,14 +11,23 @@ class PKGraphSpec extends FlatSpec with SparkSessionTestWrapper {
 
   "A PKGraph" should "build from edges" in {
     val edges = sc.parallelize((0 until 10).map(i => Edge(i, i, i * 10)))
-    val graph = PKGraph.fromEdges(edges, 0)
+    val graph = PKGraph.fromEdges(2, edges, 0)
     assert(graph.numEdges == edges.count())
   }
 
   it should "build from edges and vertices" in {
     val edges = sc.parallelize((0 until 10).map(i => Edge(i, i, i * 10)))
     val vertices = sc.parallelize((0 until 10).map(i => (i.toLong, i * 20)))
-    val graph = PKGraph(vertices, edges, 0, StorageLevel.MEMORY_ONLY, StorageLevel.MEMORY_ONLY)
+    val graph = PKGraph(2, vertices, edges, 0)
+    assert(graph.numEdges == edges.count())
+    assert(graph.numVertices == vertices.count())
+  }
+
+  it should "build from large number of edges and vertices" in {
+    val size = 50000
+    val vertices = sc.parallelize((0 until size).map(i => (i.toLong, i * 10)))
+    val edges = sc.parallelize((0 until math.floor(math.sqrt(size)).toInt).map(i => Edge(i.toLong, i.toLong, i * 20)))
+    val graph = PKGraph(2, vertices, edges)
     assert(graph.numEdges == edges.count())
     assert(graph.numVertices == vertices.count())
   }
@@ -108,13 +117,15 @@ class PKGraphSpec extends FlatSpec with SparkSessionTestWrapper {
     val newGraph = graph.outerJoinVertices(newVertices) { (_, attr, other) => attr + other.getOrElse(0) }
 
     val actualVertices = newGraph.vertices.collect().sortWith((a, b) => a._1 < b._1)
-    val expectedVertices = (0 until 10).map(i => {
-      if(i >= 5) {
-        (i.toLong, i * 20 * 2)
-      } else {
-        (i.toLong, i * 20)
-      }
-    }).toArray
+    val expectedVertices = (0 until 10)
+      .map(i => {
+        if (i >= 5) {
+          (i.toLong, i * 20 * 2)
+        } else {
+          (i.toLong, i * 20)
+        }
+      })
+      .toArray
     assert(actualVertices sameElements expectedVertices)
   }
 
@@ -146,6 +157,6 @@ class PKGraphSpec extends FlatSpec with SparkSessionTestWrapper {
   ): PKGraph[Int, Int] = {
     val edgeRDD = sc.parallelize(edges)
     val vertexRDD = sc.parallelize(vertices)
-    PKGraph(vertexRDD, edgeRDD, 0, StorageLevel.MEMORY_ONLY, StorageLevel.MEMORY_ONLY)
+    PKGraph(2, vertexRDD, edgeRDD, 0)
   }
 }

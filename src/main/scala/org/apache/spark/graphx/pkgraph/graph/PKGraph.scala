@@ -10,7 +10,7 @@ import scala.language.implicitConversions
 import scala.reflect.{ClassTag, classTag}
 
 class PKGraph[V: ClassTag, E: ClassTag] private (
-    @transient k: Int,
+    @transient val k: Int,
     @transient override val vertices: VertexRDD[V],
     @transient val replicatedVertexView: PKReplicatedVertexView[V, E]
 ) extends Graph[V, E] {
@@ -188,7 +188,7 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
       new PKGraph(k, newVerts, newReplicatedVertexView)
     } else {
       // The map does not preserve type, so we must re-replicate all vertices
-      PKGraph(vertices.mapValues(f), replicatedVertexView.edges.asInstanceOf[PKEdgeRDD[V2, E]])
+      PKGraph(k, vertices.mapValues(f), replicatedVertexView.edges.asInstanceOf[PKEdgeRDD[V2, E]])
     }
   }
 
@@ -446,7 +446,7 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
     } else {
       // updateF does not preserve type, so we must re-replicate all vertices
       val newVerts = vertices.leftJoin(other)(updateF)
-      PKGraph(newVerts, replicatedVertexView.edges.asInstanceOf[PKEdgeRDD[V2, E]])
+      PKGraph(k, newVerts, replicatedVertexView.edges.asInstanceOf[PKEdgeRDD[V2, E]])
     }
   }
 
@@ -533,7 +533,6 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
 }
 
 object PKGraph {
-  val DefaultK = 2
 
   /**
     * Construct a graph from a collection of vertices and
@@ -543,24 +542,24 @@ object PKGraph {
     *
     * @tparam V the vertex attribute type
     * @tparam E the edge attribute type
+    * @param k K2Tree value
     * @param vertices the "set" of vertices and their attributes
     * @param edges the collection of edges in the graph
     * @param defaultVertexAttr the default vertex attribute to use for vertices that are
     *                          mentioned in edges but not in vertices
     * @param edgeStorageLevel the desired storage level at which to cache the edges if necessary
     * @param vertexStorageLevel the desired storage level at which to cache the vertices if necessary
-    * @param k K2Tree value
     */
   def apply[V: ClassTag, E: ClassTag](
+      k: Int,
       vertices: RDD[(VertexId, V)],
       edges: RDD[Edge[E]],
       defaultVertexAttr: V = null.asInstanceOf[V],
       edgeStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY,
-      vertexStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY,
-      k: Int = DefaultK
+      vertexStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
   ): PKGraph[V, E] = {
     val edgeRDD = PKEdgeRDD
-      .fromEdges(edges, k)(classTag[V], classTag[E])
+      .fromEdges(k, edges)(classTag[V], classTag[E])
       .withTargetStorageLevel(edgeStorageLevel)
     val vertexRDD = PKVertexRDD(vertices, edgeRDD, defaultVertexAttr).withTargetStorageLevel(vertexStorageLevel)
     PKGraph(k, vertexRDD, edgeRDD)
@@ -590,46 +589,46 @@ object PKGraph {
   /**
     * Construct a graph from a collection of edges.
     *
+    * @param k K2Tree value
     * @param edges the RDD containing the set of edges in the graph
     * @param defaultVertexAttr the default vertex attribute to use for each vertex
     * @param edgeStorageLevel the desired storage level at which to cache the edges if necessary
     * @param vertexStorageLevel the desired storage level at which to cache the vertices if necessary
-    * @param k K2Tree value
     *
     * @return a graph with edge attributes described by `edges` and vertices
     *         given by all vertices in `edges` with value `defaultValue`
     */
   def fromEdges[V: ClassTag, E: ClassTag](
+      k: Int,
       edges: RDD[Edge[E]],
       defaultVertexAttr: V,
       edgeStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY,
-      vertexStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY,
-      k: Int = DefaultK
+      vertexStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
   ): PKGraph[V, E] = {
-    fromEdgeRDD(k, PKEdgeRDD.fromEdges(edges, k), defaultVertexAttr, edgeStorageLevel, vertexStorageLevel)
+    fromEdgeRDD(k, PKEdgeRDD.fromEdges(k, edges), defaultVertexAttr, edgeStorageLevel, vertexStorageLevel)
   }
 
   /**
     * Construct a graph from a collection of edges encoded as vertex id pairs.
     *
+    * @param k K2Tree value
     * @param rawEdges a collection of edges in (src, dst) form
     * @param defaultValue the vertex attributes with which to create vertices referenced by the edges
     * @param edgeStorageLevel the desired storage level at which to cache the edges if necessary
     * @param vertexStorageLevel the desired storage level at which to cache the vertices if necessary
-    * @param k K2Tree value
     *
     * @return a graph with edge attributes containing either the count of duplicate edges or 1
     * (if `uniqueEdges` is `None`) and vertex attributes containing the total degree of each vertex.
     */
   def fromEdgeTuples[V: ClassTag, E: ClassTag](
+      k: Int,
       rawEdges: RDD[(VertexId, VertexId)],
       defaultValue: V,
       edgeStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY,
-      vertexStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY,
-      k: Int = DefaultK
+      vertexStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
   ): PKGraph[V, Int] = {
     val edges = rawEdges.map(p => Edge(p._1, p._2, 1))
-    fromEdges(edges, defaultValue, edgeStorageLevel, vertexStorageLevel, k)
+    fromEdges(k, edges, defaultValue, edgeStorageLevel, vertexStorageLevel)
   }
 
   /**

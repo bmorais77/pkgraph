@@ -65,6 +65,11 @@ class K2TreeBuilderSpec extends FlatSpec {
     TestUtils.assertBitSet(builder.bits, "1001 1001 0000 0000 1001 1001 0000 0000 1001 0000 0000 0000 0000 0000 0000 0000 0000 1001 0000 0000 1001")
   }
 
+  it should "build with very large sizes" in {
+    val tree = K2TreeBuilder(2, 100000)
+    assert(tree.size.toDouble * tree.size.toDouble >= 100000)
+  }
+
   it should "round the size of the tree to the nearest power of k" in {
     val b1 = K2TreeBuilder(2, 10)
     assert(b1.size == 16)

@@ -13,6 +13,6 @@ class PKGraphOps[V: ClassTag, E: ClassTag](graph: PKGraph[V, E]) extends GraphOp
         }
         .reduceByKey(mergeFunc)
         .map(e => new Edge(e._1._1, e._1._2, e._2))
-    PKGraph(graph.vertices, newEdges)
+    PKGraph(graph.k, graph.vertices, newEdges)
   }
 }
