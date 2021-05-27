@@ -32,12 +32,16 @@ object EdgePartitionTimeBenchmark extends Bench.OfflineReport {
     buildPKEdgePartition(8, size)
   }
 
-  performance of "Edge Partitions Operations" in {
+  performance of "EdgePartition" in {
     measure method "map" in {
       using(graphXPartitions) in {
         _.map(e => e.attr * 2)
       }
+    }
+  }
 
+  performance of "PKEdgePartition" in {
+    measure method "map" in {
       using(k2Partitions) in {
         _.map(e => e.attr * 2)
       }
