@@ -1,6 +1,6 @@
 package org.apache.spark.graphx.pkgraph.graph
 
-import org.apache.spark.graphx.impl.EdgeActiveness
+import org.apache.spark.graphx.impl.{EdgeActiveness, EdgePartition, EdgePartitionBuilder}
 import org.apache.spark.graphx.{Edge, TripletFields}
 import org.scalatest.FlatSpec
 
@@ -12,6 +12,43 @@ class PKEdgePartitionSpec extends FlatSpec {
 
     val partitionWithNoVerticesCached = partition.withoutVertexAttributes()
     assert(partitionWithNoVerticesCached.vertexAttrs.size == 0)
+  }
+
+  it should "create a new partition with large size" in {
+    val size = 50000
+    val sqrSize = math.floor(math.sqrt(size)).toInt
+
+    def buildGraphXEdgePartition(size: Int): EdgePartition[Int, Int] = {
+      val builder = new EdgePartitionBuilder[Int, Int](size)
+
+      // Add edges
+      for (i <- 0 until sqrSize) {
+        for (j <- 0 until sqrSize) {
+          builder.add(i, j, j + i)
+        }
+      }
+
+      builder.toEdgePartition
+    }
+
+    def buildPKEdgePartition(k: Int, size: Int): PKEdgePartition[Int, Int] = {
+      val builder = PKEdgePartitionBuilder[Int, Int](k, size)
+
+      // Add edges
+      for (i <- 0 until sqrSize) {
+        for (j <- 0 until sqrSize) {
+          builder.add(i, j, j + i)
+        }
+      }
+
+      builder.build
+    }
+
+    val graphXPartition = buildGraphXEdgePartition(size)
+    val pkPartition = buildPKEdgePartition(2, size)
+
+    assert(graphXPartition.size == sqrSize * sqrSize)
+    assert(pkPartition.size == sqrSize * sqrSize)
   }
 
   /**

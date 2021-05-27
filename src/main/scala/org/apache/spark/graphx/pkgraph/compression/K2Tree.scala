@@ -1,13 +1,12 @@
 package org.apache.spark.graphx.pkgraph.compression
 
-import org.apache.spark.graphx.pkgraph.util.collection.BitSetExtensions
+import org.apache.spark.graphx.pkgraph.util.collection.PKBitSet
 import org.apache.spark.graphx.pkgraph.util.mathx
-import org.apache.spark.util.collection.BitSet
 
 class K2Tree(
     val k: Int,
     val size: Int,
-    val bits: BitSet,
+    val bits: PKBitSet,
     val internalCount: Int,
     val leavesCount: Int
 ) {
@@ -123,7 +122,7 @@ class K2Tree(
     val bitCount = internalOffset + length
 
     // Prefix the tree with K² bits for every level change
-    val tree = new BitSet(bitCount)
+    val tree = new PKBitSet(bitCount)
     for (i <- 0 until levelChange) {
       // Inverse places a bit in the final child node of the given level
       // example: 0001
@@ -183,7 +182,7 @@ class K2Tree(
     // Remove the first K² bits from the bitset
     val k2 = k * k
     val newBitCount = length - k2
-    val tree = new BitSet(newBitCount)
+    val tree = new PKBitSet(newBitCount)
 
     for (i <- 0 until newBitCount) {
       if (bits.get(k2 + i)) {
@@ -194,6 +193,26 @@ class K2Tree(
     // Keep trying to trim the tree
     val newTree = new K2Tree(k, size / k, tree, internalCount - k2, leavesCount)
     newTree.trim()
+  }
+
+  def forEachEdge(f: (Int, Int) => Unit): Unit = {
+    val k2 = k * k
+    def recursiveNavigation(n: Int, line: Int, col: Int, pos: Int): Unit = {
+      if (pos >= internalCount) { // Is non-zero leaf node
+        if (bits.get(pos)) {
+          f(line, col)
+        }
+      } else if (pos == -1 || bits.get(pos)) { // Is virtual node (-1) or non-zero internal node
+        val y = rank(pos) * k2
+        val newSize = n / k
+
+        for (i <- 0 until k2) {
+          recursiveNavigation(newSize, line * k + i / k, col * k + i % k, y + i)
+        }
+      }
+    }
+
+    recursiveNavigation(size, 0, 0, -1)
   }
 
   /**

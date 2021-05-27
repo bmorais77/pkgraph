@@ -1,6 +1,6 @@
 package org.apache.spark.graphx.pkgraph.compression
 
-import org.apache.spark.graphx.pkgraph.util.TestUtils.assertBitSet
+import org.apache.spark.graphx.pkgraph.TestUtils.assertBitSet
 import org.scalatest.FlatSpec
 
 class K2TreeSpec extends FlatSpec {

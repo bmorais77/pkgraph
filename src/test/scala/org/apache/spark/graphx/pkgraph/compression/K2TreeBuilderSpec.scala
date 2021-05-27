@@ -1,6 +1,6 @@
 package org.apache.spark.graphx.pkgraph.compression
 
-import org.apache.spark.graphx.pkgraph.util.TestUtils
+import org.apache.spark.graphx.pkgraph.TestUtils
 import org.scalatest.FlatSpec
 
 class K2TreeBuilderSpec extends FlatSpec {

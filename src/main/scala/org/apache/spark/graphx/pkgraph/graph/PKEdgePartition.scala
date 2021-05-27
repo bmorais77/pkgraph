@@ -10,13 +10,14 @@ import org.apache.spark.util.collection.PrimitiveVector
 import scala.reflect.ClassTag
 
 /**
- * Possible Implementations:
- * Constant Access Index (constantIndex) - Store a map from edge index to its position in the edge array
- * Linear Access Index (linearIndex)     - Store a bitset with bits set to 1 for the edge indices that exist
- * Storing vertex indices (vertexIndex)  - Store a bitset for source and one for destination vertices to keep track of the vertices that exist
- */
+  * Possible Implementations:
+  * Constant Access Index (constantIndex) - Store a map from edge index to its position in the edge array
+  * Linear Access Index (linearIndex)     - Store a bitset with bits set to 1 for the edge indices that exist
+  * Storing vertex indices (vertexIndex)  - Store a bitset for source and one for destination vertices to keep track of the vertices that exist
+  */
 
 /**
+  * Partitioned K²-Tree edge partition.
   *
   * @param vertexAttrs Maps vertex global identifier to their attribute
   * @param edgeAttrs Stores edge attributes and their corresponding index
@@ -27,7 +28,10 @@ import scala.reflect.ClassTag
   * @tparam V Vertex attribute type
   * @tparam E Edge attribute type
   */
-private[pkgraph] class PKEdgePartition[V: ClassTag, E: ClassTag](
+private[pkgraph] class PKEdgePartition[
+    @specialized(Char, Int, Boolean, Byte, Long, Float, Double) V: ClassTag,
+    E: ClassTag
+](
     val vertexAttrs: GraphXPrimitiveKeyOpenHashMap[VertexId, V],
     val edgeAttrs: EdgeAttributesMap[E],
     val tree: K2Tree,
@@ -172,9 +176,13 @@ private[pkgraph] class PKEdgePartition[V: ClassTag, E: ClassTag](
     */
   def map[E2: ClassTag](f: Edge[E] => E2): PKEdgePartition[V, E2] = {
     val newData = new Array[E2](edgeAttrs.values.length)
+    val edge = new Edge[E]()
     var i = 0
 
-    for (edge <- iterator) {
+    tree.forEachEdge { (line, col) =>
+      edge.srcId = line + srcOffset
+      edge.dstId = col + dstOffset
+      edge.attr = edgeAttrs.values(i)
       newData(i) = f(edge)
       i += 1
     }
@@ -264,7 +272,7 @@ private[pkgraph] class PKEdgePartition[V: ClassTag, E: ClassTag](
 
     // Optimization: check if the partitions have any intersection at all, in which case
     // the result of the inner join is always empty
-    if(!partitionIntersects(other)) {
+    if (!partitionIntersects(other)) {
       return builder.build
     }
 
@@ -412,7 +420,7 @@ private[pkgraph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       val globalSrc: VertexId = src + srcOffset
       if (isSrcVertexActive(globalSrc, activeness)) {
         val srcAttr = if (tripletFields.useSrc) vertexAttrs(globalSrc) else null.asInstanceOf[V]
-        for(dst <- tree.directNeighborIterator(src)) {
+        for (dst <- tree.directNeighborIterator(src)) {
           val globalDst: VertexId = dst + dstOffset
           if (isEdgeActive(globalSrc, globalDst, activeness)) {
             val dstAttr = if (tripletFields.useDst) vertexAttrs(globalDst) else null.asInstanceOf[V]
@@ -449,7 +457,7 @@ private[pkgraph] class PKEdgePartition[V: ClassTag, E: ClassTag](
       val globalDst: VertexId = dst + dstOffset
       if (isDstVertexActive(globalDst, activeness)) {
         val dstAttr = if (tripletFields.useDst) vertexAttrs(globalDst) else null.asInstanceOf[V]
-        for(src <- tree.reverseNeighborIterator(dst)) {
+        for (src <- tree.reverseNeighborIterator(dst)) {
           val globalSrc: VertexId = src + srcOffset
           if (isEdgeActive(globalSrc, globalDst, activeness)) {
             val srcAttr = if (tripletFields.useSrc) vertexAttrs(globalSrc) else null.asInstanceOf[V]
@@ -594,19 +602,19 @@ private[pkgraph] class PKEdgePartition[V: ClassTag, E: ClassTag](
   }
 
   /**
-   * Checks if this partition as any "possible" intersecting edges with the 'other' partition.
-   *
-   * @param other   Other partition to test
-   * @return true if there is an intersection, false otherwise
-   */
+    * Checks if this partition as any "possible" intersecting edges with the 'other' partition.
+    *
+    * @param other   Other partition to test
+    * @return true if there is an intersection, false otherwise
+    */
   private def partitionIntersects(other: PKEdgePartition[_, _]): Boolean = {
     // Before or after in the vertical axis
-    if(srcOffset > other.srcOffset + other.tree.size || srcOffset + tree.size < other.srcOffset) {
+    if (srcOffset > other.srcOffset + other.tree.size || srcOffset + tree.size < other.srcOffset) {
       return false
     }
 
     // Before or after in the horizontal axis
-    if(dstOffset > other.dstOffset + other.tree.size || dstOffset + tree.size < other.dstOffset) {
+    if (dstOffset > other.dstOffset + other.tree.size || dstOffset + tree.size < other.dstOffset) {
       return false
     }
 

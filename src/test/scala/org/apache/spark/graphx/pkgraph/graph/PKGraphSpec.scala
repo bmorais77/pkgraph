@@ -1,8 +1,7 @@
 package org.apache.spark.graphx.pkgraph.graph
 
-import org.apache.spark.graphx.pkgraph.util.SparkSessionTestWrapper
+import org.apache.spark.graphx.pkgraph.SparkSessionTestWrapper
 import org.apache.spark.graphx.{Edge, VertexId}
-import org.apache.spark.storage.StorageLevel
 import org.scalatest.FlatSpec
 
 class PKGraphSpec extends FlatSpec with SparkSessionTestWrapper {

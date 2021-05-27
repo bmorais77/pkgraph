@@ -1,13 +1,12 @@
 package org.apache.spark.graphx.pkgraph.compression
 
 import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder.calculateLevelOffsets
-import org.apache.spark.graphx.pkgraph.util.collection.BitSetExtensions
+import org.apache.spark.graphx.pkgraph.util.collection.PKBitSet
 import org.apache.spark.graphx.pkgraph.util.mathx
-import org.apache.spark.util.collection.BitSet
 
 import scala.collection.mutable
 
-class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet, val length: Int) {
+class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: PKBitSet, val length: Int) {
   private val k2 = k * k
 
   private lazy val levelOffsets = calculateLevelOffsets(k, height)
@@ -120,14 +119,14 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: BitSet
     val (internalCount, leavesCount) = calculateCompressedSize()
 
     // Bitset to store both internal and leaf bits (T:L)
-    val tree = new BitSet(internalCount + leavesCount)
+    val tree = new PKBitSet(internalCount + leavesCount)
 
     // Index for the tree bitset
     var t = 0
 
     for (i <- 0 until length / k2) {
       var include = false
-      val buffer = new BitSet(k2)
+      val buffer = new PKBitSet(k2)
 
       for (j <- 0 until k2) {
         if (bits.get(i * k2 + j)) {
@@ -200,7 +199,7 @@ object K2TreeBuilder {
   def apply(k: Int, size: Int): K2TreeBuilder = {
     // Special case where we are asked to build an empty tree
     if(size == 0) {
-      return new K2TreeBuilder(k, 0, 0, new BitSet(0), 0)
+      return new K2TreeBuilder(k, 0, 0, new PKBitSet(0), 0)
     }
 
     // Make sure size is a power of K
@@ -210,7 +209,7 @@ object K2TreeBuilder {
     val k2 = k * k
     val height = math.ceil(mathx.log(k, actualSize)).toInt
     val length = (0 to height).reduce((acc, i) => acc + math.pow(k2, i).toInt)
-    new K2TreeBuilder(k, actualSize, height, new BitSet(length), length)
+    new K2TreeBuilder(k, actualSize, height, new PKBitSet(length), length)
   }
 
   /**

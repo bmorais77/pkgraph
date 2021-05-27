@@ -1,4 +1,4 @@
-package org.apache.spark.graphx.pkgraph.util
+package org.apache.spark.graphx.pkgraph
 
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SparkSession

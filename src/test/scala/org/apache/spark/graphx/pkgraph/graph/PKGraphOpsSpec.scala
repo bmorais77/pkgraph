@@ -1,6 +1,6 @@
 package org.apache.spark.graphx.pkgraph.graph
 
-import org.apache.spark.graphx.pkgraph.util.SparkSessionTestWrapper
+import org.apache.spark.graphx.pkgraph.SparkSessionTestWrapper
 import org.apache.spark.graphx.{Edge, EdgeDirection, VertexId}
 import org.scalatest.FlatSpec
 
