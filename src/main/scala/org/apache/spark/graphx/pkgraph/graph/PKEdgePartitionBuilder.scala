@@ -59,17 +59,10 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
       attrs.add((index, edge.attr))
     }
 
-    var pos = 0
-    val indices = new GraphXPrimitiveKeyOpenHashMap[Int, Int]
-    for ((index, _) <- attrs) {
-      indices(index) = pos
-      pos += 1
-    }
-
     val edgeAttrs = attrs.toArray.map(_._2)
     new PKEdgePartition[V, E](
       new GraphXPrimitiveKeyOpenHashMap[VertexId, V](vertices.size),
-      new EdgeAttributesMap[E](indices, edgeAttrs),
+      edgeAttrs,
       treeBuilder.build,
       srcOffset,
       dstOffset,

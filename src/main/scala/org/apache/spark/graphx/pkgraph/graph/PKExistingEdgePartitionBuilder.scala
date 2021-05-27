@@ -11,15 +11,17 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     vertexAttrs: GraphXPrimitiveKeyOpenHashMap[VertexId, V],
     builder: K2TreeBuilder,
     indexOffset: Int,
-    existingEdges: EdgeAttributesMap[E],
+    existingEdges: Array[E],
     srcOffset: Long,
     dstOffset: Long,
     activeSet: Option[VertexSet]
 ) {
   private val edges = mutable.HashMap[Int, E]()
 
-  for ((index, attr) <- existingEdges) {
-    edges(indexOffset + index) = attr
+  private var idx = 0
+  for (attr <- existingEdges) {
+    edges(indexOffset + idx) = attr
+    idx += 1
   }
 
   def addEdge(src: VertexId, dst: VertexId, attr: E): Unit = {
@@ -39,17 +41,7 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
   }
 
   def build: PKEdgePartition[V, E] = {
-    val edgeArray = edges.toArray.sortWith((a, b) => a._1 < b._1)
-    val edgeIndices = new GraphXPrimitiveKeyOpenHashMap[Int, Int](existingEdges.indices.keySet.capacity)
-
-    var pos = 0
-    for((index, _) <- edgeArray) {
-      edgeIndices(index) = pos
-      pos += 1
-    }
-
-    val attrValues = edgeArray.map(_._2)
-    val edgeAttrs = new EdgeAttributesMap[E](edgeIndices, attrValues)
+    val edgeAttrs = edges.toArray.sortWith((a, b) => a._1 < b._1).map(_._2)
     new PKEdgePartition[V, E](
       vertexAttrs,
       edgeAttrs,
@@ -79,7 +71,7 @@ object PKExistingEdgePartitionBuilder {
       partition.vertexAttrs,
       treeBuilder,
       0,
-      EdgeAttributesMap.empty,
+      Array.empty,
       partition.srcOffset,
       partition.dstOffset,
       partition.activeSet
@@ -101,7 +93,7 @@ object PKExistingEdgePartitionBuilder {
   def apply[V: ClassTag, E: ClassTag](
       partition: PKEdgePartition[V, _],
       treeBuilder: K2TreeBuilder,
-      existingEdges: EdgeAttributesMap[E],
+      existingEdges: Array[E],
       srcOffset: Long,
       dstOffset: Long
   ): PKExistingEdgePartitionBuilder[V, E] = {

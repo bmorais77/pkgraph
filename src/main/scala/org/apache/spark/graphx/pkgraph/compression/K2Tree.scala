@@ -3,6 +3,8 @@ package org.apache.spark.graphx.pkgraph.compression
 import org.apache.spark.graphx.pkgraph.util.collection.PKBitSet
 import org.apache.spark.graphx.pkgraph.util.mathx
 
+import scala.collection.mutable.ArrayBuffer
+
 class K2Tree(
     val k: Int,
     val size: Int,
@@ -45,7 +47,13 @@ class K2Tree(
     * @param line Vertex identifier in the adjacency matrix
     * @return sequence containing column of corresponding neighbors
     */
-  def directNeighbors(line: Int): Array[Int] = directNeighborIterator(line).toArray
+  def directNeighbors(line: Int): Array[Int] = {
+    val buffer = new ArrayBuffer[Int]()
+    forEachDirectNeighbor(line) { (col, _) =>
+      buffer.append(col)
+    }
+    buffer.toArray
+  }
 
   /**
     * Collects the reverse neighbors of the vertex with the given column.
@@ -53,7 +61,13 @@ class K2Tree(
     * @param col Vertex identifier in the adjacency matrix
     * @return sequence containing line of corresponding neighbor
     */
-  def reverseNeighbors(col: Int): Array[Int] = reverseNeighborIterator(col).toArray
+  def reverseNeighbors(col: Int): Array[Int] = {
+    val buffer = new ArrayBuffer[Int]()
+    forEachReverseNeighbor(col) { (line, _) =>
+      buffer.append(line)
+    }
+    buffer.toArray
+  }
 
   /**
     * Get this tree's iterator.
@@ -61,22 +75,6 @@ class K2Tree(
     * @return K²-Tree iterator
     */
   def iterator: Iterator[K2TreeEdge] = new K2TreeIterator(this)
-
-  /**
-    * Get an iterator that iterates the direct neighbors of the given line.
-    *
-    * @param line  Line to search direct neighbors of
-    * @return direct neighbor iterator
-    */
-  def directNeighborIterator(line: Int): Iterator[Int] = new K2TreeDirectNeighborIterator(this, line)
-
-  /**
-    * Get an iterator that iterates the reverse neighbors of the given line.
-    *
-    * @param col  Column to search reverse neighbors of
-    * @return reverse neighbor iterator
-    */
-  def reverseNeighborIterator(col: Int): Iterator[Int] = new K2TreeReverseNeighborIterator(this, col)
 
   /**
     * Returns a new K²-Tree with the given edges added.
@@ -195,6 +193,11 @@ class K2Tree(
     newTree.trim()
   }
 
+  /**
+   * Calls the given function for each edge stored in this K²-Tree.
+   *
+   * @param f   User function ((line, col) => Unit)
+   */
   def forEachEdge(f: (Int, Int) => Unit): Unit = {
     val k2 = k * k
     def recursiveNavigation(n: Int, line: Int, col: Int, pos: Int): Unit = {
@@ -213,6 +216,60 @@ class K2Tree(
     }
 
     recursiveNavigation(size, 0, 0, -1)
+  }
+
+  /**
+   * Calls the given function for each direct neighbor of a vertex stored in this K²-Tree.
+   *
+   * @param line  Identifier of vertex to search direct neighbors of
+   * @param f     User function ((col, index) => Unit)
+   */
+  def forEachDirectNeighbor(line: Int)(f: (Int, Int) => Unit): Unit = {
+    val k2 = k * k
+    def recursiveNavigation(n: Int, line: Int, col: Int, pos: Int): Unit = {
+      if (pos >= internalCount) { // Is non-zero leaf node
+        if (bits.get(pos)) {
+          val index = bits.count(internalCount + 1, pos)
+          f(col, index)
+        }
+      } else if (pos == -1 || bits.get(pos)) { // Is virtual node (-1) or non-zero internal node
+        val newSize = n / k
+        val y = rank(pos) * k2 + k * (line / newSize)
+
+        for (i <- 0 until k) {
+          recursiveNavigation(newSize, line % newSize, col + newSize * i, y + i)
+        }
+      }
+    }
+
+    recursiveNavigation(size, line, 0, -1)
+  }
+
+  /**
+   * Calls the given function for each reverse neighbor of a vertex stored in this K²-Tree.
+   *
+   * @param col   Identifier of vertex to search reverse neighbors of
+   * @param f     User function ((line, index) => Unit)
+   */
+  def forEachReverseNeighbor(col: Int)(f: (Int, Int) => Unit): Unit = {
+    val k2 = k * k
+    def recursiveNavigation(n: Int, line: Int, col: Int, pos: Int): Unit = {
+      if (pos >= internalCount) { // Is non-zero leaf node
+        if (bits.get(pos)) {
+          val index = bits.count(internalCount + 1, pos)
+          f(line, index)
+        }
+      } else if (pos == -1 || bits.get(pos)) { // Is virtual node (-1) or non-zero internal node
+        val newSize = n / k
+        val y = rank(pos) * k2 + (col / newSize)
+
+        for (i <- 0 until k) {
+          recursiveNavigation(newSize, line + newSize * i, col % newSize, y + i * k)
+        }
+      }
+    }
+
+    recursiveNavigation(size, 0, col, -1)
   }
 
   /**
