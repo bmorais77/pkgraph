@@ -225,7 +225,7 @@ object EdgePartitionDataSet {
     * @param percentage    Percentage of the total size of the partition that contains edges
     * @return sparse edge partition
     */
-  private def buildGraphXEdgePartition(size: Int, percentage: Float): EdgePartition[Int, Int] = {
+  def buildGraphXEdgePartition(size: Int, percentage: Float): EdgePartition[Int, Int] = {
     val builder = new EdgePartitionBuilder[Int, Int](size)
     val sqrSize = math.floor(math.sqrt(size)).toInt
 
@@ -246,7 +246,7 @@ object EdgePartitionDataSet {
     * @param percentage    Percentage of the total size of the partition that contains edges
     * @return sparse edge partition
     */
-  private def buildPKGraphEdgePartition(k: Int, size: Int, percentage: Float): PKEdgePartition[Int, Int] = {
+  def buildPKGraphEdgePartition(k: Int, size: Int, percentage: Float): PKEdgePartition[Int, Int] = {
     val builder = PKEdgePartitionBuilder[Int, Int](k, size)
     val sqrSize = math.floor(math.sqrt(size)).toInt
 

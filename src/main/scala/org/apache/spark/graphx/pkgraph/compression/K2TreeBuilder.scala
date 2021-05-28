@@ -203,11 +203,10 @@ object K2TreeBuilder {
     }
 
     // Make sure size is a power of K
-    val exp = math.ceil(mathx.log(k, size))
-    val actualSize = math.pow(k, exp).toInt
+    val height = math.ceil(mathx.log(k, size)).toInt
+    val actualSize = math.pow(k, height).toInt
 
     val k2 = k * k
-    val height = math.ceil(mathx.log(k, actualSize)).toInt
     val length = (0 to height).reduce((acc, i) => acc + math.pow(k2, i).toInt)
     new K2TreeBuilder(k, actualSize, height, new PKBitSet(length), length)
   }

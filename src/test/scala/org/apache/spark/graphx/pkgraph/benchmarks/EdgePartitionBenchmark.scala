@@ -4,6 +4,24 @@ import org.scalameter.api._
 
 object EdgePartitionBenchmark extends Bench.OfflineReport {
   performance of "Sparse20" in {
+    measure method "build" in {
+      using(EdgePartitionDataSet.partitionSizes) curve "GraphX" in { size =>
+        EdgePartitionDataSet.buildGraphXEdgePartition(size, 0.2f)
+      }
+
+      using(EdgePartitionDataSet.partitionSizes) curve "PKGraph (k=2)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(2, size, 0.2f)
+      }
+
+      using(EdgePartitionDataSet.partitionSizes) curve "PKGraph (k=4)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(4, size, 0.2f)
+      }
+
+      using(EdgePartitionDataSet.partitionSizes) curve "PKGraph (k=8)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(8, size, 0.2f)
+      }
+    }
+
     measure method "map" in {
       using(EdgePartitionDataSet.graphX20SparsePartitions) curve "GraphX" in {
         _.map(e => e.attr * 2)

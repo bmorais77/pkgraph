@@ -16,9 +16,8 @@ class PKEdgePartitionSpec extends FlatSpec {
 
   it should "create a new partition with large size" in {
     val size = 50000
-    val sqrSize = math.floor(math.sqrt(size)).toInt
     val partition = buildEdgePartition(2, size)
-    assert(partition.size == sqrSize * sqrSize)
+    assert(partition.size == size)
   }
 
   /**
