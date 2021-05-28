@@ -5,19 +5,19 @@ import org.scalameter.api._
 object EdgePartitionBenchmark extends Bench.OfflineReport {
   performance of "Sparse20" in {
     measure method "build" in {
-      using(EdgePartitionDataSet.partitionSizes) curve "GraphX" in { size =>
+      using(EdgePartitionDataSet.edges) curve "GraphX" in { size =>
         EdgePartitionDataSet.buildGraphXEdgePartition(size, 0.2f)
       }
 
-      using(EdgePartitionDataSet.partitionSizes) curve "PKGraph (k=2)" in { size =>
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=2)" in { size =>
         EdgePartitionDataSet.buildPKGraphEdgePartition(2, size, 0.2f)
       }
 
-      using(EdgePartitionDataSet.partitionSizes) curve "PKGraph (k=4)" in { size =>
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=4)" in { size =>
         EdgePartitionDataSet.buildPKGraphEdgePartition(4, size, 0.2f)
       }
 
-      using(EdgePartitionDataSet.partitionSizes) curve "PKGraph (k=8)" in { size =>
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=8)" in { size =>
         EdgePartitionDataSet.buildPKGraphEdgePartition(8, size, 0.2f)
       }
     }
@@ -60,6 +60,24 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
   }
 
   performance of "Sparse40" in {
+    measure method "build" in {
+      using(EdgePartitionDataSet.edges) curve "GraphX" in { size =>
+        EdgePartitionDataSet.buildGraphXEdgePartition(size, 0.4f)
+      }
+
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=2)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(2, size, 0.4f)
+      }
+
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=4)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(4, size, 0.4f)
+      }
+
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=8)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(8, size, 0.4f)
+      }
+    }
+
     measure method "map" in {
       using(EdgePartitionDataSet.graphX40SparsePartitions) curve "GraphX" in {
         _.map(e => e.attr * 2)
@@ -98,6 +116,24 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
   }
 
   performance of "Sparse60" in {
+    measure method "build" in {
+      using(EdgePartitionDataSet.edges) curve "GraphX" in { size =>
+        EdgePartitionDataSet.buildGraphXEdgePartition(size, 0.6f)
+      }
+
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=2)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(2, size, 0.6f)
+      }
+
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=4)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(4, size, 0.6f)
+      }
+
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=8)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(8, size, 0.6f)
+      }
+    }
+
     measure method "map" in {
       using(EdgePartitionDataSet.graphX60SparsePartitions) curve "GraphX" in {
         _.map(e => e.attr * 2)
@@ -136,6 +172,24 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
   }
 
   performance of "Sparse80" in {
+    measure method "build" in {
+      using(EdgePartitionDataSet.edges) curve "GraphX" in { size =>
+        EdgePartitionDataSet.buildGraphXEdgePartition(size, 0.8f)
+      }
+
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=2)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(2, size, 0.8f)
+      }
+
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=4)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(4, size, 0.8f)
+      }
+
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=8)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(8, size, 0.8f)
+      }
+    }
+
     measure method "map" in {
       using(EdgePartitionDataSet.graphX80SparsePartitions) curve "GraphX" in {
         _.map(e => e.attr * 2)
@@ -174,6 +228,24 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
   }
 
   performance of "Full" in {
+    measure method "build" in {
+      using(EdgePartitionDataSet.edges) curve "GraphX" in { size =>
+        EdgePartitionDataSet.buildGraphXEdgePartition(size, 1.0f)
+      }
+
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=2)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(2, size, 1.0f)
+      }
+
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=4)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(4, size, 1.0f)
+      }
+
+      using(EdgePartitionDataSet.edges) curve "PKGraph (k=8)" in { size =>
+        EdgePartitionDataSet.buildPKGraphEdgePartition(8, size, 1.0f)
+      }
+    }
+
     measure method "map" in {
       using(EdgePartitionDataSet.graphXFullPartitions) curve "GraphX" in {
         _.map(e => e.attr * 2)
