@@ -229,7 +229,7 @@ class K2Tree(
     def recursiveNavigation(n: Int, line: Int, col: Int, pos: Int): Unit = {
       if (pos >= internalCount) { // Is non-zero leaf node
         if (bits.get(pos)) {
-          val index = bits.count(internalCount + 1, pos)
+          val index = bits.count(internalCount + 1, pos - 1)
           f(col, index)
         }
       } else if (pos == -1 || bits.get(pos)) { // Is virtual node (-1) or non-zero internal node
@@ -256,7 +256,7 @@ class K2Tree(
     def recursiveNavigation(n: Int, line: Int, col: Int, pos: Int): Unit = {
       if (pos >= internalCount) { // Is non-zero leaf node
         if (bits.get(pos)) {
-          val index = bits.count(internalCount + 1, pos)
+          val index = bits.count(internalCount + 1, pos - 1)
           f(line, index)
         }
       } else if (pos == -1 || bits.get(pos)) { // Is virtual node (-1) or non-zero internal node

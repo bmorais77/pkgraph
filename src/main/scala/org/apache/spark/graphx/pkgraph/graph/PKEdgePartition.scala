@@ -225,19 +225,24 @@ private[pkgraph] class PKEdgePartition[
   def filter(epred: EdgeTriplet[V, E] => Boolean, vpred: (VertexId, V) => Boolean): PKEdgePartition[V, E] = {
     val newTreeBuilder = K2TreeBuilder(tree.k, tree.size)
     val builder = PKExistingEdgePartitionBuilder[V, E](this, newTreeBuilder)
-    for (edge <- iterator) {
+
+    var i = 0
+    tree.forEachEdge { (line, col) =>
       // The user sees the EdgeTriplet, so we can't reuse it and must create one per edge.
       val triplet = new EdgeTriplet[V, E]
-      triplet.srcId = edge.srcId
-      triplet.dstId = edge.dstId
-      triplet.srcAttr = vertexAttrs(edge.srcId)
-      triplet.dstAttr = vertexAttrs(edge.dstId)
-      triplet.attr = edge.attr
+      triplet.srcId = line + srcOffset
+      triplet.dstId = col + dstOffset
+      triplet.srcAttr = vertexAttrs(triplet.srcId)
+      triplet.dstAttr = vertexAttrs(triplet.dstId)
+      triplet.attr = edgeAttrs(i)
 
       if (vpred(triplet.srcId, triplet.srcAttr) && vpred(triplet.dstId, triplet.dstAttr) && epred(triplet)) {
         builder.addEdge(triplet.srcId, triplet.dstId, triplet.attr)
       }
+
+      i += 1
     }
+
     builder.build
   }
 

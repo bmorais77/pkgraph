@@ -6,7 +6,7 @@ import org.scalatest.FlatSpec
 
 class PKEdgePartitionSpec extends FlatSpec {
   "A PKEdgePartition" should "create a new partition without vertex attributes" in {
-    var partition = buildPartition
+    var partition = buildTestPartition
     partition = partition.updateVertices(Seq((0L, 10), (1L, 20)).iterator)
     assert(partition.vertexAttrs.size == 2)
 
@@ -17,38 +17,8 @@ class PKEdgePartitionSpec extends FlatSpec {
   it should "create a new partition with large size" in {
     val size = 50000
     val sqrSize = math.floor(math.sqrt(size)).toInt
-
-    def buildGraphXEdgePartition(size: Int): EdgePartition[Int, Int] = {
-      val builder = new EdgePartitionBuilder[Int, Int](size)
-
-      // Add edges
-      for (i <- 0 until sqrSize) {
-        for (j <- 0 until sqrSize) {
-          builder.add(i, j, j + i)
-        }
-      }
-
-      builder.toEdgePartition
-    }
-
-    def buildPKEdgePartition(k: Int, size: Int): PKEdgePartition[Int, Int] = {
-      val builder = PKEdgePartitionBuilder[Int, Int](k, size)
-
-      // Add edges
-      for (i <- 0 until sqrSize) {
-        for (j <- 0 until sqrSize) {
-          builder.add(i, j, j + i)
-        }
-      }
-
-      builder.build
-    }
-
-    val graphXPartition = buildGraphXEdgePartition(size)
-    val pkPartition = buildPKEdgePartition(2, size)
-
-    assert(graphXPartition.size == sqrSize * sqrSize)
-    assert(pkPartition.size == sqrSize * sqrSize)
+    val partition = buildEdgePartition(2, size)
+    assert(partition.size == sqrSize * sqrSize)
   }
 
   /**
@@ -79,7 +49,7 @@ class PKEdgePartitionSpec extends FlatSpec {
     * L: 1001 1001 1001 1001 1001
     */
   it should "add new edges" in {
-    val partition = buildPartition
+    val partition = buildTestPartition
     val newEdges = Seq(
       Edge[Int](10, 10, 10),
       Edge[Int](11, 11, 11),
@@ -165,7 +135,7 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "remove edges" in {
-    val partition = buildPartition
+    val partition = buildTestPartition
     val edgesToRemove = Seq((0L, 0L), (1L, 1L), (2L, 2L))
     val newPartition = partition.removeEdges(edgesToRemove.toIterator)
     assert(newPartition.size == partition.size - edgesToRemove.length)
@@ -183,7 +153,7 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "update vertices" in {
-    val partition = buildPartition
+    val partition = buildTestPartition
     val vertices = (0 until 10).map(i => (i.toLong, i * 10))
     val newPartition = partition.updateVertices(vertices.iterator)
     assert(newPartition.size == partition.size)
@@ -238,7 +208,7 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "map edge attributes" in {
-    val partition = buildPartition
+    val partition = buildTestPartition
     val newPartition = partition.map(_.attr * 10)
     var i = 0
     val it = newPartition.iterator
@@ -253,7 +223,7 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "map edge attributes with iterator" in {
-    val partition = buildPartition
+    val partition = buildTestPartition
     val newAttributes = (0 until partition.size).map(_ * 10)
     val newPartition = partition.map(newAttributes.iterator)
     var i = 0
@@ -269,25 +239,37 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "filter edges" in {
-    var partition = buildPartition
+    var partition = buildTestPartition
     partition = updatePartitionVertices(partition)
     val newPartition = partition.filter(_.attr % 2 == 0, (id, _) => id % 2 == 0)
 
-    var i = 0
     val it = newPartition.iterator
     while (it.hasNext) {
       val edge = it.next()
-      assert(edge.srcId == i)
-      assert(edge.dstId == i)
-      assert(edge.attr == i)
-      i += 2
+      assert(edge.srcId % 2 == 0)
+      assert(edge.dstId % 2 == 0)
+      assert(edge.attr % 2 == 0)
     }
-    assert(i / 2 == newPartition.size)
+  }
+
+  it should "filter edges with large partition" in {
+    val size = 50000
+    var partition = buildEdgePartition(2, size)
+    partition = updatePartitionVertices(partition)
+    val newPartition = partition.filter(_.attr % 2 == 0, (id, _) => id % 2 == 0)
+
+    val it = newPartition.iterator
+    while (it.hasNext) {
+      val edge = it.next()
+      assert(edge.srcId % 2 == 0)
+      assert(edge.dstId % 2 == 0)
+      assert(edge.attr % 2 == 0)
+    }
   }
 
   it should "inner join with another partition" in {
-    val p1 = buildPartition
-    val p2 = buildPartition.map(-_.attr)
+    val p1 = buildTestPartition
+    val p2 = buildTestPartition.map(-_.attr)
     val joinedPartition = p1.innerJoin(p2)((_, _, attr1, attr2) => attr1 + attr2)
     var i = 0
     val it = joinedPartition.iterator
@@ -302,7 +284,7 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "inner join with another non-intersecting partition" in {
-    val p1 = buildPartition
+    val p1 = buildTestPartition
 
     val builder = PKEdgePartitionBuilder[Int, Int](2)
     for (i <- 20 until 30) {
@@ -316,7 +298,7 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "aggregate messages with edge scan" in {
-    val partition = buildPartition
+    val partition = buildTestPartition
     val it = partition.aggregateMessagesEdgeScan[Int](
       context => context.sendToDst(1),
       (a, b) => a + b,
@@ -334,7 +316,7 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "aggregate messages with edge scan and active set" in {
-    val partition = buildPartition.withActiveSet((0 to 5).iterator.map(_.toLong))
+    val partition = buildTestPartition.withActiveSet((0 to 5).iterator.map(_.toLong))
     val it = partition.aggregateMessagesEdgeScan[Int](
       context => context.sendToDst(1),
       _ + _,
@@ -353,7 +335,7 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "aggregate messages with source index scan" in {
-    val partition = buildPartition
+    val partition = buildTestPartition
     val it = partition.aggregateMessagesSrcIndexScan[Int](
       context => context.sendToDst(1),
       _ + _,
@@ -371,7 +353,7 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "aggregate messages with source index scan and active set" in {
-    val partition = buildPartition.withActiveSet((0 to 5).iterator.map(_.toLong))
+    val partition = buildTestPartition.withActiveSet((0 to 5).iterator.map(_.toLong))
     val it = partition.aggregateMessagesSrcIndexScan[Int](
       context => context.sendToDst(1),
       _ + _,
@@ -390,7 +372,7 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "aggregate messages with destination index scan" in {
-    val partition = buildPartition
+    val partition = buildTestPartition
     val it = partition.aggregateMessagesDstIndexScan[Int](
       context => context.sendToDst(1),
       _ + _,
@@ -408,7 +390,7 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   it should "aggregate messages with destination index scan and active set" in {
-    val partition = buildPartition.withActiveSet((0 to 5).iterator.map(_.toLong))
+    val partition = buildTestPartition.withActiveSet((0 to 5).iterator.map(_.toLong))
     val it = partition.aggregateMessagesDstIndexScan[Int](
       context => context.sendToDst(1),
       _ + _,
@@ -427,11 +409,24 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   private def updatePartitionVertices(partition: PKEdgePartition[Int, Int]): PKEdgePartition[Int, Int] = {
-    val vertices = (0 until partition.size).map(i => (i.toLong, i * 10))
+    val vertices = (0 until partition.tree.size).map(i => (i.toLong, i * 10))
     partition.updateVertices(vertices.iterator)
   }
 
-  private def buildPartition: PKEdgePartition[Int, Int] = {
+  def buildEdgePartition(k: Int, size: Int): PKEdgePartition[Int, Int] = {
+    val builder = PKEdgePartitionBuilder[Int, Int](k, size)
+    val sqrSize = math.floor(math.sqrt(size)).toInt
+
+    for (i <- 0 until size) {
+      val src = i / sqrSize
+      val dst = i % sqrSize
+      builder.add(src, dst, src + dst)
+    }
+
+    builder.build
+  }
+
+  private def buildTestPartition: PKEdgePartition[Int, Int] = {
     val builder = PKEdgePartitionBuilder[Int, Int](2)
     for (i <- 0 until 10) {
       builder.add(i, i, i)
