@@ -1,5 +1,7 @@
 package org.apache.spark.graphx.pkgraph.benchmarks
 
+import org.apache.spark.graphx.TripletFields
+import org.apache.spark.graphx.impl.EdgeActiveness
 import org.scalameter.api._
 
 object EdgePartitionBenchmark extends Bench.OfflineReport {
@@ -101,20 +103,83 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
     }
 
     measure method "innerJoin" in {
-      using(EdgePartitionDataSet.graphX20SparseInnerJoinPartitions) curve "GraphX" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.graphX20SparseInnerJoinPartitions) curve "GraphX" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k2PKGraph20SparseInnerJoinPartitions) curve "PKGraph (k=2)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k2PKGraph20SparseInnerJoinPartitions) curve "PKGraph (k=2)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k4PKGraph20SparseInnerJoinPartitions) curve "PKGraph (k=4)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k4PKGraph20SparseInnerJoinPartitions) curve "PKGraph (k=4)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k8PKGraph20SparseInnerJoinPartitions) curve "PKGraph (k=8)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k8PKGraph20SparseInnerJoinPartitions) curve "PKGraph (k=8)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      }
+    }
+
+    measure method "aggregateMessagesEdgeScan" in {
+      using(EdgePartitionDataSet.graphX20SparsePartitionsWithVertices) curve "GraphX" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k2PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k4PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k8PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+    }
+
+    measure method "aggregateMessagesIndexScan" in {
+      using(EdgePartitionDataSet.graphX20SparsePartitionsWithVertices) curve "GraphX" in { partition =>
+        partition
+          .aggregateMessagesIndexScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k2PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
+      }
+
+      using(EdgePartitionDataSet.k4PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
+      }
+
+      using(EdgePartitionDataSet.k8PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
       }
     }
   }
@@ -217,20 +282,24 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
     }
 
     measure method "innerJoin" in {
-      using(EdgePartitionDataSet.graphX40SparseInnerJoinPartitions) curve "GraphX" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.graphX40SparseInnerJoinPartitions) curve "GraphX" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k2PKGraph40SparseInnerJoinPartitions) curve "PKGraph (k=2)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k2PKGraph40SparseInnerJoinPartitions) curve "PKGraph (k=2)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k4PKGraph40SparseInnerJoinPartitions) curve "PKGraph (k=4)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k4PKGraph40SparseInnerJoinPartitions) curve "PKGraph (k=4)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k8PKGraph40SparseInnerJoinPartitions) curve "PKGraph (k=8)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k8PKGraph40SparseInnerJoinPartitions) curve "PKGraph (k=8)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
     }
   }
@@ -333,20 +402,24 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
     }
 
     measure method "innerJoin" in {
-      using(EdgePartitionDataSet.graphX60SparseInnerJoinPartitions) curve "GraphX" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.graphX60SparseInnerJoinPartitions) curve "GraphX" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k2PKGraph60SparseInnerJoinPartitions) curve "PKGraph (k=2)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k2PKGraph60SparseInnerJoinPartitions) curve "PKGraph (k=2)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k4PKGraph60SparseInnerJoinPartitions) curve "PKGraph (k=4)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k4PKGraph60SparseInnerJoinPartitions) curve "PKGraph (k=4)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k8PKGraph60SparseInnerJoinPartitions) curve "PKGraph (k=8)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k8PKGraph60SparseInnerJoinPartitions) curve "PKGraph (k=8)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
     }
   }
@@ -449,20 +522,24 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
     }
 
     measure method "innerJoin" in {
-      using(EdgePartitionDataSet.graphX80SparseInnerJoinPartitions) curve "GraphX" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.graphX80SparseInnerJoinPartitions) curve "GraphX" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k2PKGraph80SparseInnerJoinPartitions) curve "PKGraph (k=2)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k2PKGraph80SparseInnerJoinPartitions) curve "PKGraph (k=2)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k4PKGraph80SparseInnerJoinPartitions) curve "PKGraph (k=4)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k4PKGraph80SparseInnerJoinPartitions) curve "PKGraph (k=4)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k8PKGraph80SparseInnerJoinPartitions) curve "PKGraph (k=8)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k8PKGraph80SparseInnerJoinPartitions) curve "PKGraph (k=8)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
     }
   }
@@ -565,20 +642,24 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
     }
 
     measure method "innerJoin" in {
-      using(EdgePartitionDataSet.graphXFullInnerJoinPartitions) curve "GraphX" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.graphXFullInnerJoinPartitions) curve "GraphX" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k2PKGraphFullInnerJoinPartitions) curve "PKGraph (k=2)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k2PKGraphFullInnerJoinPartitions) curve "PKGraph (k=2)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k4PKGraphFullInnerJoinPartitions) curve "PKGraph (k=4)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k4PKGraphFullInnerJoinPartitions) curve "PKGraph (k=4)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
 
-      using(EdgePartitionDataSet.k8PKGraphFullInnerJoinPartitions) curve "PKGraph (k=8)" in { case (p1, p2) =>
-        p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      using(EdgePartitionDataSet.k8PKGraphFullInnerJoinPartitions) curve "PKGraph (k=8)" in {
+        case (p1, p2) =>
+          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
     }
   }

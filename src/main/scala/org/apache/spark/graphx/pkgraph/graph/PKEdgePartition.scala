@@ -156,7 +156,7 @@ private[pkgraph] class PKEdgePartition[
     val builder = PKExistingEdgePartitionBuilder[V, E](this, newTreeBuilder)
 
     // Traverse all edges and reverse their source/destination vertices
-    for (edge <- iterator) {
+    foreach { edge =>
       builder.addEdge(edge.dstId, edge.srcId, edge.attr)
     }
 
@@ -176,13 +176,9 @@ private[pkgraph] class PKEdgePartition[
     */
   def map[E2: ClassTag](f: Edge[E] => E2): PKEdgePartition[V, E2] = {
     val newData = new Array[E2](edgeAttrs.length)
-    val edge = new Edge[E]()
     var i = 0
 
-    tree.forEachEdge { (line, col) =>
-      edge.srcId = line + srcOffset
-      edge.dstId = col + dstOffset
-      edge.attr = edgeAttrs(i)
+    foreach { edge =>
       newData(i) = f(edge)
       i += 1
     }
@@ -252,7 +248,15 @@ private[pkgraph] class PKEdgePartition[
     * @param f an external state mutating user defined function.
     */
   def foreach(f: Edge[E] => Unit): Unit = {
-    iterator.foreach(f)
+    val edge = new Edge[E]()
+    var pos = 0
+
+    tree.forEachEdge { (line, col) =>
+      edge.srcId = line + srcOffset
+      edge.dstId = col + dstOffset
+      edge.attr = edgeAttrs(pos)
+      pos += 1
+    }
   }
 
   /**
@@ -392,7 +396,7 @@ private[pkgraph] class PKEdgePartition[
       activeness: EdgeActiveness
   ): Iterator[(VertexId, A)] = {
     val ctx = PKAggregatingEdgeContext[V, E, A](mergeMsg)
-    for (edge <- iterator) {
+    foreach { edge =>
       if (isEdgeActive(edge.srcId, edge.dstId, activeness)) {
         val srcAttr = if (tripletFields.useSrc) vertexAttrs(edge.srcId) else null.asInstanceOf[V]
         val dstAttr = if (tripletFields.useDst) vertexAttrs(edge.dstId) else null.asInstanceOf[V]
