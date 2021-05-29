@@ -26,6 +26,12 @@ object EdgePartitionDataSet {
     partition
   }
 
+  lazy val graphX20SparseInnerJoinPartitions: Gen[(EdgePartition[Int, Int], EdgePartition[Int, Int])] = for {
+    partition <- graphX20SparsePartitions
+  } yield {
+    (partition, partition)
+  }
+
   lazy val graphX40SparsePartitions: Gen[EdgePartition[Int, Int]] = for { size <- edges } yield {
     buildGraphXEdgePartition(size, 0.4f)
   }
@@ -36,6 +42,12 @@ object EdgePartitionDataSet {
     val partition = buildGraphXEdgePartition(size, 0.4f)
     partition.updateVertices(vertices.iterator)
     partition
+  }
+
+  lazy val graphX40SparseInnerJoinPartitions: Gen[(EdgePartition[Int, Int], EdgePartition[Int, Int])] = for {
+    partition <- graphX40SparsePartitions
+  } yield {
+    (partition, partition)
   }
 
   lazy val graphX60SparsePartitions: Gen[EdgePartition[Int, Int]] = for { size <- edges } yield {
@@ -50,6 +62,12 @@ object EdgePartitionDataSet {
     partition
   }
 
+  lazy val graphX60SparseInnerJoinPartitions: Gen[(EdgePartition[Int, Int], EdgePartition[Int, Int])] = for {
+    partition <- graphX60SparsePartitions
+  } yield {
+    (partition, partition)
+  }
+
   lazy val graphX80SparsePartitions: Gen[EdgePartition[Int, Int]] = for { size <- edges } yield {
     buildGraphXEdgePartition(size, 0.8f)
   }
@@ -62,6 +80,12 @@ object EdgePartitionDataSet {
     partition
   }
 
+  lazy val graphX80SparseInnerJoinPartitions: Gen[(EdgePartition[Int, Int], EdgePartition[Int, Int])] = for {
+    partition <- graphX80SparsePartitions
+  } yield {
+    (partition, partition)
+  }
+
   lazy val graphXFullPartitions: Gen[EdgePartition[Int, Int]] = for { size <- edges } yield {
     buildGraphXEdgePartition(size, 1.0f)
   }
@@ -72,6 +96,12 @@ object EdgePartitionDataSet {
     val partition = buildGraphXEdgePartition(size, 1.0f)
     partition.updateVertices(vertices.iterator)
     partition
+  }
+
+  lazy val graphXFullInnerJoinPartitions: Gen[(EdgePartition[Int, Int], EdgePartition[Int, Int])] = for {
+    partition <- graphXFullPartitions
+  } yield {
+    (partition, partition)
   }
 
   /**
@@ -89,6 +119,12 @@ object EdgePartitionDataSet {
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
   }
 
+  lazy val k2PKGraph20SparseInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k2PKGraph20SparsePartitions
+  } yield {
+    (partition, partition)
+  }
+
   lazy val k2PKGraph40SparsePartitions: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
     buildPKGraphEdgePartition(2, size, 0.4f)
   }
@@ -98,6 +134,12 @@ object EdgePartitionDataSet {
   } yield {
     val partition = buildPKGraphEdgePartition(2, size, 0.4f)
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
+  }
+
+  lazy val k2PKGraph40SparseInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k2PKGraph40SparsePartitions
+  } yield {
+    (partition, partition)
   }
 
   lazy val k2PKGraph60SparsePartitions: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
@@ -111,6 +153,12 @@ object EdgePartitionDataSet {
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
   }
 
+  lazy val k2PKGraph60SparseInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k2PKGraph60SparsePartitions
+  } yield {
+    (partition, partition)
+  }
+
   lazy val k2PKGraph80SparsePartitions: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
     buildPKGraphEdgePartition(2, size, 0.8f)
   }
@@ -122,6 +170,12 @@ object EdgePartitionDataSet {
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
   }
 
+  lazy val k2PKGraph80SparseInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k2PKGraph80SparsePartitions
+  } yield {
+    (partition, partition)
+  }
+
   lazy val k2PKGraphFullPartitions: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
     buildPKGraphEdgePartition(2, size, 1f)
   }
@@ -129,6 +183,12 @@ object EdgePartitionDataSet {
   lazy val k2PKGraphFullPartitionsWithVertices: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
     val partition = buildPKGraphEdgePartition(2, size, 1f)
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
+  }
+
+  lazy val k2PKGraphFullInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k2PKGraphFullPartitions
+  } yield {
+    (partition, partition)
   }
 
   /**
@@ -146,6 +206,12 @@ object EdgePartitionDataSet {
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
   }
 
+  lazy val k4PKGraph20SparseInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k4PKGraph20SparsePartitions
+  } yield {
+    (partition, partition)
+  }
+
   lazy val k4PKGraph40SparsePartitions: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
     buildPKGraphEdgePartition(4, size, 0.4f)
   }
@@ -155,6 +221,12 @@ object EdgePartitionDataSet {
   } yield {
     val partition = buildPKGraphEdgePartition(4, size, 0.4f)
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
+  }
+
+  lazy val k4PKGraph40SparseInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k4PKGraph40SparsePartitions
+  } yield {
+    (partition, partition)
   }
 
   lazy val k4PKGraph60SparsePartitions: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
@@ -168,6 +240,12 @@ object EdgePartitionDataSet {
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
   }
 
+  lazy val k4PKGraph60SparseInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k4PKGraph60SparsePartitions
+  } yield {
+    (partition, partition)
+  }
+
   lazy val k4PKGraph80SparsePartitions: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
     buildPKGraphEdgePartition(4, size, 0.8f)
   }
@@ -179,6 +257,12 @@ object EdgePartitionDataSet {
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
   }
 
+  lazy val k4PKGraph80SparseInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k4PKGraph80SparsePartitions
+  } yield {
+    (partition, partition)
+  }
+
   lazy val k4PKGraphFullPartitions: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
     buildPKGraphEdgePartition(4, size, 1f)
   }
@@ -186,6 +270,12 @@ object EdgePartitionDataSet {
   lazy val k4PKGraphFullPartitionsWithVertices: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
     val partition = buildPKGraphEdgePartition(4, size, 1f)
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
+  }
+
+  lazy val k4PKGraphFullInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k4PKGraphFullPartitions
+  } yield {
+    (partition, partition)
   }
 
   /**
@@ -203,6 +293,12 @@ object EdgePartitionDataSet {
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
   }
 
+  lazy val k8PKGraph20SparseInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k8PKGraph20SparsePartitions
+  } yield {
+    (partition, partition)
+  }
+
   lazy val k8PKGraph40SparsePartitions: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
     buildPKGraphEdgePartition(8, size, 0.4f)
   }
@@ -212,6 +308,12 @@ object EdgePartitionDataSet {
   } yield {
     val partition = buildPKGraphEdgePartition(8, size, 0.4f)
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
+  }
+
+  lazy val k8PKGraph40SparseInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k8PKGraph40SparsePartitions
+  } yield {
+    (partition, partition)
   }
 
   lazy val k8PKGraph60SparsePartitions: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
@@ -225,6 +327,12 @@ object EdgePartitionDataSet {
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
   }
 
+  lazy val k8PKGraph60SparseInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k8PKGraph60SparsePartitions
+  } yield {
+    (partition, partition)
+  }
+
   lazy val k8PKGraph80SparsePartitions: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
     buildPKGraphEdgePartition(8, size, 0.8f)
   }
@@ -236,6 +344,12 @@ object EdgePartitionDataSet {
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
   }
 
+  lazy val k8PKGraph80SparseInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k8PKGraph80SparsePartitions
+  } yield {
+    (partition, partition)
+  }
+
   lazy val k8PKGraphFullPartitions: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
     buildPKGraphEdgePartition(8, size, 1f)
   }
@@ -243,6 +357,12 @@ object EdgePartitionDataSet {
   lazy val k8PKGraphFullPartitionsWithVertices: Gen[PKEdgePartition[Int, Int]] = for { size <- edges } yield {
     val partition = buildPKGraphEdgePartition(8, size, 1f)
     partition.updateVertices((0 until partition.tree.size).map(i => (i.toLong, i * 10)).iterator)
+  }
+
+  lazy val k8PKGraphFullInnerJoinPartitions: Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = for {
+    partition <- k8PKGraphFullPartitions
+  } yield {
+    (partition, partition)
   }
 
   /**
@@ -275,7 +395,7 @@ object EdgePartitionDataSet {
   def buildPKGraphEdgePartition(k: Int, size: Int, sparsity: Float): PKEdgePartition[Int, Int] = {
     val matrixSize = math.floor(math.sqrt(size)).toInt
     val builder = PKEdgePartitionBuilder[Int, Int](k, size)
-    val sparseMatrix = SparseMatrix.sprand(matrixSize, matrixSize, sparsity, new Random())
+    val sparseMatrix = SparseMatrix.sprand(matrixSize, matrixSize, 1.0f - sparsity, new Random())
 
     sparseMatrix.foreachActive { (line, col, attr) =>
       builder.add(line, col, attr.toInt)

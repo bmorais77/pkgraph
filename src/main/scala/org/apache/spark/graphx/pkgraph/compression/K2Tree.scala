@@ -25,7 +25,7 @@ class K2Tree(
     *
     * @return height
     */
-  def height: Int = math.ceil(mathx.log(k, size)).toInt
+  def height: Int = if(isEmpty) 0 else math.ceil(mathx.log(k, size)).toInt
 
   /**
     * Returns whether this tree is empty or not.
@@ -39,7 +39,7 @@ class K2Tree(
     *
     * @return sequence of edges encoded in this K²-Tree
     */
-  def edges: Array[K2TreeEdge] = iterator.toArray
+  def edges: Array[(Int, Int)] = iterator.toArray
 
   /**
     * Collects the direct neighbors of the vertex with the given line.
@@ -74,7 +74,7 @@ class K2Tree(
     *
     * @return K²-Tree iterator
     */
-  def iterator: Iterator[K2TreeEdge] = new K2TreeIterator(this)
+  def iterator: Iterator[(Int, Int)] = new K2TreeIterator(this)
 
   /**
     * Returns a new K²-Tree with the given edges added.

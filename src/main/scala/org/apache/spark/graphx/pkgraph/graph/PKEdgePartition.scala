@@ -327,9 +327,9 @@ private[pkgraph] class PKEdgePartition[
       override def hasNext: Boolean = pos < edgeAttrs.length && iterator.hasNext
 
       override def next(): Edge[E] = {
-        val nextEdge = iterator.next()
-        edge.srcId = nextEdge.line + srcOffset
-        edge.dstId = nextEdge.col + dstOffset
+        val (line, col) = iterator.next()
+        edge.srcId = line + srcOffset
+        edge.dstId = col + dstOffset
         edge.attr = edgeAttrs(pos)
         pos += 1
         edge
@@ -357,17 +357,17 @@ private[pkgraph] class PKEdgePartition[
       override def next(): EdgeTriplet[V, E] = {
         val triplet = new EdgeTriplet[V, E]
 
-        val edge = iterator.next()
-        triplet.srcId = edge.line + srcOffset
-        triplet.dstId = edge.col + dstOffset
+        val (line, col) = iterator.next()
+        triplet.srcId = line + srcOffset
+        triplet.dstId = col + dstOffset
         triplet.attr = edgeAttrs(pos)
 
         if (includeSrc) {
-          triplet.srcAttr = vertexAttrs(edge.line + srcOffset)
+          triplet.srcAttr = vertexAttrs(line + srcOffset)
         }
 
         if (includeDst) {
-          triplet.dstAttr = vertexAttrs(edge.col + dstOffset)
+          triplet.dstAttr = vertexAttrs(col + dstOffset)
         }
 
         pos += 1

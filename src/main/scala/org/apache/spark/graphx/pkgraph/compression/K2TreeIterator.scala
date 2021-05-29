@@ -1,15 +1,19 @@
 package org.apache.spark.graphx.pkgraph.compression
 
-import scala.collection.mutable
-
-class K2TreeIterator(tree: K2Tree) extends Iterator[K2TreeEdge] {
+class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
   private val k2 = tree.k * tree.k
 
-  // Keeps track of the path up to the current node
-  // Note: The stack starts with the virtual node
-  private val path = mutable.Stack(Node(0, 0, -1, 0))
+  // Keeps a cursor in each level of the tree
+  private val cursors = buildTreeCursors(tree)
 
-  private var currentEdge: Option[K2TreeEdge] = None
+  // Keeps the child index in each level of the tree
+  private val childCursors = new Array[Int](tree.height)
+
+  private var line: Int = 0
+  private var col: Int = 0
+  private var height: Int = 0
+
+  private var currentEdge: Option[(Int, Int)] = None
 
   override def hasNext: Boolean = {
     if (tree.isEmpty) {
@@ -24,7 +28,7 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[K2TreeEdge] {
     currentEdge.isDefined
   }
 
-  override def next(): K2TreeEdge = {
+  override def next(): (Int, Int) = {
     currentEdge match {
       case Some(edge) =>
         currentEdge = None
@@ -37,44 +41,87 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[K2TreeEdge] {
     * Finds the next edge in the [[K2Tree]], if there is any.
     * If [[hasNext]] returns true, this function is guaranteed to return an edge.
     *
-    * @return [[K2TreeEdge]] if there are any more edges, or [[None]] otherwise.
+    * @return next edge if there are any more edges, or [[None]] otherwise.
     */
-  private def findNextEdge(): Option[K2TreeEdge] = {
-    while (path.nonEmpty) {
-      val node = path.top
-      if (node.pos >= tree.internalCount && tree.bits.get(node.pos)) { // Is non-zero leaf node
-        val edge = K2TreeEdge(node.line, node.col)
-        path.pop()
-        return Some(edge)
-      } else if (node.pos == -1 || tree.bits.get(node.pos)) { // Is virtual node (-1) or non-zero internal node
-        val y = tree.rank(node.pos) * k2
+  private def findNextEdge(): Option[(Int, Int)] = {
+    var nextEdge: Option[(Int, Int)] = None
 
-        // Still have child nodes to iterate
-        if (node.childIndex < k2) {
-          val line = node.line * tree.k + node.childIndex / tree.k
-          val col = node.col * tree.k + node.childIndex % tree.k
-          val pos = y + node.childIndex
-          val childNode = Node(line, col, pos, 0)
-          path.push(childNode)
-          node.childIndex += 1
-        } else {
-          path.pop() // All child nodes have been iterated
+    while (nextEdge.isEmpty) {
+      var nextChild = true
+      val pos = cursors(height)
+
+      // No more child nodes
+      if (childCursors(height) >= k2) {
+        childCursors(height) = 0
+        height -= 1
+
+        // Reached virtual root
+        if (height == -1) {
+          return None
         }
-      } else { // The node was neither a non-zero leaf node nor a non-zero internal node, so we skip it
-        path.pop()
+
+        line /= tree.k
+        col /= tree.k
+      } else {
+        // Leaf node
+        if (pos >= tree.internalCount) {
+          if (tree.bits.get(pos)) {
+            nextEdge = Some((line, col))
+          }
+        } else {
+          if (tree.bits.get(pos)) {
+            line = line * tree.k + childCursors(height + 1) / tree.k
+            col = col * tree.k + childCursors(height + 1) % tree.k
+            height += 1
+            nextChild = false
+          }
+        }
+      }
+
+      if(nextChild) {
+        // Move to next child node
+        cursors(height) += 1
+        childCursors(height) += 1
+
+        // If the next child node is not the last
+        if (childCursors(height) < k2) {
+          line = line / tree.k * tree.k + childCursors(height) / tree.k
+          col = col / tree.k * tree.k + childCursors(height) % tree.k
+        }
       }
     }
-    None
+
+    nextEdge
   }
 
   /**
-    * Case class to represent a node that has been traversed in the tree.
-    * Used in the iterator to keep track of the nodes that have been traversed in the current path.
+    * Builds a cursor for each level of the tree.
+    * Each cursor keeps track of the global position in the bitset for a given level.
     *
-    * @param line Line in the adjacency matrix
-    * @param col Column in the adjacency matrix
-    * @param pos Position in the BitSet
-    * @param childIndex Index of the last child node that has been traversed
+    * @param tree    Tree to build cursors for
+    * @return cursors for each level
     */
-  private case class Node(line: Int, col: Int, pos: Int, var childIndex: Int)
+  private def buildTreeCursors(tree: K2Tree): Array[Int] = {
+    if (tree.isEmpty) {
+      return Array.empty
+    }
+
+    val height = tree.height
+    val cursors = new Array[Int](height)
+    cursors(0) = 0 // First level cursor ia always at beginning of the bitset
+
+    if (height > 1) {
+      cursors(1) = k2 // Second level is always as an offset of K² bits
+    }
+
+    var start = 0
+    var end = k2
+    for (level <- 2 until height) {
+      cursors(level) = cursors(level - 1) + tree.bits.count(start, end - 1) * k2
+      start = end
+      end = cursors(level)
+    }
+
+    cursors
+  }
 }
