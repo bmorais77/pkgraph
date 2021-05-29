@@ -302,6 +302,65 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
           p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
     }
+
+    measure method "aggregateMessagesEdgeScan" in {
+      using(EdgePartitionDataSet.graphX40SparsePartitionsWithVertices) curve "GraphX" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k2PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k4PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k8PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+    }
+
+    measure method "aggregateMessagesIndexScan" in {
+      using(EdgePartitionDataSet.graphX40SparsePartitionsWithVertices) curve "GraphX" in { partition =>
+        partition
+          .aggregateMessagesIndexScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k2PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
+      }
+
+      using(EdgePartitionDataSet.k4PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
+      }
+
+      using(EdgePartitionDataSet.k8PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
+      }
+    }
   }
 
   performance of "Sparse60" in {
@@ -420,6 +479,65 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
       using(EdgePartitionDataSet.k8PKGraph60SparseInnerJoinPartitions) curve "PKGraph (k=8)" in {
         case (p1, p2) =>
           p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      }
+    }
+
+    measure method "aggregateMessagesEdgeScan" in {
+      using(EdgePartitionDataSet.graphX60SparsePartitionsWithVertices) curve "GraphX" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k2PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k4PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k8PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+    }
+
+    measure method "aggregateMessagesIndexScan" in {
+      using(EdgePartitionDataSet.graphX60SparsePartitionsWithVertices) curve "GraphX" in { partition =>
+        partition
+          .aggregateMessagesIndexScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k2PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
+      }
+
+      using(EdgePartitionDataSet.k4PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
+      }
+
+      using(EdgePartitionDataSet.k8PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
       }
     }
   }
@@ -542,6 +660,65 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
           p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
       }
     }
+
+    measure method "aggregateMessagesEdgeScan" in {
+      using(EdgePartitionDataSet.graphX80SparsePartitionsWithVertices) curve "GraphX" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k2PKGraph80SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k4PKGraph80SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k8PKGraph80SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+    }
+
+    measure method "aggregateMessagesIndexScan" in {
+      using(EdgePartitionDataSet.graphX80SparsePartitionsWithVertices) curve "GraphX" in { partition =>
+        partition
+          .aggregateMessagesIndexScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k2PKGraph80SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
+      }
+
+      using(EdgePartitionDataSet.k4PKGraph80SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
+      }
+
+      using(EdgePartitionDataSet.k8PKGraph80SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
+      }
+    }
   }
 
   performance of "Dense" in {
@@ -660,6 +837,65 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
       using(EdgePartitionDataSet.k8PKGraphFullInnerJoinPartitions) curve "PKGraph (k=8)" in {
         case (p1, p2) =>
           p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+      }
+    }
+
+    measure method "aggregateMessagesEdgeScan" in {
+      using(EdgePartitionDataSet.graphXFullPartitionsWithVertices) curve "GraphX" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k2PKGraphFullPartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k4PKGraphFullPartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k8PKGraphFullPartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
+        partition
+          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+    }
+
+    measure method "aggregateMessagesIndexScan" in {
+      using(EdgePartitionDataSet.graphXFullPartitionsWithVertices) curve "GraphX" in { partition =>
+        partition
+          .aggregateMessagesIndexScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+      }
+
+      using(EdgePartitionDataSet.k2PKGraphFullPartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
+      }
+
+      using(EdgePartitionDataSet.k4PKGraphFullPartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
+      }
+
+      using(EdgePartitionDataSet.k8PKGraphFullPartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
+        partition
+          .aggregateMessagesSrcIndexScan[Int](
+            ctx => ctx.sendToSrc(10),
+            _ + _,
+            TripletFields.All,
+            EdgeActiveness.Neither
+          )
       }
     }
   }

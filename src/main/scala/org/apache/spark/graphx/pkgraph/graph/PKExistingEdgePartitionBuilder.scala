@@ -54,15 +54,16 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
 }
 
 object PKExistingEdgePartitionBuilder {
+
   /**
-   * Builder from an empty tree builder with no initial edge attributes.
-   *
-   * @param partition     Existing partition
-   * @param treeBuilder   Existing tree builder (should be empty)
-   * @tparam V            Type of vertex attributes
-   * @tparam E            Type of edge attributes
-   * @return existing partition builder
-   */
+    * Builder from an empty tree builder with no initial edge attributes.
+    *
+    * @param partition     Existing partition
+    * @param treeBuilder   Existing tree builder (should be empty)
+    * @tparam V            Type of vertex attributes
+    * @tparam E            Type of edge attributes
+    * @return existing partition builder
+    */
   def apply[V: ClassTag, E: ClassTag](
       partition: PKEdgePartition[V, _],
       treeBuilder: K2TreeBuilder
@@ -79,17 +80,17 @@ object PKExistingEdgePartitionBuilder {
   }
 
   /**
-   * Builder from a non-empty tree builder with existing edge attributes.
-   *
-   * @param partition       Existing partition
-   * @param treeBuilder     Non-empty tree builder
-   * @param existingEdges   Existing edge attributes
-   * @param srcOffset       New source offset
-   * @param dstOffset       New destination offset
-   * @tparam V              Type of vertex attributes
-   * @tparam E              Type of edge attributes
-   * @return existing partition builder
-   */
+    * Builder from a non-empty tree builder with existing edge attributes.
+    *
+    * @param partition       Existing partition
+    * @param treeBuilder     Non-empty tree builder
+    * @param existingEdges   Existing edge attributes
+    * @param srcOffset       New source offset
+    * @param dstOffset       New destination offset
+    * @tparam V              Type of vertex attributes
+    * @tparam E              Type of edge attributes
+    * @return existing partition builder
+    */
   def apply[V: ClassTag, E: ClassTag](
       partition: PKEdgePartition[V, _],
       treeBuilder: K2TreeBuilder,
@@ -104,7 +105,7 @@ object PKExistingEdgePartitionBuilder {
       var offset = 0
       var heightChange = treeBuilder.height - partition.tree.height
       var currSize = treeBuilder.size
-      while(heightChange > 0) {
+      while (heightChange > 0) {
         // The existing edges will be placed in the last quadrant at every level
         val localIndex = (treeBuilder.k - 1) * treeBuilder.k + (treeBuilder.k - 1)
         offset += localIndex * currSize

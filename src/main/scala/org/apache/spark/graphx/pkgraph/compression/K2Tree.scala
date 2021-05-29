@@ -199,6 +199,10 @@ class K2Tree(
    * @param f   User function ((line, col) => Unit)
    */
   def forEachEdge(f: (Int, Int) => Unit): Unit = {
+    if(isEmpty) {
+      return
+    }
+
     val k2 = k * k
     def recursiveNavigation(n: Int, line: Int, col: Int, pos: Int): Unit = {
       if (pos >= internalCount) { // Is non-zero leaf node

@@ -2,7 +2,7 @@ package org.apache.spark.graphx.pkgraph.graph
 
 import org.apache.spark.graphx._
 import org.apache.spark.graphx.impl.EdgeActiveness
-import org.apache.spark.graphx.pkgraph.compression.{K2Tree, K2TreeBuilder, K2TreeIndex}
+import org.apache.spark.graphx.pkgraph.compression.{K2Tree, K2TreeBuilder}
 import org.apache.spark.graphx.pkgraph.util.mathx
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.util.collection.PrimitiveVector
@@ -24,6 +24,8 @@ import scala.reflect.ClassTag
   * @param tree K2Tree representing edges
   * @param srcOffset Source identifier offset
   * @param dstOffset Destination identifier offset
+  * @param srcVertices Bitset to keep track of existing source vertices
+  * @param dstVertices Bitset to keep track of existing destination vertices
   * @param activeSet BitSet to keep track of active vertices
   * @tparam V Vertex attribute type
   * @tparam E Edge attribute type
@@ -143,6 +145,7 @@ private[pkgraph] class PKEdgePartition[
       val (id, attr) = iter.next()
       newVertexAttrs(id) = attr
     }
+
     new PKEdgePartition(newVertexAttrs, edgeAttrs, tree, srcOffset, dstOffset, activeSet)
   }
 
@@ -255,6 +258,7 @@ private[pkgraph] class PKEdgePartition[
       edge.srcId = line + srcOffset
       edge.dstId = col + dstOffset
       edge.attr = edgeAttrs(pos)
+      f(edge)
       pos += 1
     }
   }
