@@ -4,11 +4,12 @@ import org.apache.spark.graphx.{VertexId, VertexSet}
 import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder
 import org.apache.spark.graphx.pkgraph.util.collection.PKBitSet
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
+import org.apache.spark.util.collection.PrimitiveVector
 
-import scala.collection.mutable
 import scala.reflect.ClassTag
 
 private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Long, Int, Double) E: ClassTag](
+    size: Int,
     vertexAttrs: GraphXPrimitiveKeyOpenHashMap[VertexId, V],
     builder: K2TreeBuilder,
     srcOffset: Long,
@@ -17,7 +18,7 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     dstVertices: PKBitSet,
     activeSet: Option[VertexSet]
 ) {
-  private val edges = mutable.HashMap[Int, E]()
+  private val edges = new PrimitiveVector[PKEdge[E]](size)
 
   def addEdge(src: VertexId, dst: VertexId, attr: E): Unit = {
     val line = (src - srcOffset).toInt
@@ -26,21 +27,25 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
 
     srcVertices.set(line)
     dstVertices.set(col)
-    edges(index) = attr
+    edges += PKEdge(index, line, col, attr)
   }
 
   def removeEdge(src: VertexId, dst: VertexId): Unit = {
     val line = (src - srcOffset).toInt
     val col = (dst - dstOffset).toInt
-    val index = builder.removeEdge(line, col)
+    builder.removeEdge(line, col)
 
     srcVertices.unset(line)
     dstVertices.unset(col)
-    edges.remove(index)
   }
 
   def build: PKEdgePartition[V, E] = {
-    val edgeAttrs = edges.toArray.sortWith((a, b) => a._1 < b._1).map(_._2)
+    val edgeAttrs = edges
+      .toArray
+      .filter { e => srcVertices.get(e.line) && dstVertices.get(e.col) }
+      .sortWith((a, b) => a.index < b.index)
+      .map(_.attr)
+
     new PKEdgePartition[V, E](
       vertexAttrs,
       edgeAttrs,
@@ -74,6 +79,7 @@ object PKExistingEdgePartitionBuilder {
       dstOffset: Long = 0
   ): PKExistingEdgePartitionBuilder[V, E] = {
     new PKExistingEdgePartitionBuilder[V, E](
+      partition.size,
       partition.vertexAttrs,
       treeBuilder,
       srcOffset,

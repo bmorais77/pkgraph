@@ -4,6 +4,8 @@ import org.apache.spark.graphx.impl.{EdgeActiveness, EdgePartition, EdgePartitio
 import org.apache.spark.graphx.{Edge, TripletFields}
 import org.scalatest.FlatSpec
 
+import scala.collection.mutable
+
 class PKEdgePartitionSpec extends FlatSpec {
   "A PKEdgePartition" should "create a new partition without vertex attributes" in {
     var partition = buildTestPartition

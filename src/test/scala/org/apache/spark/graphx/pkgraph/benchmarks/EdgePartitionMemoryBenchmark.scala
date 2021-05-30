@@ -1,8 +1,6 @@
 package org.apache.spark.graphx.pkgraph.benchmarks
 
-import org.apache.spark.graphx.impl.EdgePartition
 import org.apache.spark.graphx.pkgraph.benchmarks.datasets.{GraphXDataSet, PKGraphDataSet}
-import org.apache.spark.graphx.pkgraph.graph.PKEdgePartition
 import org.scalameter.api._
 import org.scalameter.Measurer
 
