@@ -2,901 +2,224 @@ package org.apache.spark.graphx.pkgraph.benchmarks
 
 import org.apache.spark.graphx.TripletFields
 import org.apache.spark.graphx.impl.EdgeActiveness
+import org.apache.spark.graphx.pkgraph.benchmarks.datasets.{EdgesDataSet, GraphXDataSet, PKGraphDataSet}
 import org.scalameter.api._
 
 object EdgePartitionBenchmark extends Bench.OfflineReport {
-  performance of "Sparse20" in {
-    measure method "build" in {
-      using(EdgePartitionDataSet.edges) curve "GraphX" in { size =>
-        EdgePartitionDataSet.buildGraphXEdgePartition(size, 0.2f)
-      }
+  def performanceOf(testName: String, density: Float): Unit = {
+    performance of testName in {
+      measure method "build" in {
+        using(EdgesDataSet.edges) curve "GraphX" in { size =>
+          GraphXDataSet.buildGraphXEdgePartition(size, density)
+        }
 
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=2)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(2, size, 0.2f)
-      }
+        using(EdgesDataSet.edges) curve "PKGraph (k=2)" in { size =>
+          PKGraphDataSet.buildPKGraphEdgePartition(2, size, density)
+        }
 
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=4)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(4, size, 0.2f)
-      }
+        using(EdgesDataSet.edges) curve "PKGraph (k=4)" in { size =>
+          PKGraphDataSet.buildPKGraphEdgePartition(4, size, density)
+        }
 
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=8)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(8, size, 0.2f)
-      }
-    }
-
-    measure method "iterator" in {
-      using(EdgePartitionDataSet.graphX20SparsePartitions) curve "GraphX" in { partition =>
-        val it = partition.iterator
-        while (it.hasNext) {
-          it.next()
+        using(EdgesDataSet.edges) curve "PKGraph (k=8)" in { size =>
+          PKGraphDataSet.buildPKGraphEdgePartition(8, size, density)
         }
       }
 
-      using(EdgePartitionDataSet.k2PKGraph20SparsePartitions) curve "PKGraph (k=2) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
+      measure method "iterator" in {
+        using(GraphXDataSet.buildPartitions(density)) curve "GraphX" in { partition =>
+          val it = partition.iterator
+          while (it.hasNext) {
+            it.next()
+          }
+        }
 
-      using(EdgePartitionDataSet.k2PKGraph20SparsePartitions) curve "PKGraph (k=2) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
+        using(PKGraphDataSet.buildPartitions(2, density)) curve "PKGraph (k=2) (recursive)" in { partition =>
+          partition.tree.forEachEdge { (_, _) => }
+        }
+
+        using(PKGraphDataSet.buildPartitions(2, density)) curve "PKGraph (k=2) (iterator)" in { partition =>
+          val it = partition.tree.iterator
+          while (it.hasNext) {
+            it.next()
+          }
+        }
+
+        using(PKGraphDataSet.buildPartitions(4, density)) curve "PKGraph (k=4) (recursive)" in { partition =>
+          partition.tree.forEachEdge { (_, _) => }
+        }
+
+        using(PKGraphDataSet.buildPartitions(4, density)) curve "PKGraph (k=4) (iterator)" in { partition =>
+          val it = partition.tree.iterator
+          while (it.hasNext) {
+            it.next()
+          }
+        }
+
+        using(PKGraphDataSet.buildPartitions(8, density)) curve "PKGraph (k=8) (recursive)" in { partition =>
+          partition.tree.forEachEdge { (_, _) => }
+        }
+
+        using(PKGraphDataSet.buildPartitions(8, density)) curve "PKGraph (k=8) (iterator)" in { partition =>
+          val it = partition.tree.iterator
+          while (it.hasNext) {
+            it.next()
+          }
         }
       }
 
-      using(EdgePartitionDataSet.k4PKGraph20SparsePartitions) curve "PKGraph (k=4) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
+      measure method "map" in {
+        using(GraphXDataSet.buildPartitions(density)) curve "GraphX" in {
+          _.map(e => e.attr * 2)
+        }
 
-      using(EdgePartitionDataSet.k4PKGraph20SparsePartitions) curve "PKGraph (k=4) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
+        using(PKGraphDataSet.buildPartitions(2, density)) curve "PKGraph (k=2)" in {
+          _.map(e => e.attr * 2)
+        }
+
+        using(PKGraphDataSet.buildPartitions(4, density)) curve "PKGraph (k=4)" in {
+          _.map(e => e.attr * 2)
+        }
+
+        using(PKGraphDataSet.buildPartitions(8, density)) curve "PKGraph (k=8)" in {
+          _.map(e => e.attr * 2)
         }
       }
 
-      using(EdgePartitionDataSet.k4PKGraph20SparsePartitions) curve "PKGraph (k=8) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
+      measure method "filter" in {
+        using(GraphXDataSet.buildPartitionsWithVertices(density)) curve "GraphX" in {
+          _.filter(_ => true, (_, attr) => attr % 2 == 0)
+        }
 
-      using(EdgePartitionDataSet.k8PKGraph20SparsePartitions) curve "PKGraph (k=8) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
+        using(PKGraphDataSet.buildPartitionsWithVertices(2, density)) curve "PKGraph (k=2)" in {
+          _.filter(_ => true, (_, attr) => attr % 2 == 0)
+        }
+
+        using(PKGraphDataSet.buildPartitionsWithVertices(4, density)) curve "PKGraph (k=4)" in {
+          _.filter(_ => true, (_, attr) => attr % 2 == 0)
+        }
+
+        using(PKGraphDataSet.buildPartitionsWithVertices(8, density)) curve "PKGraph (k=8)" in {
+          _.filter(_ => true, (_, attr) => attr % 2 == 0)
         }
       }
-    }
 
-    measure method "map" in {
-      using(EdgePartitionDataSet.graphX20SparsePartitions) curve "GraphX" in {
-        _.map(e => e.attr * 2)
+      measure method "innerJoin" in {
+        using(GraphXDataSet.buildPartitionsForInnerJoin(density)) curve "GraphX" in {
+          case (p1, p2) =>
+            p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+        }
+
+        using(PKGraphDataSet.buildPartitionsForInnerJoin(2, density)) curve "PKGraph (k=2)" in {
+          case (p1, p2) =>
+            p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+        }
+
+        using(PKGraphDataSet.buildPartitionsForInnerJoin(4, density)) curve "PKGraph (k=4)" in {
+          case (p1, p2) =>
+            p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+        }
+
+        using(PKGraphDataSet.buildPartitionsForInnerJoin(8, density)) curve "PKGraph (k=8)" in {
+          case (p1, p2) =>
+            p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
+        }
       }
 
-      using(EdgePartitionDataSet.k2PKGraph20SparsePartitions) curve "PKGraph (k=2)" in {
-        _.map(e => e.attr * 2)
+      measure method "aggregateMessagesEdgeScan" in {
+        using(GraphXDataSet.buildPartitionsWithVertices(density)) curve "GraphX" in { partition =>
+          partition
+            .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+        }
+
+        using(PKGraphDataSet.buildPartitionsWithVertices(2, density)) curve "PKGraph (k=2)" in { partition =>
+          partition
+            .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+        }
+
+        using(PKGraphDataSet.buildPartitionsWithVertices(4, density)) curve "PKGraph (k=4)" in { partition =>
+          partition
+            .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+        }
+
+        using(PKGraphDataSet.buildPartitionsWithVertices(8, density)) curve "PKGraph (k=8)" in { partition =>
+          partition
+            .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+        }
       }
 
-      using(EdgePartitionDataSet.k4PKGraph20SparsePartitions) curve "PKGraph (k=4)" in {
-        _.map(e => e.attr * 2)
-      }
+      measure method "aggregateMessagesIndexScan" in {
+        using(GraphXDataSet.buildPartitionsWithActiveVertices(density)) curve "GraphX" in { partition =>
+          partition
+            .aggregateMessagesIndexScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.SrcOnly)
+        }
 
-      using(EdgePartitionDataSet.k8PKGraph20SparsePartitions) curve "PKGraph (k=8)" in {
-        _.map(e => e.attr * 2)
-      }
-    }
+        using(PKGraphDataSet.buildPartitionsWithActiveVertices(2, density)) curve "PKGraph (k=2) (edges)" in {
+          partition =>
+            partition.aggregateMessagesEdgeScan[Int](
+              ctx => ctx.sendToSrc(10),
+              _ + _,
+              TripletFields.All,
+              EdgeActiveness.SrcOnly
+            )
+        }
 
-    measure method "filter" in {
-      using(EdgePartitionDataSet.graphX20SparsePartitionsWithVertices) curve "GraphX" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
+        using(PKGraphDataSet.buildPartitionsWithActiveVertices(2, density)) curve "PKGraph (k=2) (index)" in {
+          partition =>
+            partition.aggregateMessagesSrcIndexScan[Int](
+              ctx => ctx.sendToSrc(10),
+              _ + _,
+              TripletFields.All,
+              EdgeActiveness.SrcOnly
+            )
+        }
 
-      using(EdgePartitionDataSet.k2PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=2)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
+        using(PKGraphDataSet.buildPartitionsWithActiveVertices(4, density)) curve "PKGraph (k=4) (edges)" in {
+          partition =>
+            partition.aggregateMessagesEdgeScan[Int](
+              ctx => ctx.sendToSrc(10),
+              _ + _,
+              TripletFields.All,
+              EdgeActiveness.SrcOnly
+            )
+        }
 
-      using(EdgePartitionDataSet.k4PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=4)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
+        using(PKGraphDataSet.buildPartitionsWithActiveVertices(4, density)) curve "PKGraph (k=4) (index)" in {
+          partition =>
+            partition.aggregateMessagesSrcIndexScan[Int](
+              ctx => ctx.sendToSrc(10),
+              _ + _,
+              TripletFields.All,
+              EdgeActiveness.SrcOnly
+            )
+        }
 
-      using(EdgePartitionDataSet.k8PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=8)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-    }
+        using(PKGraphDataSet.buildPartitionsWithActiveVertices(8, density)) curve "PKGraph (k=8) (edges)" in {
+          partition =>
+            partition.aggregateMessagesEdgeScan[Int](
+              ctx => ctx.sendToSrc(10),
+              _ + _,
+              TripletFields.All,
+              EdgeActiveness.SrcOnly
+            )
+        }
 
-    measure method "innerJoin" in {
-      using(EdgePartitionDataSet.graphX20SparseInnerJoinPartitions) curve "GraphX" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph20SparseInnerJoinPartitions) curve "PKGraph (k=2)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph20SparseInnerJoinPartitions) curve "PKGraph (k=4)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph20SparseInnerJoinPartitions) curve "PKGraph (k=8)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-    }
-
-    measure method "aggregateMessagesEdgeScan" in {
-      using(EdgePartitionDataSet.graphX20SparsePartitionsWithVertices) curve "GraphX" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-    }
-
-    measure method "aggregateMessagesIndexScan" in {
-      using(EdgePartitionDataSet.graphX20SparsePartitionsWithVertices) curve "GraphX" in { partition =>
-        partition
-          .aggregateMessagesIndexScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph20SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
+        using(PKGraphDataSet.buildPartitionsWithActiveVertices(8, density)) curve "PKGraph (k=8) (index)" in {
+          partition =>
+            partition.aggregateMessagesSrcIndexScan[Int](
+              ctx => ctx.sendToSrc(10),
+              _ + _,
+              TripletFields.All,
+              EdgeActiveness.SrcOnly
+            )
+        }
       }
     }
   }
 
-  performance of "Sparse40" in {
-    measure method "build" in {
-      using(EdgePartitionDataSet.edges) curve "GraphX" in { size =>
-        EdgePartitionDataSet.buildGraphXEdgePartition(size, 0.4f)
-      }
-
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=2)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(2, size, 0.4f)
-      }
-
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=4)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(4, size, 0.4f)
-      }
-
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=8)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(8, size, 0.4f)
-      }
-    }
-
-    measure method "iterator" in {
-      using(EdgePartitionDataSet.graphX40SparsePartitions) curve "GraphX" in { partition =>
-        val it = partition.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph40SparsePartitions) curve "PKGraph (k=2) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph40SparsePartitions) curve "PKGraph (k=2) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph40SparsePartitions) curve "PKGraph (k=4) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph40SparsePartitions) curve "PKGraph (k=4) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph40SparsePartitions) curve "PKGraph (k=8) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph40SparsePartitions) curve "PKGraph (k=8) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-    }
-
-    measure method "map" in {
-      using(EdgePartitionDataSet.graphX40SparsePartitions) curve "GraphX" in {
-        _.map(e => e.attr * 2)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph40SparsePartitions) curve "PKGraph (k=2)" in {
-        _.map(e => e.attr * 2)
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph40SparsePartitions) curve "PKGraph (k=4)" in {
-        _.map(e => e.attr * 2)
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph40SparsePartitions) curve "PKGraph (k=8)" in {
-        _.map(e => e.attr * 2)
-      }
-    }
-
-    measure method "filter" in {
-      using(EdgePartitionDataSet.graphX40SparsePartitionsWithVertices) curve "GraphX" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=2)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=4)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=8)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-    }
-
-    measure method "innerJoin" in {
-      using(EdgePartitionDataSet.graphX40SparseInnerJoinPartitions) curve "GraphX" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph40SparseInnerJoinPartitions) curve "PKGraph (k=2)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph40SparseInnerJoinPartitions) curve "PKGraph (k=4)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph40SparseInnerJoinPartitions) curve "PKGraph (k=8)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-    }
-
-    measure method "aggregateMessagesEdgeScan" in {
-      using(EdgePartitionDataSet.graphX40SparsePartitionsWithVertices) curve "GraphX" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-    }
-
-    measure method "aggregateMessagesIndexScan" in {
-      using(EdgePartitionDataSet.graphX40SparsePartitionsWithVertices) curve "GraphX" in { partition =>
-        partition
-          .aggregateMessagesIndexScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph40SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-    }
-  }
-
-  performance of "Sparse60" in {
-    measure method "build" in {
-      using(EdgePartitionDataSet.edges) curve "GraphX" in { size =>
-        EdgePartitionDataSet.buildGraphXEdgePartition(size, 0.6f)
-      }
-
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=2)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(2, size, 0.6f)
-      }
-
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=4)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(4, size, 0.6f)
-      }
-
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=8)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(8, size, 0.6f)
-      }
-    }
-
-    measure method "iterator" in {
-      using(EdgePartitionDataSet.graphX60SparsePartitions) curve "GraphX" in { partition =>
-        val it = partition.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph60SparsePartitions) curve "PKGraph (k=2) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph60SparsePartitions) curve "PKGraph (k=2) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph60SparsePartitions) curve "PKGraph (k=4) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph60SparsePartitions) curve "PKGraph (k=4) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph60SparsePartitions) curve "PKGraph (k=8) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph60SparsePartitions) curve "PKGraph (k=8) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-    }
-
-    measure method "map" in {
-      using(EdgePartitionDataSet.graphX60SparsePartitions) curve "GraphX" in {
-        _.map(e => e.attr * 2)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph60SparsePartitions) curve "PKGraph (k=2)" in {
-        _.map(e => e.attr * 2)
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph60SparsePartitions) curve "PKGraph (k=4)" in {
-        _.map(e => e.attr * 2)
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph60SparsePartitions) curve "PKGraph (k=8)" in {
-        _.map(e => e.attr * 2)
-      }
-    }
-
-    measure method "filter" in {
-      using(EdgePartitionDataSet.graphX60SparsePartitionsWithVertices) curve "GraphX" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=2)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=4)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=8)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-    }
-
-    measure method "innerJoin" in {
-      using(EdgePartitionDataSet.graphX60SparseInnerJoinPartitions) curve "GraphX" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph60SparseInnerJoinPartitions) curve "PKGraph (k=2)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph60SparseInnerJoinPartitions) curve "PKGraph (k=4)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph60SparseInnerJoinPartitions) curve "PKGraph (k=8)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-    }
-
-    measure method "aggregateMessagesEdgeScan" in {
-      using(EdgePartitionDataSet.graphX60SparsePartitionsWithVertices) curve "GraphX" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-    }
-
-    measure method "aggregateMessagesIndexScan" in {
-      using(EdgePartitionDataSet.graphX60SparsePartitionsWithVertices) curve "GraphX" in { partition =>
-        partition
-          .aggregateMessagesIndexScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-    }
-  }
-
-  performance of "Sparse80" in {
-    measure method "build" in {
-      using(EdgePartitionDataSet.edges) curve "GraphX" in { size =>
-        EdgePartitionDataSet.buildGraphXEdgePartition(size, 0.8f)
-      }
-
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=2)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(2, size, 0.8f)
-      }
-
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=4)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(4, size, 0.8f)
-      }
-
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=8)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(8, size, 0.8f)
-      }
-    }
-
-    measure method "iterator" in {
-      using(EdgePartitionDataSet.graphX80SparsePartitions) curve "GraphX" in { partition =>
-        val it = partition.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph80SparsePartitions) curve "PKGraph (k=2) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph80SparsePartitions) curve "PKGraph (k=2) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph80SparsePartitions) curve "PKGraph (k=4) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph80SparsePartitions) curve "PKGraph (k=4) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph80SparsePartitions) curve "PKGraph (k=8) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph80SparsePartitions) curve "PKGraph (k=8) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-    }
-
-    measure method "map" in {
-      using(EdgePartitionDataSet.graphX80SparsePartitions) curve "GraphX" in {
-        _.map(e => e.attr * 2)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph80SparsePartitions) curve "PKGraph (k=2)" in {
-        _.map(e => e.attr * 2)
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph80SparsePartitions) curve "PKGraph (k=4)" in {
-        _.map(e => e.attr * 2)
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph80SparsePartitions) curve "PKGraph (k=8)" in {
-        _.map(e => e.attr * 2)
-      }
-    }
-
-    measure method "filter" in {
-      using(EdgePartitionDataSet.graphX60SparsePartitionsWithVertices) curve "GraphX" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=2)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=4)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph60SparsePartitionsWithVertices) curve "PKGraph (k=8)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-    }
-
-    measure method "innerJoin" in {
-      using(EdgePartitionDataSet.graphX80SparseInnerJoinPartitions) curve "GraphX" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph80SparseInnerJoinPartitions) curve "PKGraph (k=2)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph80SparseInnerJoinPartitions) curve "PKGraph (k=4)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph80SparseInnerJoinPartitions) curve "PKGraph (k=8)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-    }
-
-    measure method "aggregateMessagesEdgeScan" in {
-      using(EdgePartitionDataSet.graphX80SparsePartitionsWithVertices) curve "GraphX" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph80SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph80SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph80SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-    }
-
-    measure method "aggregateMessagesIndexScan" in {
-      using(EdgePartitionDataSet.graphX80SparsePartitionsWithVertices) curve "GraphX" in { partition =>
-        partition
-          .aggregateMessagesIndexScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraph80SparsePartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-
-      using(EdgePartitionDataSet.k4PKGraph80SparsePartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-
-      using(EdgePartitionDataSet.k8PKGraph80SparsePartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-    }
-  }
-
-  performance of "Dense" in {
-    measure method "build" in {
-      using(EdgePartitionDataSet.edges) curve "GraphX" in { size =>
-        EdgePartitionDataSet.buildGraphXEdgePartition(size, 1.0f)
-      }
-
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=2)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(2, size, 1.0f)
-      }
-
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=4)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(4, size, 1.0f)
-      }
-
-      using(EdgePartitionDataSet.edges) curve "PKGraph (k=8)" in { size =>
-        EdgePartitionDataSet.buildPKGraphEdgePartition(8, size, 1.0f)
-      }
-    }
-
-    measure method "iterator" in {
-      using(EdgePartitionDataSet.graphXFullPartitions) curve "GraphX" in { partition =>
-        val it = partition.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-
-      using(EdgePartitionDataSet.k2PKGraphFullPartitions) curve "PKGraph (k=2) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
-
-      using(EdgePartitionDataSet.k2PKGraphFullPartitions) curve "PKGraph (k=2) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraphFullPartitions) curve "PKGraph (k=4) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraphFullPartitions) curve "PKGraph (k=4) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-
-      using(EdgePartitionDataSet.k8PKGraphFullPartitions) curve "PKGraph (k=8) (recursive)" in { partition =>
-        partition.tree.forEachEdge { (_, _) => }
-      }
-
-      using(EdgePartitionDataSet.k8PKGraphFullPartitions) curve "PKGraph (k=8) (iterator)" in { partition =>
-        val it = partition.tree.iterator
-        while (it.hasNext) {
-          it.next()
-        }
-      }
-    }
-
-    measure method "map" in {
-      using(EdgePartitionDataSet.graphXFullPartitions) curve "GraphX" in {
-        _.map(e => e.attr * 2)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraphFullPartitions) curve "PKGraph (k=2)" in {
-        _.map(e => e.attr * 2)
-      }
-
-      using(EdgePartitionDataSet.k4PKGraphFullPartitions) curve "PKGraph (k=4)" in {
-        _.map(e => e.attr * 2)
-      }
-
-      using(EdgePartitionDataSet.k8PKGraphFullPartitions) curve "PKGraph (k=8)" in {
-        _.map(e => e.attr * 2)
-      }
-    }
-
-    measure method "filter" in {
-      using(EdgePartitionDataSet.graphXFullPartitionsWithVertices) curve "GraphX" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraphFullPartitionsWithVertices) curve "PKGraph (k=2)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-
-      using(EdgePartitionDataSet.k4PKGraphFullPartitionsWithVertices) curve "PKGraph (k=4)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-
-      using(EdgePartitionDataSet.k8PKGraphFullPartitionsWithVertices) curve "PKGraph (k=8)" in {
-        _.filter(_ => true, (_, attr) => attr % 2 == 0)
-      }
-    }
-
-    measure method "innerJoin" in {
-      using(EdgePartitionDataSet.graphXFullInnerJoinPartitions) curve "GraphX" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k2PKGraphFullInnerJoinPartitions) curve "PKGraph (k=2)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k4PKGraphFullInnerJoinPartitions) curve "PKGraph (k=4)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-
-      using(EdgePartitionDataSet.k8PKGraphFullInnerJoinPartitions) curve "PKGraph (k=8)" in {
-        case (p1, p2) =>
-          p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-      }
-    }
-
-    measure method "aggregateMessagesEdgeScan" in {
-      using(EdgePartitionDataSet.graphXFullPartitionsWithVertices) curve "GraphX" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraphFullPartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k4PKGraphFullPartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k8PKGraphFullPartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
-        partition
-          .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-    }
-
-    measure method "aggregateMessagesIndexScan" in {
-      using(EdgePartitionDataSet.graphXFullPartitionsWithVertices) curve "GraphX" in { partition =>
-        partition
-          .aggregateMessagesIndexScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-      }
-
-      using(EdgePartitionDataSet.k2PKGraphFullPartitionsWithVertices) curve "PKGraph (k=2)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-
-      using(EdgePartitionDataSet.k4PKGraphFullPartitionsWithVertices) curve "PKGraph (k=4)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-
-      using(EdgePartitionDataSet.k8PKGraphFullPartitionsWithVertices) curve "PKGraph (k=8)" in { partition =>
-        partition
-          .aggregateMessagesSrcIndexScan[Int](
-            ctx => ctx.sendToSrc(10),
-            _ + _,
-            TripletFields.All,
-            EdgeActiveness.Neither
-          )
-      }
-    }
-  }
+  performanceOf("Dense", 0.0f)
+  performanceOf("Sparse20", 0.2f)
+  performanceOf("Sparse40", 0.4f)
+  performanceOf("Sparse60", 0.6f)
+  performanceOf("Sparse80", 0.8f)
 }

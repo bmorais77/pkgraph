@@ -1,7 +1,6 @@
 package org.apache.spark.graphx.pkgraph.graph
 
 import org.apache.spark.graphx.impl.{EdgeActiveness, EdgePartition, EdgePartitionBuilder}
-import org.apache.spark.graphx.pkgraph.benchmarks.{EdgePartitionBenchmark, EdgePartitionDataSet}
 import org.apache.spark.graphx.{Edge, TripletFields}
 import org.scalatest.FlatSpec
 

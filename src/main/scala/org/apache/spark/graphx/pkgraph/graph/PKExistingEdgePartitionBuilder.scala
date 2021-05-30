@@ -2,6 +2,7 @@ package org.apache.spark.graphx.pkgraph.graph
 
 import org.apache.spark.graphx.{VertexId, VertexSet}
 import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder
+import org.apache.spark.graphx.pkgraph.util.collection.PKBitSet
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 
 import scala.collection.mutable
@@ -14,6 +15,8 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     existingEdges: Array[E],
     srcOffset: Long,
     dstOffset: Long,
+    srcVertices: PKBitSet,
+    dstVertices: PKBitSet,
     activeSet: Option[VertexSet]
 ) {
   private val edges = mutable.HashMap[Int, E]()
@@ -29,6 +32,8 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     val col = (dst - dstOffset).toInt
     val index = builder.addEdge(line, col)
 
+    srcVertices.set(line)
+    dstVertices.set(col)
     edges(index) = attr
   }
 
@@ -37,6 +42,8 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     val col = (dst - dstOffset).toInt
     val index = builder.removeEdge(line, col)
 
+    srcVertices.unset(line)
+    dstVertices.unset(col)
     edges.remove(index)
   }
 
@@ -48,6 +55,8 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
       builder.build,
       srcOffset,
       dstOffset,
+      srcVertices,
+      dstVertices,
       activeSet
     )
   }
@@ -75,6 +84,8 @@ object PKExistingEdgePartitionBuilder {
       Array.empty,
       partition.srcOffset,
       partition.dstOffset,
+      new PKBitSet(treeBuilder.size),
+      new PKBitSet(treeBuilder.size),
       partition.activeSet
     )
   }
@@ -124,6 +135,8 @@ object PKExistingEdgePartitionBuilder {
       existingEdges,
       srcOffset,
       dstOffset,
+      partition.srcVertices,
+      partition.dstVertices,
       partition.activeSet
     )
   }

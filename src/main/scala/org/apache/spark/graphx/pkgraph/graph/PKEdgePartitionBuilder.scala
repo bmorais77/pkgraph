@@ -1,6 +1,7 @@
 package org.apache.spark.graphx.pkgraph.graph
 
 import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder
+import org.apache.spark.graphx.pkgraph.util.collection.PKBitSet
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.graphx.{Edge, VertexId}
 import org.apache.spark.util.collection.PrimitiveVector
@@ -49,11 +50,16 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
       K2TreeBuilder(k, math.max(endX - srcOffset + 1, endY - dstOffset + 1).toInt)
     }
 
+    val srcVertices = new PKBitSet(treeBuilder.size)
+    val dstVertices = new PKBitSet(treeBuilder.size)
     val attrs = mutable.TreeSet[(Int, E)]()((a, b) => a._1 - b._1)
     for (edge <- edgeArray) {
       val localSrcId = (edge.srcId - srcOffset).toInt
       val localDstId = (edge.dstId - dstOffset).toInt
       val index = treeBuilder.addEdge(localSrcId, localDstId)
+
+      srcVertices.set(localSrcId)
+      dstVertices.set(localDstId)
 
       // Our solution does not support multi-graphs, so we ignore repeated edges
       attrs.add((index, edge.attr))
@@ -66,6 +72,8 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
       treeBuilder.build,
       srcOffset,
       dstOffset,
+      srcVertices,
+      dstVertices,
       None
     )
   }
