@@ -103,9 +103,9 @@ class PKEdgePartitionSpec extends FlatSpec {
     val builder = PKEdgePartitionBuilder[Int, Int](2)
     val existingEdges = Array(
       Edge[Int](4, 4, 4 * 4),
+      Edge[Int](6, 6, 6 * 6),
       Edge[Int](4, 5, 4 * 5),
       Edge[Int](5, 4, 5 * 4),
-      Edge[Int](6, 6, 6 * 6),
     )
 
     for(edge <- existingEdges) {
@@ -116,7 +116,8 @@ class PKEdgePartitionSpec extends FlatSpec {
     val newEdges = Array(
       Edge[Int](1, 1, 1),
       Edge[Int](1, 2, 2),
-      Edge[Int](2, 1, 2)
+      Edge[Int](2, 1, 2),
+      Edge[Int](5, 5, 25),
     )
 
     val newPartition = partition.addEdges(newEdges.iterator)

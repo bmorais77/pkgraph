@@ -11,7 +11,7 @@ class K2Tree(
     val bits: PKBitSet,
     val internalCount: Int,
     val leavesCount: Int
-) {
+) extends Serializable {
 
   /**
     * Total number of bits used to represent this K²-Tree.

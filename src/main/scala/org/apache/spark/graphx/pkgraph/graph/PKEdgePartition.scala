@@ -43,7 +43,7 @@ private[pkgraph] class PKEdgePartition[
     val srcVertices: PKBitSet,
     val dstVertices: PKBitSet,
     val activeSet: Option[VertexSet]
-) {
+) extends Serializable {
 
   /**
     * Return a new edge partition without any locally cached vertex attributes.
@@ -93,17 +93,17 @@ private[pkgraph] class PKEdgePartition[
   def numVertices: Int = edgeAttrs.length / 2
 
   /**
-   * Gives the number of source vertices in this partition.
-   *
-   * @return number of source vertices
-   */
+    * Gives the number of source vertices in this partition.
+    *
+    * @return number of source vertices
+    */
   def numSrcVertices: Int = srcVertices.cardinality()
 
   /**
-   * Gives the number of destination vertices in this partition.
-   *
-   * @return number of destination vertices
-   */
+    * Gives the number of destination vertices in this partition.
+    *
+    * @return number of destination vertices
+    */
   def numDstVertices: Int = dstVertices.cardinality()
 
   /**
@@ -114,7 +114,12 @@ private[pkgraph] class PKEdgePartition[
     */
   def addEdges(edges: Iterator[Edge[E]]): PKEdgePartition[V, E] = {
     val (newTree, newEdges, newSrcOffset, newDstOffset) = preprocessNewEdges(edges)
-    val builder = PKExistingEdgePartitionBuilder[V, E](this, newTree.toBuilder, edgeAttrs, newSrcOffset, newDstOffset)
+    val builder = PKExistingEdgePartitionBuilder[V, E](this, newTree.toBuilder, newSrcOffset, newDstOffset)
+
+    // Add existing edges to build indices
+    foreach { edge =>
+      builder.addEdge(edge.srcId, edge.dstId, edge.attr)
+    }
 
     for (edge <- newEdges) {
       builder.addEdge(edge.srcId, edge.dstId, edge.attr)
@@ -133,7 +138,7 @@ private[pkgraph] class PKEdgePartition[
     val builder = PKExistingEdgePartitionBuilder[V, E](this, tree.toBuilder)
 
     // Add existing edges to build indices
-    for (edge <- iterator) {
+    foreach { edge =>
       builder.addEdge(edge.srcId, edge.dstId, edge.attr)
     }
 
