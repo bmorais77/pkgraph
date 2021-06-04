@@ -114,12 +114,7 @@ private[pkgraph] class PKEdgePartition[
     */
   def addEdges(edges: Iterator[Edge[E]]): PKEdgePartition[V, E] = {
     val (newTree, newEdges, newSrcOffset, newDstOffset) = preprocessNewEdges(edges)
-    val builder = PKExistingEdgePartitionBuilder[V, E](this, newTree.toBuilder, newSrcOffset, newDstOffset)
-
-    // Add existing edges to build indices
-    foreach { edge =>
-      builder.addEdge(edge.srcId, edge.dstId, edge.attr)
-    }
+    val builder = PKExistingEdgePartitionBuilder.existing[V, E](this, newTree.toBuilder, newSrcOffset, newDstOffset)
 
     for (edge <- newEdges) {
       builder.addEdge(edge.srcId, edge.dstId, edge.attr)
@@ -135,12 +130,7 @@ private[pkgraph] class PKEdgePartition[
     * @return new partition with edges removed
     */
   def removeEdges(edges: Iterator[(VertexId, VertexId)]): PKEdgePartition[V, E] = {
-    val builder = PKExistingEdgePartitionBuilder[V, E](this, tree.toBuilder)
-
-    // Add existing edges to build indices
-    foreach { edge =>
-      builder.addEdge(edge.srcId, edge.dstId, edge.attr)
-    }
+    val builder = PKExistingEdgePartitionBuilder.existing[V, E](this, tree.toBuilder)
 
     for ((src, dst) <- edges) {
       builder.removeEdge(src, dst)
@@ -177,8 +167,7 @@ private[pkgraph] class PKEdgePartition[
     * @return a new edge partition with all edges reversed.
     */
   def reverse: PKEdgePartition[V, E] = {
-    val newTreeBuilder = K2TreeBuilder(tree.k, tree.size)
-    val builder = PKExistingEdgePartitionBuilder[V, E](this, newTreeBuilder)
+    val builder = PKExistingEdgePartitionBuilder.empty[V, E](this)
 
     // Traverse all edges and reverse their source/destination vertices
     foreach { edge =>
@@ -244,8 +233,7 @@ private[pkgraph] class PKEdgePartition[
     * @return edge partition containing only edges and vertices that match the predicate
     */
   def filter(epred: EdgeTriplet[V, E] => Boolean, vpred: (VertexId, V) => Boolean): PKEdgePartition[V, E] = {
-    val newTreeBuilder = K2TreeBuilder(tree.k, tree.size)
-    val builder = PKExistingEdgePartitionBuilder[V, E](this, newTreeBuilder)
+    val builder = PKExistingEdgePartitionBuilder.empty[V, E](this)
 
     var i = 0
     tree.forEachEdge { (line, col) =>
@@ -302,8 +290,7 @@ private[pkgraph] class PKEdgePartition[
   def innerJoin[E2: ClassTag, E3: ClassTag](
       other: PKEdgePartition[_, E2]
   )(f: (VertexId, VertexId, E, E2) => E3): PKEdgePartition[V, E3] = {
-    val newTreeBuilder = K2TreeBuilder(tree.k, tree.size)
-    val builder = PKExistingEdgePartitionBuilder[V, E3](this, newTreeBuilder)
+    val builder = PKExistingEdgePartitionBuilder.empty[V, E3](this)
 
     // Optimization: check if the partitions have any intersection at all, in which case
     // the result of the inner join is always empty

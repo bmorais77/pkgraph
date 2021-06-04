@@ -198,7 +198,7 @@ object K2TreeBuilder {
     */
   def apply(k: Int, size: Int): K2TreeBuilder = {
     // Special case where we are asked to build an empty tree
-    if(size == 0) {
+    if (size == 0) {
       return new K2TreeBuilder(k, 0, 0, new PKBitSet(0), 0)
     }
 
