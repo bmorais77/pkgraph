@@ -1,6 +1,6 @@
-package org.apache.spark.graphx.pkgraph.benchmarks
+package org.apache.spark.graphx.pkgraph.microbenchmarks
 
-import org.apache.spark.graphx.pkgraph.benchmarks.datasets.{GraphXDataSet, PKGraphDataSet}
+import org.apache.spark.graphx.pkgraph.microbenchmarks.datasets.{GraphXDataSet, PKGraphDataSet}
 import org.scalameter.api._
 import org.scalameter.Measurer
 

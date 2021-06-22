@@ -1,4 +1,4 @@
-package org.apache.spark.graphx.pkgraph.benchmarks.datasets
+package org.apache.spark.graphx.pkgraph.microbenchmarks.datasets
 
 import org.scalameter.api.Gen
 

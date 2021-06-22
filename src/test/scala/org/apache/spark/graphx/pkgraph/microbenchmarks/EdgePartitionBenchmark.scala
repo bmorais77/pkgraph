@@ -1,8 +1,8 @@
-package org.apache.spark.graphx.pkgraph.benchmarks
+package org.apache.spark.graphx.pkgraph.microbenchmarks
 
 import org.apache.spark.graphx.TripletFields
 import org.apache.spark.graphx.impl.EdgeActiveness
-import org.apache.spark.graphx.pkgraph.benchmarks.datasets.{EdgesDataSet, GraphXDataSet, PKGraphDataSet}
+import org.apache.spark.graphx.pkgraph.microbenchmarks.datasets.{EdgesDataSet, GraphXDataSet, PKGraphDataSet}
 import org.scalameter.api._
 
 object EdgePartitionBenchmark extends Bench.OfflineReport {

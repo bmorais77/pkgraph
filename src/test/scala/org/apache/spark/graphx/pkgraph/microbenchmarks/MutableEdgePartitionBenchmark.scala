@@ -1,7 +1,7 @@
-package org.apache.spark.graphx.pkgraph.benchmarks
+package org.apache.spark.graphx.pkgraph.microbenchmarks
 
 import org.apache.spark.graphx.Edge
-import org.apache.spark.graphx.pkgraph.benchmarks.datasets.PKGraphDataSet
+import org.apache.spark.graphx.pkgraph.microbenchmarks.datasets.PKGraphDataSet
 import org.scalameter.api._
 
 object MutableEdgePartitionBenchmark extends Bench.OfflineReport {

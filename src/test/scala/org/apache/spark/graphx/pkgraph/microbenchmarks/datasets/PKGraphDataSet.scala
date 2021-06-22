@@ -1,4 +1,4 @@
-package org.apache.spark.graphx.pkgraph.benchmarks.datasets
+package org.apache.spark.graphx.pkgraph.microbenchmarks.datasets
 
 import org.apache.spark.graphx.pkgraph.graph.{PKEdgePartition, PKEdgePartitionBuilder}
 import org.apache.spark.ml.linalg.SparseMatrix
