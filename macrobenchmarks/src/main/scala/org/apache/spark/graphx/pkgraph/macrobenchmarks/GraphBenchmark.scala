@@ -1,7 +1,7 @@
 package org.apache.spark.graphx.pkgraph.macrobenchmarks
 
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.{GraphDatasetGenerator, MemoryDatasetGenerator}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{GraphAlgorithm, PageRankAlgorithm}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.{GraphDatasetGenerator, MemoryDatasetGenerator}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.generators.{GraphGenerator, GraphXGenerator}
 import org.apache.spark.sql.SparkSession
 
