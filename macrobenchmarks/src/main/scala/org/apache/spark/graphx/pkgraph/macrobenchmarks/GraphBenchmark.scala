@@ -1,9 +1,12 @@
 package org.apache.spark.graphx.pkgraph.macrobenchmarks
 
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{GraphAlgorithm, PageRankAlgorithm}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{ConnectedComponentsAlgorithm, GraphAlgorithm, PageRankAlgorithm, ShortestPathAlgorithm, TriangleCountAlgorithm}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.{GraphDatasetGenerator, MemoryDatasetGenerator}
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.generators.{GraphGenerator, GraphXGenerator}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.generators.{GraphGenerator, GraphXGenerator, PKGraphGenerator}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.metrics.GraphMetricsCollector
 import org.apache.spark.sql.SparkSession
+
+import java.io.PrintStream
 
 object GraphBenchmark {
   def getGraphDatasetGeneratorFromArgs(dataset: String): GraphDatasetGenerator = {
@@ -15,28 +18,22 @@ object GraphBenchmark {
 
   def getGraphGeneratorFromArgs(implementation: String): GraphGenerator = {
     implementation match {
-      case "GraphX" => new GraphXGenerator()
-      case i        => throw new IllegalArgumentException(s"unknown implementation '$i'")
+      case "GraphX"   => new GraphXGenerator()
+      case "PKGraph2" => new PKGraphGenerator(2)
+      case "PKGraph4" => new PKGraphGenerator(4)
+      case "PKGraph8" => new PKGraphGenerator(8)
+      case i          => throw new IllegalArgumentException(s"unknown implementation '$i'")
     }
   }
 
   def getGraphAlgorithmFromArgs(algorithm: String): GraphAlgorithm = {
     algorithm match {
-      case "pageRank" => new PageRankAlgorithm()
-      case i          => throw new IllegalArgumentException(s"unknown algorithm '$i'")
+      case "pageRank"            => new PageRankAlgorithm()
+      case "triangleCount"       => new TriangleCountAlgorithm()
+      case "connectedComponents" => new ConnectedComponentsAlgorithm()
+      case "shortestPath"        => new ShortestPathAlgorithm()
+      case i                     => throw new IllegalArgumentException(s"unknown algorithm '$i'")
     }
-  }
-
-  def run(graph: GraphGenerator, algorithm: GraphAlgorithm, dataset: GraphDatasetGenerator): Unit = {
-    val spark = SparkSession
-      .builder()
-      .master("local[*]")
-      .appName("Graph Benchmark")
-      .getOrCreate()
-
-    val sc = spark.sparkContext
-    algorithm.run(graph.generate(dataset.dataset(sc)))
-    spark.stop()
   }
 
   def main(args: Array[String]): Unit = {
@@ -44,6 +41,19 @@ object GraphBenchmark {
     val graph = getGraphGeneratorFromArgs(args(0))
     val algorithm = getGraphAlgorithmFromArgs(args(1))
     val dataset = getGraphDatasetGeneratorFromArgs(args(2))
-    run(graph, algorithm, dataset)
+
+    val spark = SparkSession
+      .builder()
+      .master("local[*]")
+      .appName("Graph Benchmark")
+      .getOrCreate()
+
+    val sc = spark.sparkContext
+    val metricsCollector = new GraphMetricsCollector(sc, args(0), args(1), args(2))
+    algorithm.run(graph.generate(dataset.dataset(sc)))
+    spark.stop()
+
+    val logs = new PrintStream(s"macrobenchmarks/reports/metrics-${args(0)}-${args(1)}-${args(2)}.txt")
+    metricsCollector.printCollectedMetrics(logs)
   }
 }
