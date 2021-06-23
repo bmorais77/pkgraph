@@ -7,6 +7,7 @@ import org.apache.spark.graphx.pkgraph.macrobenchmarks.metrics.GraphMetricsColle
 import org.apache.spark.sql.SparkSession
 
 import java.io.PrintStream
+import scala.io.StdIn
 
 object GraphBenchmark {
   def getGraphDatasetGeneratorFromArgs(dataset: String): GraphDatasetGenerator = {
@@ -44,16 +45,21 @@ object GraphBenchmark {
 
     val spark = SparkSession
       .builder()
-      .master("local[*]")
+      .master("local[4]")
       .appName("Graph Benchmark")
       .getOrCreate()
 
     val sc = spark.sparkContext
     val metricsCollector = new GraphMetricsCollector(sc, args(0), args(1), args(2))
+    metricsCollector.start()
     algorithm.run(graph.generate(dataset.dataset(sc)))
-    spark.stop()
+    metricsCollector.stop()
 
     val logs = new PrintStream(s"macrobenchmarks/reports/metrics-${args(0)}-${args(1)}-${args(2)}.txt")
     metricsCollector.printCollectedMetrics(logs)
+
+    println("Press any key to continue...")
+    StdIn.readLine()
+    spark.stop()
   }
 }

@@ -7,6 +7,5 @@ case class GraphStageMetrics(
     status: String,
     attemptNumber: Int,
     totalTime: Long,
-    cpuTime: Long,
-    peakExecutionMemory: Long
+    cpuTime: Long
 )
