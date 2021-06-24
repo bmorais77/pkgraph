@@ -3,7 +3,7 @@ package org.apache.spark.graphx.pkgraph.graph
 import org.apache.spark.graphx.impl.RoutingTablePartition.RoutingTableMessage
 import org.apache.spark.graphx.impl.{RoutingTablePartition, ShippableVertexPartition, VertexRDDImpl}
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
-import org.apache.spark.graphx.{PartitionID, VertexId, VertexRDD}
+import org.apache.spark.graphx.{EdgeRDD, PartitionID, VertexId, VertexRDD}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{HashPartitioner, Partitioner}
 
@@ -79,6 +79,23 @@ object PKVertexRDD {
       preservesPartitioning = true
     )
     new VertexRDDImpl(vertexPartitions)
+  }
+
+  /**
+    * Prepares an VertexRDD for efficient joins with the given EdgeRDD.
+    *
+    * @param vertices  VertexRDD to prepare
+    * @param edges   Edges to join with
+    * @return new VertexRDD
+    */
+  def withEdges[V: ClassTag](vertices: VertexRDDImpl[V], edges: PKEdgeRDD[_, _]): VertexRDD[V] = {
+    val routingTables = createRoutingTables(edges, vertices.partitioner.get)
+    val vertexPartitions = vertices.partitionsRDD.zipPartitions(routingTables, preservesPartitioning = true) {
+      (partIter, routingTableIter) =>
+        val routingTable = if (routingTableIter.hasNext) routingTableIter.next() else RoutingTablePartition.empty
+        partIter.map(_.withRoutingTable(routingTable))
+    }
+    new VertexRDDImpl(vertexPartitions, vertices.targetStorageLevel)
   }
 
   private def createRoutingTables(

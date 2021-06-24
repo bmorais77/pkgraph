@@ -23,6 +23,7 @@ object GraphBenchmark {
       case "PKGraph2" => new PKGraphGenerator(2)
       case "PKGraph4" => new PKGraphGenerator(4)
       case "PKGraph8" => new PKGraphGenerator(8)
+      case "PKGraph16" => new PKGraphGenerator(16)
       case i          => throw new IllegalArgumentException(s"unknown implementation '$i'")
     }
   }

@@ -2,7 +2,7 @@ package org.apache.spark.graphx.pkgraph.graph
 
 import org.apache.spark.HashPartitioner
 import org.apache.spark.graphx._
-import org.apache.spark.graphx.impl.EdgeActiveness
+import org.apache.spark.graphx.impl.{EdgeActiveness, VertexRDDImpl}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 
@@ -10,7 +10,7 @@ import scala.language.implicitConversions
 import scala.reflect.{ClassTag, classTag}
 
 class PKGraph[V: ClassTag, E: ClassTag] private (
-    @transient val k: Int,
+    val k: Int,
     @transient override val vertices: VertexRDD[V],
     @transient val replicatedVertexView: PKReplicatedVertexView[V, E]
 ) extends Graph[V, E] {
@@ -154,7 +154,8 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
       )
 
     val newEdges = edges.withEdgePartitions(partitions).cache()
-    PKGraph.fromExistingRDDs(k, vertices.withEdges(newEdges), newEdges)
+    val newVertices = PKVertexRDD.withEdges(vertices.asInstanceOf[VertexRDDImpl[V]], newEdges)
+    PKGraph.fromExistingRDDs(k, newVertices, newEdges)
   }
 
   /**

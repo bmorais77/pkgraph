@@ -1,8 +1,10 @@
 package org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms
-import org.apache.spark.graphx.Graph
+import org.apache.spark.graphx.{Graph, PartitionStrategy}
 
 class PageRankAlgorithm extends GraphAlgorithm {
   override def run(graph: Graph[Long, Int]): Unit = {
-    graph.pageRank(0.1)
+    graph
+      .partitionBy(PartitionStrategy.EdgePartition2D, 100)
+      .pageRank(0.1)
   }
 }
