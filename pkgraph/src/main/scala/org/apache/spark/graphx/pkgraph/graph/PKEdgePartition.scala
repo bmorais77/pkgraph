@@ -142,7 +142,7 @@ private[pkgraph] class PKEdgePartition[
       builder.addEdge(edge.srcId, edge.dstId, edge.attr)
     }
 
-    builder.build
+    builder.build(!newEdges.isEmpty)
   }
 
   /**
@@ -158,7 +158,7 @@ private[pkgraph] class PKEdgePartition[
       builder.removeEdge(src, dst)
     }
 
-    builder.build
+    builder.build()
   }
 
   /**
@@ -201,7 +201,7 @@ private[pkgraph] class PKEdgePartition[
       builder.addEdge(edge.dstId, edge.srcId, edge.attr)
     }
 
-    builder.build
+    builder.build()
   }
 
   /**
@@ -279,7 +279,7 @@ private[pkgraph] class PKEdgePartition[
       i += 1
     }
 
-    builder.build
+    builder.build()
   }
 
   /**
@@ -322,7 +322,7 @@ private[pkgraph] class PKEdgePartition[
     // Optimization: check if the partitions have any intersection at all, in which case
     // the result of the inner join is always empty
     if (!partitionIntersects(other)) {
-      return builder.build
+      return builder.build()
     }
 
     val comparator = new PKEdgeComparator[E, E2](this, other)
@@ -342,7 +342,7 @@ private[pkgraph] class PKEdgePartition[
       }
     }
 
-    builder.build
+    builder.build()
   }
 
   /**

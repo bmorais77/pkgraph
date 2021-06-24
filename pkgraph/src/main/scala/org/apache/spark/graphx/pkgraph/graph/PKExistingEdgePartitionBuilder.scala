@@ -38,14 +38,28 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     dstVertices.unset(col)
   }
 
-  def build: PKEdgePartition[V, E] = {
-    val edgeAttrs = edges.toArray
+  def build(recomputeVertices: Boolean = false): PKEdgePartition[V, E] = {
+    var newVertexAttrs = vertexAttrs
+    val sortedEdges = edges.toArray
       .filter { e => srcVertices.get(e.line) && dstVertices.get(e.col) }
       .sortWith((a, b) => a.index < b.index)
-      .map(_.attr)
 
+    if (recomputeVertices) {
+      // Compute new mappings
+      var currLocalId = vertexAttrs.length - 1
+      for (edge <- sortedEdges) {
+        global2local.changeValue(edge.line + srcOffset, { currLocalId += 1; currLocalId }, identity)
+        global2local.changeValue(edge.col + dstOffset, { currLocalId += 1; currLocalId }, identity)
+      }
+
+      // Copy existing vertex attributes
+      newVertexAttrs = new Array[V](currLocalId + 1)
+      System.arraycopy(vertexAttrs, 0, newVertexAttrs, 0, vertexAttrs.length)
+    }
+
+    val edgeAttrs = sortedEdges.map(_.attr)
     new PKEdgePartition[V, E](
-      vertexAttrs,
+      newVertexAttrs,
       global2local,
       edgeAttrs,
       builder.build,
