@@ -10,10 +10,10 @@ class PKEdgePartitionSpec extends FlatSpec {
   "A PKEdgePartition" should "create a new partition without vertex attributes" in {
     var partition = buildTestPartition
     partition = partition.updateVertices(Seq((0L, 10), (1L, 20)).iterator)
-    assert(partition.vertexAttrs.size == 2)
+    assert(partition.vertexAttrs.count(i => i != 0) == 2)
 
-    val partitionWithNoVerticesCached = partition.withoutVertexAttributes()
-    assert(partitionWithNoVerticesCached.vertexAttrs.size == 0)
+    val partitionWithNoVerticesCached = partition.withoutVertexAttributes[Int]()
+    assert(partitionWithNoVerticesCached.vertexAttrs.count(i => i != 0) == 0)
   }
 
   it should "create a new partition with large size" in {
@@ -159,7 +159,7 @@ class PKEdgePartitionSpec extends FlatSpec {
     val vertices = (0 until 10).map(i => (i.toLong, i * 10))
     val newPartition = partition.updateVertices(vertices.iterator)
     assert(newPartition.size == partition.size)
-    assert(newPartition.vertexAttrs.size == vertices.length)
+    assert(newPartition.vertexAttrs.length == vertices.length)
 
     var i = 0
     val it = newPartition.tripletIterator()
@@ -411,7 +411,7 @@ class PKEdgePartitionSpec extends FlatSpec {
   }
 
   private def updatePartitionVertices(partition: PKEdgePartition[Int, Int]): PKEdgePartition[Int, Int] = {
-    val vertices = (0 until partition.tree.size).map(i => (i.toLong, i * 10))
+    val vertices = partition.vertexAttrs.indices.map(i => (i.toLong, i * 10))
     partition.updateVertices(vertices.iterator)
   }
 

@@ -6,7 +6,7 @@ import org.apache.spark.graphx.pkgraph.compression.{K2Tree, K2TreeBuilder}
 import org.apache.spark.graphx.pkgraph.util.collection.PKBitSet
 import org.apache.spark.graphx.pkgraph.util.mathx
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
-import org.apache.spark.util.collection.PrimitiveVector
+import org.apache.spark.util.collection.{OpenHashSet, PrimitiveVector}
 
 import scala.reflect.ClassTag
 
@@ -35,7 +35,8 @@ private[pkgraph] class PKEdgePartition[
     @specialized(Char, Int, Boolean, Byte, Long, Float, Double) V: ClassTag,
     E: ClassTag
 ](
-    val vertexAttrs: GraphXPrimitiveKeyOpenHashMap[VertexId, V],
+    val vertexAttrs: Array[V],
+    val global2local: GraphXPrimitiveKeyOpenHashMap[VertexId, Int],
     val edgeAttrs: Array[E],
     val tree: K2Tree,
     val srcOffset: Long,
@@ -52,8 +53,18 @@ private[pkgraph] class PKEdgePartition[
     * @return edge partition without cached vertices
     */
   def withoutVertexAttributes[V2: ClassTag](): PKEdgePartition[V2, E] = {
-    val newVertexAttrs = new GraphXPrimitiveKeyOpenHashMap[VertexId, V2](vertexAttrs.keySet.capacity)
-    new PKEdgePartition(newVertexAttrs, edgeAttrs, tree, srcOffset, dstOffset, srcVertices, dstVertices, activeSet)
+    val newVertexAttrs = new Array[V2](vertexAttrs.length)
+    new PKEdgePartition(
+      newVertexAttrs,
+      global2local,
+      edgeAttrs,
+      tree,
+      srcOffset,
+      dstOffset,
+      srcVertices,
+      dstVertices,
+      activeSet
+    )
   }
 
   /**
@@ -67,7 +78,17 @@ private[pkgraph] class PKEdgePartition[
     while (iter.hasNext) {
       activeSet.add(iter.next())
     }
-    new PKEdgePartition(vertexAttrs, edgeAttrs, tree, srcOffset, dstOffset, srcVertices, dstVertices, Some(activeSet))
+    new PKEdgePartition(
+      vertexAttrs,
+      global2local,
+      edgeAttrs,
+      tree,
+      srcOffset,
+      dstOffset,
+      srcVertices,
+      dstVertices,
+      Some(activeSet)
+    )
   }
 
   /**
@@ -79,18 +100,19 @@ private[pkgraph] class PKEdgePartition[
   def isActive(vid: VertexId): Boolean = activeSet.get.contains(vid)
 
   /**
+   * Get the vertex attribute of the vertex with the given global identifier.
+   *
+   * @param vid Vertex identifier
+   * @return vertex attribute
+   */
+  def vertexAttribute(vid: VertexId): V = vertexAttrs(global2local(vid))
+
+  /**
     * The number of active vertices.
     *
     * @return number of active vertices
     */
   def numActives: Int = activeSet.map(_.size).getOrElse(0)
-
-  /**
-    * Gives the number of vertices in this partition (estimate).
-    *
-    * @return number of vertices
-    */
-  def numVertices: Int = edgeAttrs.length / 2
 
   /**
     * Gives the number of source vertices in this partition.
@@ -146,19 +168,24 @@ private[pkgraph] class PKEdgePartition[
     * @return new [[PKEdgePartition]] with updated vertices
     */
   def updateVertices(iter: Iterator[(VertexId, V)]): PKEdgePartition[V, E] = {
-    // Copy existing vertex attributes
-    val newVertexAttrs = new GraphXPrimitiveKeyOpenHashMap[VertexId, V](vertexAttrs.keySet.capacity)
-    for ((id, attr) <- vertexAttrs) {
-      newVertexAttrs(id) = attr
-    }
-
-    // Update with new attributes
+    val newVertexAttrs = new Array[V](vertexAttrs.length)
+    System.arraycopy(vertexAttrs, 0, newVertexAttrs, 0, vertexAttrs.length)
     while (iter.hasNext) {
       val (id, attr) = iter.next()
-      newVertexAttrs(id) = attr
+      newVertexAttrs(global2local(id)) = attr
     }
 
-    new PKEdgePartition(newVertexAttrs, edgeAttrs, tree, srcOffset, dstOffset, srcVertices, dstVertices, activeSet)
+    new PKEdgePartition(
+      newVertexAttrs,
+      global2local,
+      edgeAttrs,
+      tree,
+      srcOffset,
+      dstOffset,
+      srcVertices,
+      dstVertices,
+      activeSet
+    )
   }
 
   /**
@@ -241,8 +268,8 @@ private[pkgraph] class PKEdgePartition[
       val triplet = new EdgeTriplet[V, E]
       triplet.srcId = line + srcOffset
       triplet.dstId = col + dstOffset
-      triplet.srcAttr = vertexAttrs(triplet.srcId)
-      triplet.dstAttr = vertexAttrs(triplet.dstId)
+      triplet.srcAttr = vertexAttribute(triplet.srcId)
+      triplet.dstAttr = vertexAttribute(triplet.dstId)
       triplet.attr = edgeAttrs(i)
 
       if (vpred(triplet.srcId, triplet.srcAttr) && vpred(triplet.dstId, triplet.dstAttr) && epred(triplet)) {
@@ -380,11 +407,11 @@ private[pkgraph] class PKEdgePartition[
         triplet.attr = edgeAttrs(pos)
 
         if (includeSrc) {
-          triplet.srcAttr = vertexAttrs(line + srcOffset)
+          triplet.srcAttr = vertexAttribute(line + srcOffset)
         }
 
         if (includeDst) {
-          triplet.dstAttr = vertexAttrs(col + dstOffset)
+          triplet.dstAttr = vertexAttribute(col + dstOffset)
         }
 
         pos += 1
@@ -411,8 +438,8 @@ private[pkgraph] class PKEdgePartition[
     val ctx = PKAggregatingEdgeContext[V, E, A](mergeMsg)
     foreach { edge =>
       if (isEdgeActive(edge.srcId, edge.dstId, activeness)) {
-        val srcAttr = if (tripletFields.useSrc) vertexAttrs(edge.srcId) else null.asInstanceOf[V]
-        val dstAttr = if (tripletFields.useDst) vertexAttrs(edge.dstId) else null.asInstanceOf[V]
+        val srcAttr = if (tripletFields.useSrc) vertexAttribute(edge.srcId) else null.asInstanceOf[V]
+        val dstAttr = if (tripletFields.useDst) vertexAttribute(edge.dstId) else null.asInstanceOf[V]
         ctx.set(edge.srcId, edge.dstId, srcAttr, dstAttr, edge.attr)
         sendMsg(ctx)
       }
@@ -441,11 +468,11 @@ private[pkgraph] class PKEdgePartition[
     for (src <- srcVertices.iterator) {
       val globalSrc: VertexId = src + srcOffset
       if (isSrcVertexActive(globalSrc, activeness)) {
-        val srcAttr = if (tripletFields.useSrc) vertexAttrs(globalSrc) else null.asInstanceOf[V]
+        val srcAttr = if (tripletFields.useSrc) vertexAttribute(globalSrc) else null.asInstanceOf[V]
         tree.forEachDirectNeighbor(src) { (dst, index) =>
           val globalDst: VertexId = dst + dstOffset
           if (isEdgeActive(globalSrc, globalDst, activeness)) {
-            val dstAttr = if (tripletFields.useDst) vertexAttrs(globalDst) else null.asInstanceOf[V]
+            val dstAttr = if (tripletFields.useDst) vertexAttribute(globalDst) else null.asInstanceOf[V]
             val attr = edgeAttrs(index)
             ctx.set(globalSrc, globalDst, srcAttr, dstAttr, attr)
             sendMsg(ctx)
@@ -477,11 +504,11 @@ private[pkgraph] class PKEdgePartition[
     for (dst <- dstVertices.iterator) {
       val globalDst: VertexId = dst + dstOffset
       if (isDstVertexActive(globalDst, activeness)) {
-        val dstAttr = if (tripletFields.useDst) vertexAttrs(globalDst) else null.asInstanceOf[V]
+        val dstAttr = if (tripletFields.useDst) vertexAttribute(globalDst) else null.asInstanceOf[V]
         tree.forEachReverseNeighbor(dst) { (src, index) =>
           val globalSrc: VertexId = src + srcOffset
           if (isEdgeActive(globalSrc, globalDst, activeness)) {
-            val srcAttr = if (tripletFields.useSrc) vertexAttrs(globalSrc) else null.asInstanceOf[V]
+            val srcAttr = if (tripletFields.useSrc) vertexAttribute(globalSrc) else null.asInstanceOf[V]
             val attr = edgeAttrs(index)
             ctx.set(globalSrc, globalDst, srcAttr, dstAttr, attr)
             sendMsg(ctx)
@@ -501,7 +528,7 @@ private[pkgraph] class PKEdgePartition[
     * @return edge partition with given edge data
     */
   private def withEdgeAttrs[E2: ClassTag](attrs: Array[E2]): PKEdgePartition[V, E2] = {
-    new PKEdgePartition(vertexAttrs, attrs, tree, srcOffset, dstOffset, srcVertices, dstVertices, activeSet)
+    new PKEdgePartition(vertexAttrs, global2local, attrs, tree, srcOffset, dstOffset, srcVertices, dstVertices, activeSet)
   }
 
   /**

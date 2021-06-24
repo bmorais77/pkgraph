@@ -20,8 +20,13 @@ class MemoryDatasetGenerator extends GraphDatasetGenerator {
       edges += Edge(line, col, value.toInt)
     }
 
-    val vertexRdd = sc.parallelize(vertices.toSeq, 12).map(i => (i, i * 10))
-    val edgeRdd = sc.parallelize(edges, 12)
+    println("---------- [DATASET] ----------")
+    println(s"Vertices: ${vertices.size}")
+    println(s"Edges: ${edges.length}")
+    println("---------- [DATASET] ----------")
+
+    val vertexRdd = sc.parallelize(vertices.toSeq).map(i => (i, i * 10))
+    val edgeRdd = sc.parallelize(edges)
     GraphDataset(vertexRdd, edgeRdd)
   }
 }

@@ -52,7 +52,7 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
 
     val srcVertices = new PKBitSet(treeBuilder.size)
     val dstVertices = new PKBitSet(treeBuilder.size)
-    val attrs = mutable.TreeSet[(Int, E)]()((a, b) => a._1 - b._1)
+    val sortedEdges = mutable.TreeSet[(Int, Edge[E])]()((a, b) => a._1 - b._1)
     for (edge <- edgeArray) {
       val localSrcId = (edge.srcId - srcOffset).toInt
       val localDstId = (edge.dstId - dstOffset).toInt
@@ -62,12 +62,22 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
       dstVertices.set(localDstId)
 
       // Our solution does not support multi-graphs, so we ignore repeated edges
-      attrs.add((index, edge.attr))
+      sortedEdges.add((index, edge))
     }
 
-    val edgeAttrs = attrs.toArray.map(_._2)
+    // Traverse sorted edges to construct global2local map
+    val global2local = new GraphXPrimitiveKeyOpenHashMap[VertexId, Int]
+    var currLocalId = -1
+    for ((_, edge) <- sortedEdges) {
+      global2local.changeValue(edge.srcId, { currLocalId += 1; currLocalId }, identity)
+      global2local.changeValue(edge.dstId, { currLocalId += 1; currLocalId }, identity)
+    }
+
+    val edgeAttrs = sortedEdges.toArray.map(_._2.attr)
+    val vertexAttrs = new Array[V](currLocalId + 1)
     new PKEdgePartition[V, E](
-      new GraphXPrimitiveKeyOpenHashMap[VertexId, V](vertices.size),
+      vertexAttrs,
+      global2local,
       edgeAttrs,
       treeBuilder.build,
       srcOffset,

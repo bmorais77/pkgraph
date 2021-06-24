@@ -9,7 +9,8 @@ import org.apache.spark.util.collection.PrimitiveVector
 import scala.reflect.ClassTag
 
 private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Long, Int, Double) E: ClassTag](
-    vertexAttrs: GraphXPrimitiveKeyOpenHashMap[VertexId, V],
+    vertexAttrs: Array[V],
+    global2local: GraphXPrimitiveKeyOpenHashMap[VertexId, Int],
     edges: PrimitiveVector[PKEdge[E]],
     builder: K2TreeBuilder,
     srcOffset: Long,
@@ -45,6 +46,7 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
 
     new PKEdgePartition[V, E](
       vertexAttrs,
+      global2local,
       edgeAttrs,
       builder.build,
       srcOffset,
@@ -62,7 +64,8 @@ object PKExistingEdgePartitionBuilder {
     * Partition builder from an existing empty partition.
     * The edge attributes are not reused.
     *
-    * @param vertexAttrs     Map with vertex attributes
+    * @param vertexAttrs     Array of vertex attributes
+    * @param global2local    Mapping of global to local vertices
     * @param activeSet       Set of active vertices
     * @param treeBuilder     Non-empty tree builder
     * @param srcOffset       Existing source offset
@@ -72,7 +75,8 @@ object PKExistingEdgePartitionBuilder {
     * @return existing partition builder
     */
   def apply[V: ClassTag, E: ClassTag](
-      vertexAttrs: GraphXPrimitiveKeyOpenHashMap[VertexId, V],
+      vertexAttrs: Array[V],
+      global2local: GraphXPrimitiveKeyOpenHashMap[VertexId, Int],
       activeSet: Option[VertexSet],
       treeBuilder: K2TreeBuilder,
       srcOffset: Long,
@@ -80,6 +84,7 @@ object PKExistingEdgePartitionBuilder {
   ): PKExistingEdgePartitionBuilder[V, E] = {
     new PKExistingEdgePartitionBuilder[V, E](
       vertexAttrs,
+      global2local,
       new PrimitiveVector[PKEdge[E]](64),
       treeBuilder,
       srcOffset,
@@ -102,6 +107,7 @@ object PKExistingEdgePartitionBuilder {
     val treeBuilder = K2TreeBuilder(partition.tree.k, partition.tree.size)
     new PKExistingEdgePartitionBuilder[V, E](
       partition.vertexAttrs,
+      partition.global2local,
       new PrimitiveVector[PKEdge[E]](64),
       treeBuilder,
       partition.srcOffset,
@@ -132,6 +138,7 @@ object PKExistingEdgePartitionBuilder {
   ): PKExistingEdgePartitionBuilder[V, E] = {
     val builder = new PKExistingEdgePartitionBuilder[V, E](
       partition.vertexAttrs,
+      partition.global2local,
       new PrimitiveVector[PKEdge[E]](partition.edgeAttrs.length),
       treeBuilder,
       newSrcOffset,
