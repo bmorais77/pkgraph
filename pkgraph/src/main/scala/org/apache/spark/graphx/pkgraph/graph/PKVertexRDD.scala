@@ -121,7 +121,7 @@ object PKVertexRDD {
     // Determine which positions each vertex id appears in using a map where the low 2 bits
     // represent src and dst
     val map = new GraphXPrimitiveKeyOpenHashMap[VertexId, Byte]
-    partition.iterator.foreach { e =>
+    partition.foreach { e =>
       map.changeValue(e.srcId, 0x1, (b: Byte) => (b | 0x1).toByte)
       map.changeValue(e.dstId, 0x2, (b: Byte) => (b | 0x2).toByte)
     }

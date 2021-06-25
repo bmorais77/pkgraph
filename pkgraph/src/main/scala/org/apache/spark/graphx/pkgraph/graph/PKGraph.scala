@@ -375,45 +375,13 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
 
           activeDirectionOpt match {
             case Some(EdgeDirection.Both) =>
-              if (srcActiveFraction < 0.8 || dstActiveFraction < 0.8) {
-                if (srcActiveFraction < dstActiveFraction) {
-                  part.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
-                } else {
-                  part.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
-                }
-              } else {
-                part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
-              }
+              part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
             case Some(EdgeDirection.Either) =>
-              if (srcActiveFraction < 0.8 || dstActiveFraction < 0.8) {
-                if (srcActiveFraction < dstActiveFraction) {
-                  part.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
-                } else {
-                  part.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
-                }
-              } else {
-                part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
-              }
+              part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
             case Some(EdgeDirection.Out) =>
-              if (srcActiveFraction < 0.8 || dstActiveFraction < 0.8) {
-                if (srcActiveFraction < dstActiveFraction) {
-                  part.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
-                } else {
-                  part.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
-                }
-              } else {
-                part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
-              }
+              part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
             case Some(EdgeDirection.In) =>
-              if (srcActiveFraction < 0.8 || dstActiveFraction < 0.8) {
-                if (srcActiveFraction < dstActiveFraction) {
-                  part.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
-                } else {
-                  part.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
-                }
-              } else {
-                part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
-              }
+              part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
             case _ => // None
               part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Neither)
           }

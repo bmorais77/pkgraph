@@ -1,7 +1,14 @@
 package org.apache.spark.graphx.pkgraph.macrobenchmarks
 
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{ConnectedComponentsAlgorithm, GraphAlgorithm, PageRankAlgorithm, ShortestPathAlgorithm, TriangleCountAlgorithm}
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.{GraphDatasetGenerator, MemoryDatasetGenerator}
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{
+  ConnectedComponentsAlgorithm,
+  GraphAlgorithm,
+  PageRankAlgorithm,
+  ShortestPathAlgorithm,
+  TriangleCountAlgorithm
+}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.GraphDatasetReader
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.generators.{GraphGenerator, GraphXGenerator, PKGraphGenerator}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.metrics.GraphMetricsCollector
 import org.apache.spark.sql.SparkSession
@@ -10,21 +17,14 @@ import java.io.PrintStream
 import scala.io.StdIn
 
 object GraphBenchmark {
-  def getGraphDatasetGeneratorFromArgs(dataset: String): GraphDatasetGenerator = {
-    dataset match {
-      case "memory" => new MemoryDatasetGenerator()
-      case i        => throw new IllegalArgumentException(s"unknown dataset '$i'")
-    }
-  }
-
   def getGraphGeneratorFromArgs(implementation: String): GraphGenerator = {
     implementation match {
-      case "GraphX"   => new GraphXGenerator()
-      case "PKGraph2" => new PKGraphGenerator(2)
-      case "PKGraph4" => new PKGraphGenerator(4)
-      case "PKGraph8" => new PKGraphGenerator(8)
+      case "GraphX"    => new GraphXGenerator()
+      case "PKGraph2"  => new PKGraphGenerator(2)
+      case "PKGraph4"  => new PKGraphGenerator(4)
+      case "PKGraph8"  => new PKGraphGenerator(8)
       case "PKGraph16" => new PKGraphGenerator(16)
-      case i          => throw new IllegalArgumentException(s"unknown implementation '$i'")
+      case i           => throw new IllegalArgumentException(s"unknown implementation '$i'")
     }
   }
 
@@ -40,27 +40,35 @@ object GraphBenchmark {
 
   def main(args: Array[String]): Unit = {
     assert(args.length == 3, "Wrong usage: graph-benchmark <implementation> <algorithm> <dataset>")
-    val graph = getGraphGeneratorFromArgs(args(0))
-    val algorithm = getGraphAlgorithmFromArgs(args(1))
-    val dataset = getGraphDatasetGeneratorFromArgs(args(2))
+    val implementation = args(0)
+    val graphAlgorithm = args(1)
+    val graphDataset = args(2)
 
-    val spark = SparkSession
-      .builder()
-      .master("local[4]")
-      .appName("Graph Benchmark")
-      .getOrCreate()
+    val graph = getGraphGeneratorFromArgs(implementation)
+    val algorithm = getGraphAlgorithmFromArgs(graphAlgorithm)
+    val reader = new GraphDatasetReader
 
-    val sc = spark.sparkContext
-    val metricsCollector = new GraphMetricsCollector(sc, args(0), args(1), args(2))
+    val config = new SparkConf()
+      .setMaster("local[4]")
+      .setAppName(s"Graph Benchmark ($implementation | $graphAlgorithm | $graphDataset)")
+      .set("spark.eventLog.enabled", "true")
+      .set("spark.eventLog.dir", "/tmp/spark-events")
+
+    val sc = new SparkContext(config)
+    val metricsCollector = new GraphMetricsCollector(sc, implementation, graphAlgorithm, graphDataset)
     metricsCollector.start()
-    algorithm.run(graph.generate(dataset.dataset(sc)))
+
+    val datasetPath = s"macrobenchmarks/datasets/$graphDataset"
+    println(s"Dataset Path = $datasetPath")
+
+    val dataset = reader.readDataset(sc, datasetPath)
+    algorithm.run(graph.generate(dataset))
+
     metricsCollector.stop()
 
-    val logs = new PrintStream(s"macrobenchmarks/reports/metrics-${args(0)}-${args(1)}-${args(2)}.txt")
+    val logs = new PrintStream(s"macrobenchmarks/reports/metrics-$implementation-$graphAlgorithm-$graphDataset.txt")
     metricsCollector.printCollectedMetrics(logs)
 
-    println("Press any key to continue...")
-    StdIn.readLine()
-    spark.stop()
+    sc.stop()
   }
 }
