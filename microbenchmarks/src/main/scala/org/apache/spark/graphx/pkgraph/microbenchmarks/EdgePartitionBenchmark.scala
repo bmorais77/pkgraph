@@ -126,7 +126,7 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
         }
       }
 
-      measure method "aggregateMessagesEdgeScan" in {
+      measure method "aggregateMessages" in {
         using(GraphXDataSet.buildPartitionsWithVertices(density)) curve "GraphX" in { partition =>
           partition
             .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
@@ -134,17 +134,17 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
 
         using(PKGraphDataSet.buildPartitionsWithVertices(2, density)) curve "PKGraph (k=2)" in { partition =>
           partition
-            .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+            .aggregateMessages[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
         }
 
         using(PKGraphDataSet.buildPartitionsWithVertices(4, density)) curve "PKGraph (k=4)" in { partition =>
           partition
-            .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+            .aggregateMessages[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
         }
 
         using(PKGraphDataSet.buildPartitionsWithVertices(8, density)) curve "PKGraph (k=8)" in { partition =>
           partition
-            .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
+            .aggregateMessages[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
         }
       }
 
@@ -156,7 +156,7 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
 
         using(PKGraphDataSet.buildPartitionsWithActiveVertices(2, density)) curve "PKGraph (k=2) (edges)" in {
           partition =>
-            partition.aggregateMessagesEdgeScan[Int](
+            partition.aggregateMessages[Int](
               ctx => ctx.sendToSrc(10),
               _ + _,
               TripletFields.All,
@@ -166,7 +166,7 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
 
         using(PKGraphDataSet.buildPartitionsWithActiveVertices(2, density)) curve "PKGraph (k=2) (index)" in {
           partition =>
-            partition.aggregateMessagesSrcIndexScan[Int](
+            partition.aggregateMessages[Int](
               ctx => ctx.sendToSrc(10),
               _ + _,
               TripletFields.All,
@@ -176,7 +176,7 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
 
         using(PKGraphDataSet.buildPartitionsWithActiveVertices(4, density)) curve "PKGraph (k=4) (edges)" in {
           partition =>
-            partition.aggregateMessagesEdgeScan[Int](
+            partition.aggregateMessages[Int](
               ctx => ctx.sendToSrc(10),
               _ + _,
               TripletFields.All,
@@ -186,7 +186,7 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
 
         using(PKGraphDataSet.buildPartitionsWithActiveVertices(4, density)) curve "PKGraph (k=4) (index)" in {
           partition =>
-            partition.aggregateMessagesSrcIndexScan[Int](
+            partition.aggregateMessages[Int](
               ctx => ctx.sendToSrc(10),
               _ + _,
               TripletFields.All,
@@ -196,7 +196,7 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
 
         using(PKGraphDataSet.buildPartitionsWithActiveVertices(8, density)) curve "PKGraph (k=8) (edges)" in {
           partition =>
-            partition.aggregateMessagesEdgeScan[Int](
+            partition.aggregateMessages[Int](
               ctx => ctx.sendToSrc(10),
               _ + _,
               TripletFields.All,
@@ -206,7 +206,7 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
 
         using(PKGraphDataSet.buildPartitionsWithActiveVertices(8, density)) curve "PKGraph (k=8) (index)" in {
           partition =>
-            partition.aggregateMessagesSrcIndexScan[Int](
+            partition.aggregateMessages[Int](
               ctx => ctx.sendToSrc(10),
               _ + _,
               TripletFields.All,

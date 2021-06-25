@@ -1,7 +1,6 @@
 package org.apache.spark.graphx.pkgraph.graph
 
 import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder
-import org.apache.spark.graphx.pkgraph.util.collection.PKBitSet
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.graphx.{Edge, VertexId}
 import org.apache.spark.util.collection.PrimitiveVector
@@ -11,7 +10,6 @@ import scala.reflect.ClassTag
 
 private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (k: Int, size: Int) {
   private val edges = new PrimitiveVector[Edge[E]](size)
-  private val vertices = new mutable.HashSet[VertexId]
 
   private var startX: Long = Long.MaxValue
   private var startY: Long = Long.MaxValue
@@ -32,8 +30,6 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
     startY = math.min(startY, dst)
     endX = math.max(endX, src)
     endY = math.max(endY, dst)
-    vertices.add(src)
-    vertices.add(dst)
   }
 
   def build: PKEdgePartition[V, E] = {
@@ -50,16 +46,11 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
       K2TreeBuilder(k, math.max(endX - srcOffset + 1, endY - dstOffset + 1).toInt)
     }
 
-    val srcVertices = new PKBitSet(treeBuilder.size)
-    val dstVertices = new PKBitSet(treeBuilder.size)
     val sortedEdges = mutable.TreeSet[(Int, Edge[E])]()((a, b) => a._1 - b._1)
     for (edge <- edgeArray) {
       val localSrcId = (edge.srcId - srcOffset).toInt
       val localDstId = (edge.dstId - dstOffset).toInt
       val index = treeBuilder.addEdge(localSrcId, localDstId)
-
-      srcVertices.set(localSrcId)
-      dstVertices.set(localDstId)
 
       // Our solution does not support multi-graphs, so we ignore repeated edges
       sortedEdges.add((index, edge))
@@ -75,17 +66,7 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
 
     val edgeAttrs = sortedEdges.toArray.map(_._2.attr)
     val vertexAttrs = new Array[V](currLocalId + 1)
-    new PKEdgePartition[V, E](
-      vertexAttrs,
-      global2local,
-      edgeAttrs,
-      treeBuilder.build,
-      srcOffset,
-      dstOffset,
-      srcVertices,
-      dstVertices,
-      None
-    )
+    new PKEdgePartition[V, E](vertexAttrs, global2local, edgeAttrs, treeBuilder.build, srcOffset, dstOffset, None)
   }
 }
 

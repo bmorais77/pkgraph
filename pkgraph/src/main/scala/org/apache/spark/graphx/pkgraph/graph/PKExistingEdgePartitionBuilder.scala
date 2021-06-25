@@ -15,10 +15,11 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     builder: K2TreeBuilder,
     srcOffset: Long,
     dstOffset: Long,
-    srcVertices: PKBitSet,
-    dstVertices: PKBitSet,
     activeSet: Option[VertexSet]
 ) {
+  private val srcVertices = new PKBitSet(builder.size)
+  private val dstVertices = new PKBitSet(builder.size)
+
   def addEdge(src: VertexId, dst: VertexId, attr: E): Unit = {
     val line = (src - srcOffset).toInt
     val col = (dst - dstOffset).toInt
@@ -58,17 +59,7 @@ private[graph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(Lo
     }
 
     val edgeAttrs = sortedEdges.map(_.attr)
-    new PKEdgePartition[V, E](
-      newVertexAttrs,
-      global2local,
-      edgeAttrs,
-      builder.build,
-      srcOffset,
-      dstOffset,
-      srcVertices,
-      dstVertices,
-      activeSet
-    )
+    new PKEdgePartition[V, E](newVertexAttrs, global2local, edgeAttrs, builder.build, srcOffset, dstOffset, activeSet)
   }
 }
 
@@ -103,8 +94,6 @@ object PKExistingEdgePartitionBuilder {
       treeBuilder,
       srcOffset,
       dstOffset,
-      new PKBitSet(treeBuilder.size),
-      new PKBitSet(treeBuilder.size),
       activeSet
     )
   }
@@ -126,8 +115,6 @@ object PKExistingEdgePartitionBuilder {
       treeBuilder,
       partition.srcOffset,
       partition.dstOffset,
-      new PKBitSet(treeBuilder.size),
-      new PKBitSet(treeBuilder.size),
       partition.activeSet
     )
   }
@@ -157,8 +144,6 @@ object PKExistingEdgePartitionBuilder {
       treeBuilder,
       newSrcOffset,
       newDstOffset,
-      new PKBitSet(treeBuilder.size),
-      new PKBitSet(treeBuilder.size),
       partition.activeSet
     )
 

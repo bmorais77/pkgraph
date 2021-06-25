@@ -367,23 +367,17 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
     val preAgg = view.edges.edgePartitions
       .mapPartitions(_.flatMap {
         case (_, part) =>
-          // Choose scan method
-          val srcVertexCount = part.numSrcVertices
-          val dstVertexCount = part.numDstVertices
-          val srcActiveFraction = if (srcVertexCount == 0) 1f else part.numActives / srcVertexCount
-          val dstActiveFraction = if (dstVertexCount == 0) 1f else part.numActives / dstVertexCount
-
           activeDirectionOpt match {
             case Some(EdgeDirection.Both) =>
-              part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
+              part.aggregateMessages(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
             case Some(EdgeDirection.Either) =>
-              part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
+              part.aggregateMessages(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
             case Some(EdgeDirection.Out) =>
-              part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
+              part.aggregateMessages(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
             case Some(EdgeDirection.In) =>
-              part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
+              part.aggregateMessages(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
             case _ => // None
-              part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Neither)
+              part.aggregateMessages(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Neither)
           }
       })
       .setName("PKGraph.aggregateMessages - preAgg")

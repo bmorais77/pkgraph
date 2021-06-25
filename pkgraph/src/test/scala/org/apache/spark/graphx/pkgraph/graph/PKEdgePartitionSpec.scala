@@ -1,10 +1,8 @@
 package org.apache.spark.graphx.pkgraph.graph
 
-import org.apache.spark.graphx.impl.{EdgeActiveness, EdgePartition, EdgePartitionBuilder}
+import org.apache.spark.graphx.impl.EdgeActiveness
 import org.apache.spark.graphx.{Edge, TripletFields}
 import org.scalatest.FlatSpec
-
-import scala.collection.mutable
 
 class PKEdgePartitionSpec extends FlatSpec {
   "A PKEdgePartition" should "create a new partition without vertex attributes" in {
@@ -299,9 +297,9 @@ class PKEdgePartitionSpec extends FlatSpec {
     assert(!it.hasNext)
   }
 
-  it should "aggregate messages with edge scan" in {
+  it should "aggregate messages" in {
     val partition = buildTestPartition
-    val it = partition.aggregateMessagesEdgeScan[Int](
+    val it = partition.aggregateMessages[Int](
       context => context.sendToDst(1),
       (a, b) => a + b,
       TripletFields.None,
@@ -317,83 +315,9 @@ class PKEdgePartitionSpec extends FlatSpec {
     assert(i == partition.size)
   }
 
-  it should "aggregate messages with edge scan and active set" in {
+  it should "aggregate messages with active set" in {
     val partition = buildTestPartition.withActiveSet((0 to 5).iterator.map(_.toLong))
-    val it = partition.aggregateMessagesEdgeScan[Int](
-      context => context.sendToDst(1),
-      _ + _,
-      TripletFields.None,
-      EdgeActiveness.Both
-    )
-
-    var i = 0
-    while (it.hasNext) {
-      val (_, attr) = it.next()
-      assert(attr == 1)
-      i += 1
-    }
-
-    assert(i - 1 == partition.size / 2)
-  }
-
-  it should "aggregate messages with source index scan" in {
-    val partition = buildTestPartition
-    val it = partition.aggregateMessagesSrcIndexScan[Int](
-      context => context.sendToDst(1),
-      _ + _,
-      TripletFields.None,
-      EdgeActiveness.Neither
-    )
-
-    var i = 0
-    while (it.hasNext) {
-      val (_, attr) = it.next()
-      assert(attr == 1)
-      i += 1
-    }
-    assert(i == partition.size)
-  }
-
-  it should "aggregate messages with source index scan and active set" in {
-    val partition = buildTestPartition.withActiveSet((0 to 5).iterator.map(_.toLong))
-    val it = partition.aggregateMessagesSrcIndexScan[Int](
-      context => context.sendToDst(1),
-      _ + _,
-      TripletFields.None,
-      EdgeActiveness.Both
-    )
-
-    var i = 0
-    while (it.hasNext) {
-      val (_, attr) = it.next()
-      assert(attr == 1)
-      i += 1
-    }
-
-    assert(i - 1 == partition.size / 2)
-  }
-
-  it should "aggregate messages with destination index scan" in {
-    val partition = buildTestPartition
-    val it = partition.aggregateMessagesDstIndexScan[Int](
-      context => context.sendToDst(1),
-      _ + _,
-      TripletFields.None,
-      EdgeActiveness.Neither
-    )
-
-    var i = 0
-    while (it.hasNext) {
-      val (_, attr) = it.next()
-      assert(attr == 1)
-      i += 1
-    }
-    assert(i == partition.size)
-  }
-
-  it should "aggregate messages with destination index scan and active set" in {
-    val partition = buildTestPartition.withActiveSet((0 to 5).iterator.map(_.toLong))
-    val it = partition.aggregateMessagesDstIndexScan[Int](
+    val it = partition.aggregateMessages[Int](
       context => context.sendToDst(1),
       _ + _,
       TripletFields.None,
