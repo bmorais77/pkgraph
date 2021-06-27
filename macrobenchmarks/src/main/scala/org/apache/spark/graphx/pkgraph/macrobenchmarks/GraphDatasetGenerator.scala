@@ -20,7 +20,7 @@ object GraphDatasetGenerator {
     assert(args.length == 3, "Wrong usage: graph-dataset-generator <size> <density> <output-dir>")
     val size = args(0).toInt
     val density = math.max(0, math.min(args(1).toInt, 100))
-    val densityPercentage = density / 100
+    val densityPercentage = density / 100.0
 
     val outputDir = s"${args(2)}/graph-dataset-$size-$density-generated"
     createOutputDirectory(s"$outputDir")
