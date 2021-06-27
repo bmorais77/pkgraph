@@ -112,7 +112,7 @@ class PKEdgePartitionSpec extends FlatSpec {
       builder.add(edge.srcId, edge.dstId, edge.attr)
     }
 
-    val partition = builder.build
+    val partition = builder.build()
     val newEdges = Array(
       Edge[Int](1, 1, 1),
       Edge[Int](1, 2, 2),
@@ -180,7 +180,7 @@ class PKEdgePartitionSpec extends FlatSpec {
       builder.add(i, i + 1, i)
     }
 
-    val partition = builder.build
+    val partition = builder.build()
     var i = 0
     val it = partition.iterator
     while (it.hasNext) {
@@ -291,7 +291,7 @@ class PKEdgePartitionSpec extends FlatSpec {
       builder.add(i, i, i)
     }
 
-    val p2 = builder.build
+    val p2 = builder.build()
     val joinedPartition = p1.innerJoin(p2)((_, _, attr1, attr2) => attr1 + attr2)
     val it = joinedPartition.iterator
     assert(!it.hasNext)
@@ -349,7 +349,7 @@ class PKEdgePartitionSpec extends FlatSpec {
       builder.add(src, dst, src + dst)
     }
 
-    builder.build
+    builder.build()
   }
 
   private def buildTestPartition: PKEdgePartition[Int, Int] = {
@@ -357,6 +357,6 @@ class PKEdgePartitionSpec extends FlatSpec {
     for (i <- 0 until 10) {
       builder.add(i, i, i)
     }
-    builder.build
+    builder.build()
   }
 }

@@ -1,15 +1,14 @@
 package org.apache.spark.graphx.pkgraph.graph
 
-import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder
+import org.apache.spark.graphx.pkgraph.compression.{K2TreeBuilder, K2TreeIndex}
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.graphx.{Edge, VertexId}
 import org.apache.spark.util.collection.PrimitiveVector
 
-import scala.collection.mutable
 import scala.reflect.ClassTag
 
-private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (k: Int, size: Int) {
-  private val edges = new PrimitiveVector[Edge[E]](size)
+private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (k: Int, initialCapacity: Int) {
+  private val edges = new PrimitiveVector[Edge[E]](initialCapacity)
 
   private var startX: Long = Long.MaxValue
   private var startY: Long = Long.MaxValue
@@ -32,46 +31,65 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
     endY = math.max(endY, dst)
   }
 
-  def build: PKEdgePartition[V, E] = {
+  def build(): PKEdgePartition[V, E] = {
+    // Special case of empty partition
+    if (edges.length == 0) {
+      return PKEdgePartition.empty
+    }
+
     val k2 = k * k
 
     // Align origin to nearest multiple of K
     val srcOffset = if (startX % k2 == 0) startX else startX / k2
     val dstOffset = if (startY % k2 == 0) startY else startY / k2
+    val matrixSize = math.max(endX - srcOffset + 1, endY - dstOffset + 1).toInt
 
-    val edgeArray = edges.trim().array
-    val treeBuilder = if (edgeArray.isEmpty) {
-      K2TreeBuilder(k, 0)
-    } else {
-      K2TreeBuilder(k, math.max(endX - srcOffset + 1, endY - dstOffset + 1).toInt)
-    }
+    val builder = K2TreeBuilder(k, matrixSize)
+    val sortedEdges = edges
+      .trim()
+      .array
+      .map { edge =>
+        val line = (edge.srcId - srcOffset).toInt
+        val col = (edge.dstId - dstOffset).toInt
+        (K2TreeIndex.fromEdge(k, builder.height, line, col), edge)
+      }
+      .sortBy(e => e._1)
+      .map(_._2)
 
-    val sortedEdges = mutable.TreeSet[(Int, Edge[E])]()((a, b) => a._1 - b._1)
-    for (edge <- edgeArray) {
-      val localSrcId = (edge.srcId - srcOffset).toInt
-      val localDstId = (edge.dstId - dstOffset).toInt
-      val index = treeBuilder.addEdge(localSrcId, localDstId)
+    for (edge <- sortedEdges) {
+      val line = (edge.srcId - srcOffset).toInt
+      val col = (edge.dstId - dstOffset).toInt
 
       // Our solution does not support multi-graphs, so we ignore repeated edges
-      sortedEdges.add((index, edge))
+      builder.addEdge(line, col)
     }
 
     // Traverse sorted edges to construct global2local map
     val global2local = new GraphXPrimitiveKeyOpenHashMap[VertexId, Int]
     var currLocalId = -1
-    for ((_, edge) <- sortedEdges) {
+    for (edge <- sortedEdges) {
       global2local.changeValue(edge.srcId, { currLocalId += 1; currLocalId }, identity)
       global2local.changeValue(edge.dstId, { currLocalId += 1; currLocalId }, identity)
     }
 
-    val edgeAttrs = sortedEdges.toArray.map(_._2.attr)
+    val edgeAttrs = sortedEdges.map(_.attr)
     val vertexAttrs = new Array[V](currLocalId + 1)
-    new PKEdgePartition[V, E](vertexAttrs, global2local, edgeAttrs, treeBuilder.build, srcOffset, dstOffset, None)
+    new PKEdgePartition[V, E](vertexAttrs, global2local, edgeAttrs, builder.build(), srcOffset, dstOffset, None)
   }
 }
 
 object PKEdgePartitionBuilder {
-  def apply[V: ClassTag, E: ClassTag](k: Int, size: Int = 64): PKEdgePartitionBuilder[V, E] = {
-    new PKEdgePartitionBuilder[V, E](k, size)
+
+  /**
+    * Creates a new partition builder.
+    *
+    * @param k                    Value of K²-Tree
+    * @param initialCapacity      Initial capacity of edges
+    * @tparam V                   Type of vertex attributes
+    * @tparam E                   Type of edge attributes
+    * @return new empty partition builder
+    */
+  def apply[V: ClassTag, E: ClassTag](k: Int, initialCapacity: Int = 64): PKEdgePartitionBuilder[V, E] = {
+    new PKEdgePartitionBuilder[V, E](k, initialCapacity)
   }
 }

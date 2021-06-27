@@ -90,7 +90,7 @@ class K2TreeSpec extends FlatSpec {
     * L: 0011 0010 0110 0100 1000 1000
     */
   it should "build from 8x8 matrix k=2 (2)" in {
-    val edges = Array((1, 0), (1, 1), (2, 1), (3, 0), (1, 2), (2, 5), (6, 2), (6, 6))
+    val edges = Array((1, 0), (1, 1), (1, 2), (2, 1), (3, 0), (2, 5), (6, 2), (6, 6))
     val tree = K2Tree(2, 8, edges)
 
     assert(tree.k == 2)
@@ -101,10 +101,10 @@ class K2TreeSpec extends FlatSpec {
   /**
     * Matrix 16x16:
     * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-    * | 1   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
     * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 1   0   0   0 |
     * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-    * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
+    * | 0   0   0   1 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
     * |---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---|
     * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
     * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
@@ -122,16 +122,16 @@ class K2TreeSpec extends FlatSpec {
     * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
     * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
     *
-    * T: 1111 1000 0100 0010 1000 1000 1000 0100 0100
-    * L: 1000 0010 0010 0100
+    * T: 1111 1000 0100 0010 1000 0001 1000 0100 0100
+    * L: 0001 0010 0010 0100
     */
   it should "build from 16x16 matrix k=2 (1)" in {
-    val edges = Array((0, 0), (1, 12), (13, 2), (8, 11))
+    val edges = Array((3, 3), (1, 12), (13, 2), (8, 11))
     val tree = K2Tree(2, 16, edges)
 
     assert(tree.k == 2)
     assert(tree.size == 16)
-    assertBitSet(tree.bits, "1111 1000 0100 0010 1000 1000 1000 0100 0100 1000 0010 0010 0100")
+    assertBitSet(tree.bits, "1111 1000 0100 0010 1000 0001 1000 0100 0100 0001 0010 0010 0100")
   }
 
   /**
@@ -162,7 +162,7 @@ class K2TreeSpec extends FlatSpec {
     * L: 1000000000000000 0000100000000000 0001000000000000 0000001000000000
     */
   it should "build from 16x16 matrix k=4 (1)" in {
-    val edges = Array((0, 0), (1, 12), (13, 2), (8, 11))
+    val edges = Array((0, 0), (1, 12), (8, 11), (13, 2))
     val tree = K2Tree(4, 16, edges)
 
     assert(tree.k == 4)
@@ -193,7 +193,7 @@ class K2TreeSpec extends FlatSpec {
     * L: 0011 0010 0110 0100 1000 1000
     */
   it should "build from a size that is not a power of k" in {
-    val edges = Array((1, 0), (1, 1), (2, 1), (3, 0), (1, 2), (2, 5), (6, 2), (6, 6))
+    val edges = Array((1, 0), (1, 1), (1, 2), (2, 1), (3, 0), (2, 5), (6, 2), (6, 6))
     val tree = K2Tree(2, 5, edges)
 
     assert(tree.k == 2)
@@ -214,383 +214,29 @@ class K2TreeSpec extends FlatSpec {
     * L: 1111 1111 1111 1111
     */
   it should "build from a complete edge list" in {
-    val edges = (0 until 4).flatMap(i => (0 until 4).map(j => (i, j))).toArray
+    val edges = Array(
+      (0, 0),
+      (0, 1),
+      (1, 0),
+      (1, 1),
+      (0, 2),
+      (0, 3),
+      (1, 2),
+      (1, 3),
+      (2, 0),
+      (2, 1),
+      (3, 0),
+      (3, 1),
+      (2, 2),
+      (2, 3),
+      (3, 2),
+      (3, 3)
+    )
     val tree = K2Tree(2, 4, edges)
 
     assert(tree.k == 2)
     assert(tree.size == 4)
     assertBitSet(tree.bits, "1111 1111 1111 1111 1111")
-  }
-
-  /**
-   * - Before:
-   *
-   * Matrix 4x4:
-   * +---+---+---+---+
-   * | 0   0   0   0 |
-   * | 1   1   0   0 |
-   * | 0   1   0   0 |
-   * | 1   0   0   0 |
-   * +---+---+---+---+
-   *
-   * T: 1010
-   * L: 0011 0110
-   *
-   * - After:
-   *
-   * Matrix 8x8:
-   * +---+---+---+---+---+---+---+---+
-   * | 0   0   0   0   0   0   0   0 |
-   * | 1   1   0   0   0   0   0   0 |
-   * | 0   1   0   0   0   0   0   0 |
-   * | 1   0   0   0   0   0   0   0 |
-   * | 0   0   0   0   0   0   0   0 |
-   * | 0   0   0   0   0   0   0   0 |
-   * | 0   0   0   0   0   0   0   0 |
-   * | 0   0   0   0   0   0   0   0 |
-   * +---+---+---+---+---+---+---+---+
-   *
-   * T: 1000 1010
-   * L: 0011 0110
-   */
-  it should "grow tree" in {
-    val edges = Array((1, 0), (1, 1), (2, 1), (3, 0))
-    val tree = K2Tree(2, 4, edges)
-    assert(tree.k == 2)
-    assert(tree.size == 4)
-    assertBitSet(tree.bits, "1010 0011 0110")
-
-    val newTree = tree.grow(8)
-    assert(newTree.k == 2)
-    assert(newTree.size == 8)
-    assertBitSet(newTree.bits, "1000 1010 0011 0110")
-  }
-
-  /**
-   * - Before:
-   *
-   * Matrix 4x4:
-   * +---+---+---+---+
-   * | 0   0   0   0 |
-   * | 1   1   0   0 |
-   * | 0   1   0   0 |
-   * | 1   0   0   0 |
-   * +---+---+---+---+
-   *
-   * T: 1010
-   * L: 0011 0110
-   *
-   * - After:
-   *
-   * Matrix 16x16:
-   * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 1   1   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   1   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 1   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * |---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---|
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * |---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---|
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-   *
-   * T: 1000 1000 1010
-   * L: 0011 0110
-   */
-  it should "grow tree with multiple level change" in {
-    val edges = Array((1, 0), (1, 1), (2, 1), (3, 0))
-    val tree = K2Tree(2, 4, edges)
-    assert(tree.k == 2)
-    assert(tree.size == 4)
-    assertBitSet(tree.bits, "1010 0011 0110")
-
-    val newTree = tree.grow(16)
-    assert(newTree.k == 2)
-    assert(newTree.size == 16)
-    assertBitSet(newTree.bits, "1000 1000 1010 0011 0110")
-  }
-
-  /**
-   * - Before:
-   *
-   * Matrix 4x4:
-   * +---+---+---+---+
-   * | 0   0   0   0 |
-   * | 1   1   0   0 |
-   * | 0   1   0   0 |
-   * | 1   0   0   0 |
-   * +---+---+---+---+
-   *
-   * T: 1010
-   * L: 0011 0110
-   *
-   * - After:
-   *
-   * Matrix 8x8:
-   * +---+---+---+---+---+---+---+---+
-   * | 0   0   0   0   0   0   0   0 |
-   * | 0   0   0   0   0   0   0   0 |
-   * | 0   0   0   0   0   0   0   0 |
-   * | 0   0   0   0   0   0   0   0 |
-   * | 0   0   0   0   0   0   0   0 |
-   * | 0   0   0   0   1   1   0   0 |
-   * | 0   0   0   0   0   1   0   0 |
-   * | 0   0   0   0   1   0   0   0 |
-   * +---+---+---+---+---+---+---+---+
-   *
-   * T: 0001 1010
-   * L: 0011 0110
-   */
-  it should "grow tree in inverse direction" in {
-    val edges = Array((1, 0), (1, 1), (2, 1), (3, 0))
-    val tree = K2Tree(2, 4, edges)
-    assert(tree.k == 2)
-    assert(tree.size == 4)
-    assertBitSet(tree.bits, "1010 0011 0110")
-
-    val newTree = tree.grow(8, inverse = true)
-    assert(newTree.k == 2)
-    assert(newTree.size == 8)
-    assertBitSet(newTree.bits, "0001 1010 0011 0110")
-  }
-
-  /**
-   * - Before:
-   *
-   * Matrix 4x4:
-   * +---+---+---+---+
-   * | 0   0   0   0 |
-   * | 1   1   0   0 |
-   * | 0   1   0   0 |
-   * | 1   0   0   0 |
-   * +---+---+---+---+
-   *
-   * T: 1010
-   * L: 0011 0110
-   *
-   * - After:
-   *
-   * Matrix 16x16:
-   * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * |---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---|
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * |---+---+---+---|---+---+---+---|---+---+---+---|---+---+---+---|
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 1   1   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 0   1   0   0 |
-   * | 0   0   0   0 | 0   0   0   0 | 0   0   0   0 | 1   0   0   0 |
-   * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-   *
-   * T: 0001 0001 1010
-   * L: 0011 0110
-   */
-  it should "grow tree in inverse direction with multiple level change" in {
-    val edges = Array((1, 0), (1, 1), (2, 1), (3, 0))
-    val tree = K2Tree(2, 4, edges)
-    assert(tree.k == 2)
-    assert(tree.size == 4)
-    assertBitSet(tree.bits, "1010 0011 0110")
-
-    val newTree = tree.grow(16, inverse = true)
-    assert(newTree.k == 2)
-    assert(newTree.size == 16)
-    assertBitSet(newTree.bits, "0001 0001 1010 0011 0110")
-  }
-
-  /**
-    * - Before append:
-    *
-    * Matrix 4x4:
-    * +---+---+---+---+
-    * | 0   0   0   0 |
-    * | 1   1   0   0 |
-    * | 0   1   0   0 |
-    * | 1   0   0   0 |
-    * +---+---+---+---+
-    *
-    * T: 1010
-    * L: 0011 0110
-    *
-    * - After append:
-    *
-    * Matrix 4x4:
-    * +---+---+---+---+
-    * | 0   0   1   1 |
-    * | 1   1   0   0 |
-    * | 0   1   0   1 |
-    * | 1   0   1   0 |
-    * +---+---+---+---+
-    *
-    * T: 1111
-    * L: 0011 1100 0110 0110
-    */
-  it should "append new edges without growing matrix" in {
-    val edges = Array((1, 0), (1, 1), (2, 1), (3, 0))
-    val tree = K2Tree(2, 4, edges)
-
-    assert(tree.k == 2)
-    assert(tree.size == 4)
-    assertBitSet(tree.bits, "1010 0011 0110")
-
-    val newEdges = Array((0, 2), (0, 3), (2, 3), (3, 2))
-    val newTree = tree.addAll(4, newEdges)
-
-    assert(newTree.k == 2)
-    assert(newTree.size == 4)
-    assertBitSet(newTree.bits, "1111 0011 1100 0110 0110")
-  }
-
-  /**
-    * - Before append:
-    *
-    * Matrix 4x4:
-    * +---+---+---+---+
-    * | 0   0   0   0 |
-    * | 1   1   0   0 |
-    * | 0   1   0   0 |
-    * | 1   0   0   0 |
-    * +---+---+---+---+
-    *
-    * T: 1010
-    * L: 0011 0110
-    *
-    * - After append:
-    *
-    * Matrix 8x8:
-    * +---+---+---+---+---+---+---+---+
-    * | 0   0   0   0   0   0   0   0 |
-    * | 1   1   1   0   0   0   0   0 |
-    * | 0   1   0   0   0   1   0   0 |
-    * | 1   0   0   0   0   0   0   0 |
-    * | 0   0   0   0   0   0   0   0 |
-    * | 0   0   0   0   0   0   0   0 |
-    * | 0   0   1   0   0   0   1   0 |
-    * | 0   0   0   0   0   0   0   0 |
-    * +---+---+---+---+---+---+---+---+
-    *
-    * T: 1111 1110 0010 0001 0001
-    * L: 0011 0010 0110 0100 1000 1000
-    */
-  it should "append new edges with growing matrix" in {
-    val edges = Array((1, 0), (1, 1), (2, 1), (3, 0))
-    val tree = K2Tree(2, 4, edges)
-
-    assert(tree.k == 2)
-    assert(tree.size == 4)
-    assertBitSet(tree.bits, "1010 0011 0110")
-
-    val newEdges = Array((1, 2), (2, 5), (6, 2), (6, 6))
-    val newTree = tree.addAll(8, newEdges)
-
-    assert(newTree.k == 2)
-    assert(newTree.size == 8)
-    assertBitSet(newTree.bits, "1111 1110 0010 0001 0001 0011 0010 0110 0100 1000 1000")
-  }
-
-  /**
-    * - Before removing:
-    *
-    * Matrix 4x4:
-    * +---+---+---+---+
-    * | 0   0   1   1 |
-    * | 1   1   0   0 |
-    * | 0   1   0   1 |
-    * | 1   0   1   0 |
-    * +---+---+---+---+
-    *
-    * T: 1111
-    * L: 0011 1100 0110 0110
-    *
-    * - After removing:
-    *
-    * Matrix 4x4:
-    * +---+---+---+---+
-    * | 0   0   0   1 |
-    * | 1   1   0   0 |
-    * | 0   1   0   0 |
-    * | 1   0   0   0 |
-    * +---+---+---+---+
-    *
-    * T: 1110
-    * L: 0011 0100 0110
-    */
-  it should "remove edges without shrinking matrix" in {
-    val edges = Array((1, 0), (1, 1), (2, 1), (3, 0), (0, 2), (0, 3), (2, 3), (3, 2))
-    val tree = K2Tree(2, 4, edges)
-
-    assert(tree.k == 2)
-    assert(tree.size == 4)
-    assertBitSet(tree.bits, "1111 0011 1100 0110 0110")
-
-    val removedEdges = Array((2, 3), (3, 2), (0, 2))
-    val newTree = tree.removeAll(removedEdges)
-
-    assert(newTree.k == 2)
-    assert(newTree.size == 4)
-    assertBitSet(newTree.bits, "1110 0011 0100 0110")
-  }
-
-  /**
-    * - Before removing:
-    *
-    * Matrix 4x4:
-    * +---+---+---+---+
-    * | 0   0   1   1 |
-    * | 1   1   0   0 |
-    * | 0   1   0   1 |
-    * | 1   0   1   0 |
-    * +---+---+---+---+
-    *
-    * T: 1111
-    * L: 0011 1100 0110 0110
-    *
-    * - After removing:
-    *
-    * Matrix 2x2:
-    * +---+---+
-    * | 0   0 |
-    * | 1   1 |
-    * +---+---+
-    *
-    * L: 0011
-    */
-  it should "remove edges with shrinking matrix" in {
-    val edges = Array((1, 0), (1, 1), (2, 1), (3, 0), (0, 2), (0, 3), (2, 3), (3, 2))
-    val tree = K2Tree(2, 4, edges)
-
-    assert(tree.k == 2)
-    assert(tree.size == 4)
-    assertBitSet(tree.bits, "1111 0011 1100 0110 0110")
-
-    val removedEdges = Array((0, 2), (0, 3), (2, 3), (3, 2), (2, 1), (3, 0))
-    val newTree = tree.removeAll(removedEdges).trim()
-
-    assert(newTree.k == 2)
-    assert(newTree.size == 2)
-    assertBitSet(newTree.bits, "0011")
   }
 
   /**

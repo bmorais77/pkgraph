@@ -5,12 +5,11 @@ import org.apache.spark.graphx.pkgraph.compression.K2TreeIndex
 
 import scala.reflect.ClassTag
 
-private[graph] class PKEdgeComparator[E1: ClassTag, E2: ClassTag](
+private[pkgraph] class PKEdgeComparator[E1: ClassTag, E2: ClassTag](
     part1: PKEdgePartition[_, E1],
     part2: PKEdgePartition[_, E2]
 ) {
-  private val tree1Height = part1.tree.height
-  private val height = math.max(tree1Height, part2.tree.height)
+  private val height = math.max(part1.tree.height, part2.tree.height)
   private val srcOffset = math.min(part1.srcOffset, part2.srcOffset)
   private val dstOffset = math.min(part1.dstOffset, part2.dstOffset)
 
