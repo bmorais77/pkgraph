@@ -4,9 +4,8 @@ import org.apache.spark.graphx._
 import org.apache.spark.graphx.impl.EdgeActiveness
 import org.apache.spark.graphx.pkgraph.compression.K2Tree
 import org.apache.spark.graphx.pkgraph.util.collection.Bitset
-import org.apache.spark.graphx.pkgraph.util.mathx
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
-import org.apache.spark.util.collection.{OpenHashSet, PrimitiveVector}
+import org.apache.spark.util.collection.OpenHashSet
 
 import scala.reflect.ClassTag
 
@@ -102,7 +101,7 @@ private[pkgraph] class PKEdgePartition[
     val builder = PKEdgePartitionBuilder[V, E](tree.k, tree.size)
 
     // Add existing edges
-    foreach { edge =>
+    for (edge <- iterator) {
       builder.add(edge.srcId, edge.dstId, edge.attr)
     }
 
@@ -133,7 +132,7 @@ private[pkgraph] class PKEdgePartition[
     val builder = PKEdgePartitionBuilder[V, E](tree.k, tree.size)
 
     // Add existing edges expect from removed vertices
-    foreach { edge =>
+    for (edge <- iterator) {
       val line = (edge.srcId - srcOffset).toInt
       val col = (edge.dstId - dstOffset).toInt
 
@@ -180,7 +179,7 @@ private[pkgraph] class PKEdgePartition[
     val builder = PKEdgePartitionBuilder[V, E](tree.k, tree.size)
 
     // Traverse all edges and reverse their source/destination vertices
-    foreach { edge =>
+    for (edge <- iterator) {
       builder.add(edge.dstId, edge.srcId, edge.attr)
     }
 
@@ -202,7 +201,7 @@ private[pkgraph] class PKEdgePartition[
     val newData = new Array[E2](edgeAttrs.length)
     var i = 0
 
-    foreach { edge =>
+    for (edge <- iterator) {
       newData(i) = f(edge)
       i += 1
     }
@@ -246,7 +245,7 @@ private[pkgraph] class PKEdgePartition[
     val builder = PKExistingEdgePartitionBuilder[V, E](this)
 
     var i = 0
-    foreach { edge =>
+    for (edge <- iterator) {
       // The user sees the EdgeTriplet, so we can't reuse it and must create one per edge.
       val triplet = new EdgeTriplet[V, E]
       triplet.srcId = edge.srcId
@@ -309,7 +308,6 @@ private[pkgraph] class PKEdgePartition[
       return builder.build()
     }
 
-    // TODO: Check if we can optimize the comparator by asserting that both partitions have the same K
     val comparator = new PKEdgeComparator[E, E2](this, other)
     val it1 = iterator
     val it2 = other.iterator
@@ -322,7 +320,6 @@ private[pkgraph] class PKEdgePartition[
         edge2 = it2.next()
       }
 
-      // TODO: Possible problem here?
       if (edge1.srcId == edge2.srcId && edge1.dstId == edge2.dstId) {
         builder.addEdge(edge1.srcId, edge1.dstId, f(edge1.srcId, edge1.dstId, edge1.attr, edge2.attr))
       }
@@ -420,12 +417,12 @@ private[pkgraph] class PKEdgePartition[
       tripletFields: TripletFields,
       activeness: EdgeActiveness
   ): Iterator[(VertexId, A)] = {
-    val ctx = PKAggregatingEdgeContext[V, E, A](mergeMsg)
-    foreach { edge =>
+    val ctx = new PKAggregatingEdgeContext[V, E, A](vertexAttrs.length, mergeMsg)
+    for (edge <- iterator) {
       if (isEdgeActive(edge.srcId, edge.dstId, activeness)) {
         val srcAttr = if (tripletFields.useSrc) vertexAttribute(edge.srcId) else null.asInstanceOf[V]
         val dstAttr = if (tripletFields.useDst) vertexAttribute(edge.dstId) else null.asInstanceOf[V]
-        ctx.set(edge.srcId, edge.dstId, srcAttr, dstAttr, edge.attr)
+        ctx.set(edge.srcId, edge.dstId, global2local(edge.srcId), global2local(edge.dstId), srcAttr, dstAttr, edge.attr)
         sendMsg(ctx)
       }
     }

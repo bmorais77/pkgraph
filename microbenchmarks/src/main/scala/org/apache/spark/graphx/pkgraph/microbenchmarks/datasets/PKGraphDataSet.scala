@@ -16,7 +16,7 @@ object PKGraphDataSet {
 
   def buildPartitionsWithVertices(k: Int, sparsity: Float): Gen[PKEdgePartition[Int, Int]] = {
     for { partition <- buildPartitions(k, sparsity) } yield {
-      val vertices = (0 until partition.tree.size).map(i => (i.toLong, i * 10))
+      val vertices = partition.vertexAttrs.indices.map(i => (i.toLong, i * 10))
       partition.updateVertices(vertices.iterator)
     }
   }

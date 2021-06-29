@@ -64,8 +64,10 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
       builder.addEdge(line, col)
     }
 
+    val tree = builder.build()
+
     // Traverse sorted edges to construct global2local map
-    val global2local = new GraphXPrimitiveKeyOpenHashMap[VertexId, Int]
+    val global2local = new GraphXPrimitiveKeyOpenHashMap[VertexId, Int](tree.size)
     var currLocalId = -1
     for (edge <- sortedEdges) {
       global2local.changeValue(edge.srcId, { currLocalId += 1; currLocalId }, identity)
@@ -74,7 +76,7 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
 
     val edgeAttrs = sortedEdges.map(_.attr)
     val vertexAttrs = new Array[V](currLocalId + 1)
-    new PKEdgePartition[V, E](vertexAttrs, global2local, edgeAttrs, builder.build(), srcOffset, dstOffset, None)
+    new PKEdgePartition[V, E](vertexAttrs, global2local, edgeAttrs, tree, srcOffset, dstOffset, None)
   }
 }
 
