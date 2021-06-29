@@ -1,0 +1,4 @@
+------------- [METRICS | PKGraph8 | triangleCount | graph-dataset-1000-100-generated] -------------
+- Stage Count: 0
+- Total Time: 562 ms (start: 1624964124127, end: 1624964124689)
+------------- [METRICS | END] -------------
