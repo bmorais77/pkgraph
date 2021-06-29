@@ -45,7 +45,7 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int) {
       val levelIndex = parentOffset + childIndex
 
       // Bitset has no more space, we need to grow
-      if (levelIndex >= cursor.bits.capacity) {
+      while (levelIndex >= cursor.bits.capacity) {
         cursor.bits = cursor.bits.grow(cursor.bits.capacity * 2)
       }
 
