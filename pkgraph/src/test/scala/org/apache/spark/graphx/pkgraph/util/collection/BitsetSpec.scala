@@ -2,9 +2,9 @@ package org.apache.spark.graphx.pkgraph.util.collection
 
 import org.scalatest.FlatSpec
 
-class PKBitSetSpec extends FlatSpec {
+class BitsetSpec extends FlatSpec {
   "A PKBitSet" should "count the number of bits between range" in {
-    val bits = new PKBitSet(64 * 3)
+    val bits = new Bitset(64 * 3)
 
     // 1st word
     bits.set(0)

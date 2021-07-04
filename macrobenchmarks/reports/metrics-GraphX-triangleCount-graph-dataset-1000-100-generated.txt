@@ -1,0 +1,4 @@
+------------- [METRICS | GraphX | triangleCount | graph-dataset-1000-100-generated] -------------
+- Stage Count: 0
+- Total Time: 495 ms (start: 1624964147580, end: 1624964148075)
+------------- [METRICS | END] -------------

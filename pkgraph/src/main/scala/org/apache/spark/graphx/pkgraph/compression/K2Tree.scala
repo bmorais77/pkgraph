@@ -1,14 +1,12 @@
 package org.apache.spark.graphx.pkgraph.compression
 
-import org.apache.spark.graphx.pkgraph.util.collection.PKBitSet
+import org.apache.spark.graphx.pkgraph.util.collection.Bitset
 import org.apache.spark.graphx.pkgraph.util.mathx
-
-import scala.collection.mutable.ArrayBuffer
 
 class K2Tree(
     val k: Int,
     val size: Int,
-    val bits: PKBitSet,
+    val bits: Bitset,
     val internalCount: Int,
     val leavesCount: Int
 ) extends Serializable {
@@ -25,7 +23,7 @@ class K2Tree(
     *
     * @return height
     */
-  def height: Int = if(isEmpty) 0 else math.ceil(mathx.log(k, size)).toInt
+  def height: Int = if (isEmpty) 0 else math.ceil(mathx.log(k, size)).toInt
 
   /**
     * Returns whether this tree is empty or not.
@@ -49,129 +47,12 @@ class K2Tree(
   def iterator: Iterator[(Int, Int)] = new K2TreeIterator(this)
 
   /**
-    * Returns a new K²-Tree with the given edges added.
+    * Calls the given function for each edge stored in this K²-Tree.
     *
-    * @param newSize Size of the adjacency matrix of the K²-Tree (i.e maximum line/col index rounded to nearest power of k)
-    * @param edges   Edges to append to this K²-Tree
-    * @return new K²-Tree from appending the given edges to the existing tree
+    * @param f   User function ((line, col) => Unit)
     */
-  def addAll(newSize: Int, edges: Array[(Int, Int)]): K2Tree = {
-    val builder = K2TreeBuilder.fromK2Tree(grow(newSize))
-    builder.addEdges(edges)
-    builder.build
-  }
-
-  /**
-    * Returns a new K²-Tree with the given edges removed.
-    *
-    * @param edges Edges to remove from this K²-Tree
-    * @return new K²-Tree with the given edges removed
-    */
-  def removeAll(edges: Array[(Int, Int)]): K2Tree = {
-    val builder = K2TreeBuilder.fromK2Tree(this)
-    builder.removeEdges(edges)
-    builder.build
-  }
-
-  /**
-    * Grows this K²-Tree to the new given size.
-    * All edges are kept.
-    *
-    * @param newSize New size to grow to
-    * @param inverse True if the tree should go left and up, false to grow the tree right and down
-    * @return K²-Tree representing a adjacency matrix with the given new size.
-    */
-  def grow(newSize: Int, inverse: Boolean = false): K2Tree = {
-    if (newSize <= size) {
-      return this
-    }
-
-    val k2 = k * k
-    val levelChange = (newSize / size) / k
-    val internalOffset = levelChange * k2
-    val bitCount = internalOffset + length
-
-    // Prefix the tree with K² bits for every level change
-    val tree = new PKBitSet(bitCount)
-    for (i <- 0 until levelChange) {
-      // Inverse places a bit in the final child node of the given level
-      // example: 0001
-      //
-      // When inverse is false a bit is placed in the first child node of the given level
-      // example: 1000
-      val index = if (inverse) ((i + 1) * k2) - 1 else i * k2
-      tree.set(index)
-    }
-
-    // Add the original bits in the K²-Tree
-    for (i <- 0 until length) {
-      if (bits.get(i)) {
-        tree.set(internalOffset + i)
-      }
-    }
-
-    new K2Tree(k, newSize, tree, internalOffset + internalCount, leavesCount)
-  }
-
-  /**
-    * Builds a new K²-Tree with the minimum required size to store all edges.
-    * It is possible that the size is not changed if it's not possible to reduce the
-    * size of the K²-Tree anymore.
-    *
-    * @return new K²-Tree with the minimum required size
-    */
-  def trim(): K2Tree = {
-    // Cannot reduce a K²-Tree anymore than K
-    if (size == k) {
-      return this
-    }
-
-    val quadrantSize = size / k
-    val last = quadrantSize - 1
-    var shrink = true
-
-    // Checks the last quadrants at the top level
-    // If all are empty, then we can reduce the entire K²-Tree by one level
-    var i = 0
-    while (shrink && i < quadrantSize) {
-      val lineIndex = i * quadrantSize + last
-      val colIndex = last * quadrantSize + i
-
-      if (bits.get(lineIndex) || bits.get(colIndex)) {
-        shrink = false
-      }
-
-      i += 1
-    }
-
-    // Cannot shrink anymore
-    if (!shrink) {
-      return this
-    }
-
-    // Remove the first K² bits from the bitset
-    val k2 = k * k
-    val newBitCount = length - k2
-    val tree = new PKBitSet(newBitCount)
-
-    for (i <- 0 until newBitCount) {
-      if (bits.get(k2 + i)) {
-        tree.set(i)
-      }
-    }
-
-    // Keep trying to trim the tree
-    val newTree = new K2Tree(k, size / k, tree, internalCount - k2, leavesCount)
-    newTree.trim()
-  }
-
-  /**
-   * Calls the given function for each edge stored in this K²-Tree.
-   *
-   * @param f   User function ((line, col) => Unit)
-   */
-  def forEachEdge(f: (Int, Int) => Unit): Unit = {
-    if(isEmpty) {
+  def foreach(f: (Int, Int) => Unit): Unit = {
+    if (isEmpty) {
       return
     }
 
@@ -193,13 +74,6 @@ class K2Tree(
 
     recursiveNavigation(size, 0, 0, -1)
   }
-
-  /**
-    * Returns a [[K2TreeBuilder]] with the edges from this tree already added.
-    *
-    * @return [[K2TreeBuilder]] from this tree
-    */
-  final def toBuilder: K2TreeBuilder = K2TreeBuilder.fromK2Tree(this)
 
   /**
     * Rank operation of the K²-Tree.
@@ -224,7 +98,9 @@ object K2Tree {
     */
   def apply(k: Int, size: Int, edges: Array[(Int, Int)]): K2Tree = {
     val builder = K2TreeBuilder(k, size)
-    builder.addEdges(edges)
-    builder.build
+    for ((line, col) <- edges) {
+      builder.addEdge(line, col)
+    }
+    builder.build()
   }
 }

@@ -35,7 +35,7 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
         }
 
         using(PKGraphDataSet.buildPartitions(2, density)) curve "PKGraph (k=2) (recursive)" in { partition =>
-          partition.tree.forEachEdge { (_, _) => }
+          partition.tree.foreach { (_, _) => }
         }
 
         using(PKGraphDataSet.buildPartitions(2, density)) curve "PKGraph (k=2) (iterator)" in { partition =>
@@ -46,7 +46,7 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
         }
 
         using(PKGraphDataSet.buildPartitions(4, density)) curve "PKGraph (k=4) (recursive)" in { partition =>
-          partition.tree.forEachEdge { (_, _) => }
+          partition.tree.foreach { (_, _) => }
         }
 
         using(PKGraphDataSet.buildPartitions(4, density)) curve "PKGraph (k=4) (iterator)" in { partition =>
@@ -57,7 +57,7 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
         }
 
         using(PKGraphDataSet.buildPartitions(8, density)) curve "PKGraph (k=8) (recursive)" in { partition =>
-          partition.tree.forEachEdge { (_, _) => }
+          partition.tree.foreach { (_, _) => }
         }
 
         using(PKGraphDataSet.buildPartitions(8, density)) curve "PKGraph (k=8) (iterator)" in { partition =>
@@ -154,7 +154,7 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
             .aggregateMessagesIndexScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.SrcOnly)
         }
 
-        using(PKGraphDataSet.buildPartitionsWithActiveVertices(2, density)) curve "PKGraph (k=2) (edges)" in {
+        using(PKGraphDataSet.buildPartitionsWithActiveVertices(2, density)) curve "PKGraph (k=2)" in {
           partition =>
             partition.aggregateMessages[Int](
               ctx => ctx.sendToSrc(10),
@@ -164,7 +164,7 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
             )
         }
 
-        using(PKGraphDataSet.buildPartitionsWithActiveVertices(2, density)) curve "PKGraph (k=2) (index)" in {
+        using(PKGraphDataSet.buildPartitionsWithActiveVertices(4, density)) curve "PKGraph (k=4)" in {
           partition =>
             partition.aggregateMessages[Int](
               ctx => ctx.sendToSrc(10),
@@ -174,37 +174,7 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
             )
         }
 
-        using(PKGraphDataSet.buildPartitionsWithActiveVertices(4, density)) curve "PKGraph (k=4) (edges)" in {
-          partition =>
-            partition.aggregateMessages[Int](
-              ctx => ctx.sendToSrc(10),
-              _ + _,
-              TripletFields.All,
-              EdgeActiveness.SrcOnly
-            )
-        }
-
-        using(PKGraphDataSet.buildPartitionsWithActiveVertices(4, density)) curve "PKGraph (k=4) (index)" in {
-          partition =>
-            partition.aggregateMessages[Int](
-              ctx => ctx.sendToSrc(10),
-              _ + _,
-              TripletFields.All,
-              EdgeActiveness.SrcOnly
-            )
-        }
-
-        using(PKGraphDataSet.buildPartitionsWithActiveVertices(8, density)) curve "PKGraph (k=8) (edges)" in {
-          partition =>
-            partition.aggregateMessages[Int](
-              ctx => ctx.sendToSrc(10),
-              _ + _,
-              TripletFields.All,
-              EdgeActiveness.SrcOnly
-            )
-        }
-
-        using(PKGraphDataSet.buildPartitionsWithActiveVertices(8, density)) curve "PKGraph (k=8) (index)" in {
+        using(PKGraphDataSet.buildPartitionsWithActiveVertices(8, density)) curve "PKGraph (k=8)" in {
           partition =>
             partition.aggregateMessages[Int](
               ctx => ctx.sendToSrc(10),

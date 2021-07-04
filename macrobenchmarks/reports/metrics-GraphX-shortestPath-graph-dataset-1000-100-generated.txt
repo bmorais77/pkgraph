@@ -1,0 +1,82 @@
+------------- [METRICS | GraphX | shortestPath | graph-dataset-1000-100-generated] -------------
+- Stage Count: 13
+- Total Time: 4673 ms (start: 1624964223247, end: 1624964227920)
+- Stage (0)
+	+ Name: map at GraphDatasetReader.scala:11
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 542 ms
+	+ Executor CPU Time: 356901057 ns (356 ms)
+- Stage (1)
+	+ Name: mapPartitions at VertexRDD.scala:356
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 1200 ms
+	+ Executor CPU Time: 1790835039 ns (1790 ms)
+- Stage (2)
+	+ Name: fold at VertexRDDImpl.scala:90
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 98 ms
+	+ Executor CPU Time: 111155066 ns (111 ms)
+- Stage (5)
+	+ Name: count at GraphOps.scala:280
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 36 ms
+	+ Executor CPU Time: 15025660 ns (15 ms)
+- Stage (8)
+	+ Name: collect at GraphOps.scala:282
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 21 ms
+	+ Executor CPU Time: 6672618 ns (6 ms)
+- Stage (12)
+	+ Name: mapPartitions at VertexRDDImpl.scala:247
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 58 ms
+	+ Executor CPU Time: 20456288 ns (20 ms)
+- Stage (11)
+	+ Name: mapPartitions at VertexRDDImpl.scala:247
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 72 ms
+	+ Executor CPU Time: 61551260 ns (61 ms)
+- Stage (13)
+	+ Name: mapPartitions at GraphImpl.scala:208
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 1412 ms
+	+ Executor CPU Time: 2446926972 ns (2446 ms)
+- Stage (14)
+	+ Name: fold at VertexRDDImpl.scala:90
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 33 ms
+	+ Executor CPU Time: 31397288 ns (31 ms)
+- Stage (20)
+	+ Name: mapPartitions at VertexRDDImpl.scala:247
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 39 ms
+	+ Executor CPU Time: 34919394 ns (34 ms)
+- Stage (21)
+	+ Name: mapPartitions at VertexRDDImpl.scala:251
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 33 ms
+	+ Executor CPU Time: 26494292 ns (26 ms)
+- Stage (22)
+	+ Name: mapPartitions at GraphImpl.scala:208
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 978 ms
+	+ Executor CPU Time: 1869698683 ns (1869 ms)
+- Stage (23)
+	+ Name: fold at VertexRDDImpl.scala:90
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 16 ms
+	+ Executor CPU Time: 7209953 ns (7 ms)
+------------- [METRICS | END] -------------

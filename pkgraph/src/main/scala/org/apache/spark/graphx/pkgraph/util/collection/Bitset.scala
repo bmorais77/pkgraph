@@ -8,8 +8,7 @@ import java.util.Arrays._
   * A simple, fixed-size bit set implementation. This implementation is fast because it avoids
   * safety/bound checking.
   */
-class PKBitSet(numBits: Int) extends Serializable {
-
+class Bitset(numBits: Int) extends Serializable {
   private val words = new Array[Long](bit2words(numBits))
   private val numWords = words.length
 
@@ -54,8 +53,8 @@ class PKBitSet(numBits: Int) extends Serializable {
     * Compute the bit-wise AND of the two sets returning the
     * result.
     */
-  def &(other: PKBitSet): PKBitSet = {
-    val newBS = new PKBitSet(math.max(capacity, other.capacity))
+  def &(other: Bitset): Bitset = {
+    val newBS = new Bitset(math.max(capacity, other.capacity))
     val smaller = math.min(numWords, other.numWords)
     assert(newBS.numWords >= numWords)
     assert(newBS.numWords >= other.numWords)
@@ -71,8 +70,8 @@ class PKBitSet(numBits: Int) extends Serializable {
     * Compute the bit-wise OR of the two sets returning the
     * result.
     */
-  def |(other: PKBitSet): PKBitSet = {
-    val newBS = new PKBitSet(math.max(capacity, other.capacity))
+  def |(other: Bitset): Bitset = {
+    val newBS = new Bitset(math.max(capacity, other.capacity))
     assert(newBS.numWords >= numWords)
     assert(newBS.numWords >= other.numWords)
     val smaller = math.min(numWords, other.numWords)
@@ -96,8 +95,8 @@ class PKBitSet(numBits: Int) extends Serializable {
     * Compute the symmetric difference by performing bit-wise XOR of the two sets returning the
     * result.
     */
-  def ^(other: PKBitSet): PKBitSet = {
-    val newBS = new PKBitSet(math.max(capacity, other.capacity))
+  def ^(other: Bitset): Bitset = {
+    val newBS = new Bitset(math.max(capacity, other.capacity))
     val smaller = math.min(numWords, other.numWords)
     var ind = 0
     while (ind < smaller) {
@@ -117,8 +116,8 @@ class PKBitSet(numBits: Int) extends Serializable {
     * Compute the difference of the two sets by performing bit-wise AND-NOT returning the
     * result.
     */
-  def andNot(other: PKBitSet): PKBitSet = {
-    val newBS = new PKBitSet(capacity)
+  def andNot(other: Bitset): Bitset = {
+    val newBS = new Bitset(capacity)
     val smaller = math.min(numWords, other.numWords)
     var ind = 0
     while (ind < smaller) {
@@ -264,12 +263,28 @@ class PKBitSet(numBits: Int) extends Serializable {
     *
     * @return bitset with reversed bits
     */
-  def reverse: PKBitSet = {
-    val reversedSet = new PKBitSet(capacity)
+  def reverse: Bitset = {
+    val reversedSet = new Bitset(capacity)
     for (i <- iterator) {
       reversedSet.set(capacity - i - 1)
     }
     reversedSet
+  }
+
+  /**
+    * Create a new BitSet with the same bits but with the given new capacity.
+    *
+    * @param newCapacity   New capacity in bits
+    * @return newly created BitSet
+    */
+  def grow(newCapacity: Int): Bitset = {
+    if (newCapacity < capacity) {
+      return this
+    }
+
+    val bits = new Bitset(newCapacity)
+    System.arraycopy(words, 0, bits.words, 0, words.length)
+    bits
   }
 
   /** Return the number of longs it would take to hold numBits. */

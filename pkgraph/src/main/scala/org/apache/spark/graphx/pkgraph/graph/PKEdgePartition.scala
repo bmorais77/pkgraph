@@ -3,18 +3,11 @@ package org.apache.spark.graphx.pkgraph.graph
 import org.apache.spark.graphx._
 import org.apache.spark.graphx.impl.EdgeActiveness
 import org.apache.spark.graphx.pkgraph.compression.K2Tree
-import org.apache.spark.graphx.pkgraph.util.mathx
+import org.apache.spark.graphx.pkgraph.util.collection.Bitset
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
-import org.apache.spark.util.collection.PrimitiveVector
+import org.apache.spark.util.collection.OpenHashSet
 
 import scala.reflect.ClassTag
-
-/**
-  * Possible Implementations:
-  * Constant Access Index (constantIndex) - Store a map from edge index to its position in the edge array
-  * Linear Access Index (linearIndex)     - Store a bitset with bits set to 1 for the edge indices that exist
-  * Storing vertex indices (vertexIndex)  - Store a bitset for source and one for destination vertices to keep track of the vertices that exist
-  */
 
 /**
   * Partitioned K²-Tree edge partition.
@@ -105,14 +98,19 @@ private[pkgraph] class PKEdgePartition[
     * @return new partition with edges added
     */
   def addEdges(edges: Iterator[Edge[E]]): PKEdgePartition[V, E] = {
-    val (newTree, newEdges, newSrcOffset, newDstOffset) = preprocessNewEdges(edges)
-    val builder = PKExistingEdgePartitionBuilder.existing[V, E](this, newTree.toBuilder, newSrcOffset, newDstOffset)
+    val builder = PKEdgePartitionBuilder[V, E](tree.k, tree.size)
 
-    for (edge <- newEdges) {
-      builder.addEdge(edge.srcId, edge.dstId, edge.attr)
+    // Add existing edges
+    for (edge <- iterator) {
+      builder.add(edge.srcId, edge.dstId, edge.attr)
     }
 
-    builder.build(!newEdges.isEmpty)
+    // Add new edges
+    for (edge <- edges) {
+      builder.add(edge.srcId, edge.dstId, edge.attr)
+    }
+
+    builder.build()
   }
 
   /**
@@ -122,10 +120,25 @@ private[pkgraph] class PKEdgePartition[
     * @return new partition with edges removed
     */
   def removeEdges(edges: Iterator[(VertexId, VertexId)]): PKEdgePartition[V, E] = {
-    val builder = PKExistingEdgePartitionBuilder.existing[V, E](this, tree.toBuilder)
+    val removedEdges = new OpenHashSet[Int]()
 
+    // Build bitsets containing source/destination vertices to be removed
     for ((src, dst) <- edges) {
-      builder.removeEdge(src, dst)
+      val line = (src - srcOffset).toInt
+      val col = (dst - dstOffset).toInt
+      removedEdges.add(line * tree.size + col)
+    }
+
+    val builder = PKEdgePartitionBuilder[V, E](tree.k, tree.size)
+
+    // Add existing edges expect from removed vertices
+    for (edge <- iterator) {
+      val line = (edge.srcId - srcOffset).toInt
+      val col = (edge.dstId - dstOffset).toInt
+
+      if (!removedEdges.contains(line * tree.size + col)) {
+        builder.add(edge.srcId, edge.dstId, edge.attr)
+      }
     }
 
     builder.build()
@@ -162,11 +175,12 @@ private[pkgraph] class PKEdgePartition[
     * @return a new edge partition with all edges reversed.
     */
   def reverse: PKEdgePartition[V, E] = {
-    val builder = PKExistingEdgePartitionBuilder.empty[V, E](this)
+    // We can't use an existing partition builder since the edges won't added in their correct order
+    val builder = PKEdgePartitionBuilder[V, E](tree.k, tree.size)
 
     // Traverse all edges and reverse their source/destination vertices
-    foreach { edge =>
-      builder.addEdge(edge.dstId, edge.srcId, edge.attr)
+    for (edge <- iterator) {
+      builder.add(edge.dstId, edge.srcId, edge.attr)
     }
 
     builder.build()
@@ -187,7 +201,7 @@ private[pkgraph] class PKEdgePartition[
     val newData = new Array[E2](edgeAttrs.length)
     var i = 0
 
-    foreach { edge =>
+    for (edge <- iterator) {
       newData(i) = f(edge)
       i += 1
     }
@@ -228,17 +242,17 @@ private[pkgraph] class PKEdgePartition[
     * @return edge partition containing only edges and vertices that match the predicate
     */
   def filter(epred: EdgeTriplet[V, E] => Boolean, vpred: (VertexId, V) => Boolean): PKEdgePartition[V, E] = {
-    val builder = PKExistingEdgePartitionBuilder.empty[V, E](this)
+    val builder = PKExistingEdgePartitionBuilder[V, E](this)
 
     var i = 0
-    tree.forEachEdge { (line, col) =>
+    for (edge <- iterator) {
       // The user sees the EdgeTriplet, so we can't reuse it and must create one per edge.
       val triplet = new EdgeTriplet[V, E]
-      triplet.srcId = line + srcOffset
-      triplet.dstId = col + dstOffset
+      triplet.srcId = edge.srcId
+      triplet.dstId = edge.dstId
       triplet.srcAttr = vertexAttribute(triplet.srcId)
       triplet.dstAttr = vertexAttribute(triplet.dstId)
-      triplet.attr = edgeAttrs(i)
+      triplet.attr = edge.attr
 
       if (vpred(triplet.srcId, triplet.srcAttr) && vpred(triplet.dstId, triplet.dstAttr) && epred(triplet)) {
         builder.addEdge(triplet.srcId, triplet.dstId, triplet.attr)
@@ -259,7 +273,7 @@ private[pkgraph] class PKEdgePartition[
     val edge = new Edge[E]()
     var pos = 0
 
-    tree.forEachEdge { (line, col) =>
+    tree.foreach { (line, col) =>
       edge.srcId = line + srcOffset
       edge.dstId = col + dstOffset
       edge.attr = edgeAttrs(pos)
@@ -285,7 +299,8 @@ private[pkgraph] class PKEdgePartition[
   def innerJoin[E2: ClassTag, E3: ClassTag](
       other: PKEdgePartition[_, E2]
   )(f: (VertexId, VertexId, E, E2) => E3): PKEdgePartition[V, E3] = {
-    val builder = PKExistingEdgePartitionBuilder.empty[V, E3](this)
+    assert(other.tree.k == tree.k)
+    val builder = PKExistingEdgePartitionBuilder[V, E3](this)
 
     // Optimization: check if the partitions have any intersection at all, in which case
     // the result of the inner join is always empty
@@ -402,12 +417,12 @@ private[pkgraph] class PKEdgePartition[
       tripletFields: TripletFields,
       activeness: EdgeActiveness
   ): Iterator[(VertexId, A)] = {
-    val ctx = PKAggregatingEdgeContext[V, E, A](mergeMsg)
-    foreach { edge =>
+    val ctx = new PKAggregatingEdgeContext[V, E, A](vertexAttrs.length, mergeMsg)
+    for (edge <- iterator) {
       if (isEdgeActive(edge.srcId, edge.dstId, activeness)) {
         val srcAttr = if (tripletFields.useSrc) vertexAttribute(edge.srcId) else null.asInstanceOf[V]
         val dstAttr = if (tripletFields.useDst) vertexAttribute(edge.dstId) else null.asInstanceOf[V]
-        ctx.set(edge.srcId, edge.dstId, srcAttr, dstAttr, edge.attr)
+        ctx.set(edge.srcId, edge.dstId, global2local(edge.srcId), global2local(edge.dstId), srcAttr, dstAttr, edge.attr)
         sendMsg(ctx)
       }
     }
@@ -445,70 +460,6 @@ private[pkgraph] class PKEdgePartition[
   }
 
   /**
-    * Pre-process new edges to add, to check if the existing K²-Tree needs to grow and
-    * calculate new src/dst offsets.
-    *
-    * @param edges New edges to be added to K²-Tree
-    * @return [[Tuple4]] with K²-Tree, new edges, source offset and destination offset
-    */
-  private def preprocessNewEdges(edges: Iterator[Edge[E]]): (K2Tree, Array[Edge[E]], Long, Long) = {
-    val k2 = tree.k * tree.k
-    var newSrcOffset = srcOffset
-    var newDstOffset = dstOffset
-    var newSrcEnd = srcOffset + tree.size
-    var newDstEnd = dstOffset + tree.size
-
-    // Traverse edges to check if there are any behind the virtual origin (lineOffset, colOffset) or
-    // after the size of the current matrix
-    val newEdges = new PrimitiveVector[Edge[E]]
-    for (edge <- edges) {
-      newSrcOffset = math.min(edge.srcId, newSrcOffset)
-      newDstOffset = math.min(edge.dstId, newDstOffset)
-      newSrcEnd = math.max(edge.srcId, newSrcEnd)
-      newDstEnd = math.max(edge.dstId, newDstEnd)
-      newEdges += edge
-    }
-
-    // Align offsets to multiple of K2
-    newSrcOffset = if (newSrcOffset % k2 == 0) newSrcOffset else newSrcOffset / k2
-    newDstOffset = if (newDstOffset % k2 == 0) newDstOffset else newDstOffset / k2
-
-    val newTree = growK2Tree(newSrcOffset, newSrcEnd, newDstOffset, newDstEnd)
-    (newTree, newEdges.trim().array, newSrcOffset, newDstOffset)
-  }
-
-  /**
-    * Creates a new K²-Tree by growing the one in this partition.
-    * The adjacency matrix of the K²-Tree either grows to the right and down if the new size exceeds the
-    * original size of the matrix, or to the left and up if the new offset is 'behind' the original offset.
-    *
-    * @param newSrcOffset New source offset
-    * @param newSrcEnd New source end
-    * @param newDstOffset New destination offset
-    * @param newDstEnd New destination end
-    * @return K²-Tree with new size
-    */
-  private def growK2Tree(newSrcOffset: Long, newSrcEnd: Long, newDstOffset: Long, newDstEnd: Long): K2Tree = {
-    val behindOrigin = newSrcOffset < srcOffset || newDstOffset < dstOffset
-    val afterEnd = newSrcEnd > srcOffset + tree.size || newDstEnd > dstOffset + tree.size
-
-    // Check if new edges are outside the current adjacency matrix
-    if (behindOrigin || afterEnd) {
-      var newSize = math.max(newSrcEnd - newSrcOffset, newDstEnd - newDstOffset).toInt
-
-      // Size is not a power of K, so we need to find the nearest power
-      if (newSize % tree.k != 0) {
-        val exp = math.ceil(mathx.log(tree.k, newSize))
-        newSize = math.pow(tree.k, exp).toInt
-      }
-
-      tree.grow(newSize, behindOrigin)
-    } else {
-      tree
-    }
-  }
-
-  /**
     * Checks if this partition as any "possible" intersecting edges with the 'other' partition.
     *
     * @param other   Other partition to test
@@ -527,4 +478,25 @@ private[pkgraph] class PKEdgePartition[
 
     true
   }
+}
+
+object PKEdgePartition {
+
+  /**
+    * Get an empty partition.
+    *
+    * @tparam V    Type of vertex attributes
+    * @tparam E    Type of edge attributes
+    * @return partition with no edges or cached vertices
+    */
+  def empty[V: ClassTag, E: ClassTag]: PKEdgePartition[V, E] =
+    new PKEdgePartition[V, E](
+      Array.empty,
+      new GraphXPrimitiveKeyOpenHashMap[VertexId, Int],
+      Array.empty,
+      new K2Tree(0, 0, new Bitset(0), 0, 0),
+      0,
+      0,
+      None
+    )
 }

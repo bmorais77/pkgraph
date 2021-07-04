@@ -1,0 +1,64 @@
+------------- [METRICS | PKGraph8 | connectedComponents | graph-dataset-1000-100-generated] -------------
+- Stage Count: 10
+- Total Time: 3602 ms (start: 1624964189755, end: 1624964193357)
+- Stage (1)
+	+ Name: map at GraphDatasetReader.scala:11
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 431 ms
+	+ Executor CPU Time: 332367797 ns (332 ms)
+- Stage (0)
+	+ Name: mapPartitions at PKVertexRDD.scala:107
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 1458 ms
+	+ Executor CPU Time: 2110026900 ns (2110 ms)
+- Stage (3)
+	+ Name: mapPartitions at VertexRDDImpl.scala:247
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 133 ms
+	+ Executor CPU Time: 167121745 ns (167 ms)
+- Stage (2)
+	+ Name: mapPartitions at VertexRDDImpl.scala:247
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 164 ms
+	+ Executor CPU Time: 36010559 ns (36 ms)
+- Stage (4)
+	+ Name: mapPartitions at PKGraph.scala:368
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 1024 ms
+	+ Executor CPU Time: 1652565921 ns (1652 ms)
+- Stage (5)
+	+ Name: fold at VertexRDDImpl.scala:90
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 35 ms
+	+ Executor CPU Time: 24795795 ns (24 ms)
+- Stage (11)
+	+ Name: mapPartitions at VertexRDDImpl.scala:251
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 40 ms
+	+ Executor CPU Time: 38747946 ns (38 ms)
+- Stage (12)
+	+ Name: mapPartitions at VertexRDDImpl.scala:247
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 37 ms
+	+ Executor CPU Time: 17144707 ns (17 ms)
+- Stage (13)
+	+ Name: mapPartitions at PKGraph.scala:368
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 272 ms
+	+ Executor CPU Time: 506813533 ns (506 ms)
+- Stage (14)
+	+ Name: fold at VertexRDDImpl.scala:90
+	+ Status: succeeded
+	+ Attempt Number: 0
+	+ Total Time: 25 ms
+	+ Executor CPU Time: 18441749 ns (18 ms)
+------------- [METRICS | END] -------------

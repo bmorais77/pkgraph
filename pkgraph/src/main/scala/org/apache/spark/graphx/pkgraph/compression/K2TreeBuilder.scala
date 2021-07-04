@@ -1,15 +1,11 @@
 package org.apache.spark.graphx.pkgraph.compression
 
-import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder.calculateLevelOffsets
-import org.apache.spark.graphx.pkgraph.util.collection.PKBitSet
+import org.apache.spark.graphx.pkgraph.util.collection.Bitset
 import org.apache.spark.graphx.pkgraph.util.mathx
 
-import scala.collection.mutable
-
-class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: PKBitSet, val length: Int) {
+class K2TreeBuilder(val k: Int, val size: Int, val height: Int) {
+  private val cursors = Array.fill[K2TreeCursor](height)(K2TreeCursor())
   private val k2 = k * k
-
-  private lazy val levelOffsets = calculateLevelOffsets(k, height)
 
   /**
     * Adds the edge with the given line and column to the this builder.
@@ -22,130 +18,80 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: PKBitS
     * @param col Edge column (destination)
     * @return index of the inserted edge
     */
-  def addEdge(line: Int, col: Int): Int = {
-    def recursiveNavigation(currSize: Int, h: Int, line: Int, col: Int): (Int, Int) = {
-      if (h == 0) {
-        return (0, 0)
+  def addEdge(line: Int, col: Int): Unit = {
+    var i = cursors.length - 1
+    var currLine = line
+    var currCol = col
+    var parentSize = size / k
+
+    while (i >= 0) {
+      // Current level cursor
+      val cursor = cursors(i)
+
+      // Index of the node relative to parent node
+      val childIndex = (currLine % k) * k + (currCol % k)
+
+      // Index of the parent node relative to its level
+      val parentIndex = (currLine / k) * parentSize + (currCol / k)
+
+      // Offset to start of child nodes of the current parent
+      // We skip to the next K² if we are now in a different parent node then the current cursor
+      var parentOffset = (cursor.sentinel / k2) * k2
+      if (cursor.parentIndex != -1 && cursor.parentIndex != parentIndex) {
+        parentOffset += k2
       }
 
-      // Offset to the beginning of this level
-      val levelOffset = levelOffsets(h)
+      // Index relative to beginning of this level
+      val levelIndex = parentOffset + childIndex
 
-      // Offset to the beginning of this chunk
-      val (chunkOffset, subIndex) = recursiveNavigation(currSize * k2, h - 1, line / k, col / k)
+      // Bitset has no more space, we need to grow
+      while (levelIndex >= cursor.bits.capacity) {
+        cursor.bits = cursor.bits.grow(cursor.bits.capacity * 2)
+      }
 
-      // Offset from the beginning of this chunk to the desired position
-      val localIndex = (line % k) * k + (col % k)
+      // Path up to this bit is already built, we can leave now
+      if (cursor.bits.get(levelIndex)) {
+        return
+      }
 
-      // Index relative to the beginning of the tree
-      val index = levelOffset + chunkOffset + localIndex
+      cursor.bits.set(levelIndex)
+      cursor.parentIndex = parentIndex
+      cursor.sentinel = levelIndex
 
-      bits.set(index)
-      (chunkOffset * k2 + localIndex * k2, subIndex + localIndex * currSize)
+      currLine /= k
+      currCol /= k
+      parentSize /= k
+      i -= 1
     }
-
-    val (_, index) = recursiveNavigation(1, height, line, col)
-    index
   }
-
-  /**
-    * Removes the given edge.
-    * If the edge does not exist in the current builder the resulting K²-Tree will still be correct.
-    *
-    * @param line Line of the edge (Source)
-    * @param col Column of the edge (Destination)
-    * @return index of the removed edge
-    */
-  def removeEdge(line: Int, col: Int): Int = {
-    def tracePath(path: Array[(Int, Int)], currSize: Int, h: Int, line: Int, col: Int): (Int, Int) = {
-      if (h == 0) {
-        return (0, 0)
-      }
-
-      // Offset to the beginning of this level
-      val levelOffset = levelOffsets(h)
-
-      // Offset to the beginning of this chunk
-      val (chunkOffset, subIndex) = tracePath(path, currSize * k2, h - 1, line / k, col / k)
-
-      // Offset from the beginning of this chunk to the desired position
-      val localIndex = (line % k) * k + (col % k)
-
-      path(h - 1) = (levelOffset + chunkOffset, levelOffset + chunkOffset + localIndex)
-      (chunkOffset * k2 + localIndex * k2, subIndex + localIndex * currSize)
-    }
-
-    def updateBits(path: Array[(Int, Int)]): Unit = {
-      for ((chunkOffset, index) <- path.reverseIterator) {
-        bits.unset(index)
-
-        // We are done updating if there any other bits with value 1 in the same chunk
-        if (bits.count(chunkOffset, chunkOffset + k2) > 0) {
-          return
-        }
-      }
-    }
-
-    // Keeps track of the path we traversed in the tree
-    val path = new Array[(Int, Int)](height)
-    val (_, index) = tracePath(path, 1, height, line, col)
-    updateBits(path)
-    index
-  }
-
-  /**
-    * Adds the given edges.
-    *
-    * @param edges Sequence of edges to add
-    */
-  def addEdges(edges: Seq[(Int, Int)]): Unit = edges.foreach(Function.tupled(addEdge))
-
-  /**
-    * Removes the given edges.
-    * If the edges do not exist in the current builder the resulting K²-Tree
-    * will still be correct.
-    *
-    * @param edges Sequence of edges to remove
-    */
-  def removeEdges(edges: Seq[(Int, Int)]): Unit = edges.foreach(Function.tupled(removeEdge))
 
   /**
     * Builds a compressed K²-Tree representation from this builder.
     *
     * @return K²-Tree representation
     */
-  def build: K2Tree = {
-    // Count the number of bits need for the compressed version
+  def build(): K2Tree = {
     val (internalCount, leavesCount) = calculateCompressedSize()
 
-    // Bitset to store both internal and leaf bits (T:L)
-    val tree = new PKBitSet(internalCount + leavesCount)
+    var offset = 0
+    val bits = new Bitset(internalCount + leavesCount)
 
-    // Index for the tree bitset
-    var t = 0
+    var i = 0
+    while (i < cursors.length) {
+      val cursor = cursors(i)
 
-    for (i <- 0 until length / k2) {
-      var include = false
-      val buffer = new PKBitSet(k2)
-
-      for (j <- 0 until k2) {
-        if (bits.get(i * k2 + j)) {
-          include = true
-          buffer.set(j)
-        }
+      // Fill the K²-Tree bits with the bits of each level's Bitset
+      var pos = cursor.bits.nextSetBit(0)
+      while (pos >= 0 && pos <= cursor.sentinel) {
+        bits.set(offset + pos)
+        pos = cursor.bits.nextSetBit(pos + 1)
       }
 
-      if (include) {
-        for (j <- 0 until k2) {
-          if (buffer.get(j)) {
-            tree.set(t)
-          }
-          t += 1
-        }
-      }
+      offset += (cursor.sentinel / k2) * k2 + k2
+      i += 1
     }
 
-    new K2Tree(k, size, tree, internalCount, leavesCount)
+    new K2Tree(k, size, bits, internalCount, leavesCount)
   }
 
   /**
@@ -154,31 +100,14 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int, val bits: PKBitS
     * @return minimum number of bits required for the internal bits and leaves bits of the compressed representation
     */
   private def calculateCompressedSize(): (Int, Int) = {
-    val leavesStart = (1 until height).map(h => math.pow(k2, h).toInt).sum / k2
+    // Calculate leaf nodes count
+    val leavesCount = (cursors(cursors.length - 1).sentinel / k2) * k2 + k2
 
+    // Calculate internal nodes count
     var i = 0
     var internalCount = 0
-    var leavesCount = 0
-
-    while (i < length / k2) {
-      var j = 0
-      var found = false
-
-      while (!found && j < k2) {
-        if (bits.get(i * k2 + j)) {
-          found = true
-        }
-        j += 1
-      }
-
-      if (found) {
-        if (i >= leavesStart) {
-          leavesCount += k2
-        } else {
-          internalCount += k2
-        }
-      }
-
+    while (i < cursors.length - 1) {
+      internalCount += (cursors(i).sentinel / k2) * k2 + k2
       i += 1
     }
 
@@ -199,73 +128,13 @@ object K2TreeBuilder {
   def apply(k: Int, size: Int): K2TreeBuilder = {
     // Special case where we are asked to build an empty tree
     if (size == 0) {
-      return new K2TreeBuilder(k, 0, 0, new PKBitSet(0), 0)
+      return new K2TreeBuilder(0, 0, 0)
     }
 
     // Make sure size is a power of K
     val height = math.ceil(mathx.log(k, size)).toInt
     val actualSize = math.pow(k, height).toInt
 
-    val k2 = k * k
-    val length = (0 to height).reduce((acc, i) => acc + math.pow(k2, i).toInt)
-    new K2TreeBuilder(k, actualSize, height, new PKBitSet(length), length)
-  }
-
-  /**
-    * Constructs a K²-Tree Builder from the given K²-Tree.
-    *
-    * The resulting builder will have the same size and same edges of the given K²-Tree.
-    *
-    * @param tree K²-Tree to construct builder from
-    * @return K²-Tree builder with initial data from the given K²-Tree
-    */
-  def fromK2Tree(tree: K2Tree): K2TreeBuilder = {
-    val k2 = tree.k * tree.k
-    val builder = K2TreeBuilder(tree.k, tree.size)
-
-    var builderCursor = -1
-    var bitCursor = 0
-    var treeCursor = 0
-
-    while (treeCursor < tree.length) {
-      if (builderCursor == -1 || builder.bits.get(builderCursor)) {
-        // Copy next K² bits from tree
-        for (i <- treeCursor until treeCursor + k2) {
-          if (tree.bits.get(i)) {
-            builder.bits.set(bitCursor)
-          }
-          bitCursor += 1
-        }
-        treeCursor += k2
-      } else {
-        // Fill builder with K² zeros
-        bitCursor += k2
-      }
-
-      builderCursor += 1
-    }
-
-    builder
-  }
-
-  /**
-    * Calculates the starting offsets for each level of a K²-Tree.
-    *
-    * @param k      Value of the K²-Tree
-    * @param height Height of the K²-Tree
-    * @return mapping of each level (1..height) and their corresponding starting offset.
-    */
-  private def calculateLevelOffsets(k: Int, height: Int): mutable.Map[Int, Int] = {
-    val k2 = k * k
-    val offsets = mutable.HashMap[Int, Int]()
-
-    // Level 1 always has an offset of 0
-    offsets(1) = 0
-
-    for (i <- 2 to height) {
-      offsets.put(i, offsets(i - 1) + math.pow(k2, i - 1).toInt)
-    }
-
-    offsets
+    new K2TreeBuilder(k, actualSize, height)
   }
 }

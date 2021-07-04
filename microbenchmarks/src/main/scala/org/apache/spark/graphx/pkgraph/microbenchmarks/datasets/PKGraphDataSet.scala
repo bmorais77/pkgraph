@@ -9,19 +9,22 @@ import java.util.Random
 object PKGraphDataSet {
 
   def buildPartitions(k: Int, sparsity: Float): Gen[PKEdgePartition[Int, Int]] = {
-    for { size <- EdgesDataSet.edges} yield {
+    for { size <- EdgesDataSet.edges } yield {
       buildPKGraphEdgePartition(k, size, sparsity)
     }
   }
 
   def buildPartitionsWithVertices(k: Int, sparsity: Float): Gen[PKEdgePartition[Int, Int]] = {
     for { partition <- buildPartitions(k, sparsity) } yield {
-      val vertices = (0 until partition.tree.size).map(i => (i.toLong, i * 10))
+      val vertices = partition.vertexAttrs.indices.map(i => (i.toLong, i * 10))
       partition.updateVertices(vertices.iterator)
     }
   }
 
-  def buildPartitionsForInnerJoin(k: Int, sparsity: Float): Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = {
+  def buildPartitionsForInnerJoin(
+      k: Int,
+      sparsity: Float
+  ): Gen[(PKEdgePartition[Int, Int], PKEdgePartition[Int, Int])] = {
     for { partition <- buildPartitions(k, sparsity) } yield {
       (partition, partition)
     }
@@ -45,13 +48,13 @@ object PKGraphDataSet {
     */
   def buildPKGraphEdgePartition(k: Int, size: Int, sparsity: Float): PKEdgePartition[Int, Int] = {
     val matrixSize = math.floor(math.sqrt(size)).toInt
-    val builder = PKEdgePartitionBuilder[Int, Int](k, size)
     val sparseMatrix = SparseMatrix.sprand(matrixSize, matrixSize, 1.0f - sparsity, new Random())
+    val builder = PKEdgePartitionBuilder[Int, Int](k, sparseMatrix.numActives)
 
     sparseMatrix.foreachActive { (line, col, attr) =>
       builder.add(line, col, attr.toInt)
     }
 
-    builder.build
+    builder.build()
   }
 }
