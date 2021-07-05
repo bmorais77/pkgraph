@@ -39,6 +39,7 @@ lazy val microbenchmarks = project
 lazy val macrobenchmarks = project
   .settings(
     name := "macrobenchmarks",
-    settings
+    settings,
+    libraryDependencies += "ch.cern.sparkmeasure" %% "spark-measure" % "0.17"
   )
   .dependsOn(pkgraph)

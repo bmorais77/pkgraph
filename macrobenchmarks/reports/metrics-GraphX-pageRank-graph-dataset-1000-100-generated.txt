@@ -1,136 +1,34 @@
-------------- [METRICS | GraphX | pageRank | graph-dataset-1000-100-generated] -------------
-- Stage Count: 22
-- Total Time: 3831 ms (start: 1624813819695, end: 1624813823526)
-- Stage (0)
-	+ Name: map at GraphDatasetReader.scala:11
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 495 ms
-	+ Executor CPU Time: 341282874 ns (341 ms)
-- Stage (1)
-	+ Name: mapPartitions at GraphImpl.scala:208
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 1482 ms
-	+ Executor CPU Time: 2249556293 ns (2249 ms)
-- Stage (2)
-	+ Name: mapPartitions at VertexRDD.scala:356
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 1491 ms
-	+ Executor CPU Time: 1841435988 ns (1841 ms)
-- Stage (3)
-	+ Name: mapPartitions at VertexRDDImpl.scala:247
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 119 ms
-	+ Executor CPU Time: 143843826 ns (143 ms)
-- Stage (5)
-	+ Name: mapPartitions at VertexRDDImpl.scala:247
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 145 ms
-	+ Executor CPU Time: 32694372 ns (32 ms)
-- Stage (4)
-	+ Name: mapPartitions at VertexRDDImpl.scala:247
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 130 ms
-	+ Executor CPU Time: 11037251 ns (11 ms)
-- Stage (6)
-	+ Name: mapPartitions at GraphImpl.scala:208
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 439 ms
-	+ Executor CPU Time: 772938386 ns (772 ms)
-- Stage (7)
-	+ Name: fold at VertexRDDImpl.scala:90
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 31 ms
-	+ Executor CPU Time: 18407324 ns (18 ms)
-- Stage (15)
-	+ Name: mapPartitions at VertexRDDImpl.scala:247
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 40 ms
-	+ Executor CPU Time: 23643094 ns (23 ms)
-- Stage (16)
-	+ Name: mapPartitions at VertexRDDImpl.scala:251
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 43 ms
-	+ Executor CPU Time: 32308737 ns (32 ms)
-- Stage (17)
-	+ Name: mapPartitions at GraphImpl.scala:208
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 211 ms
-	+ Executor CPU Time: 384035996 ns (384 ms)
-- Stage (18)
-	+ Name: fold at VertexRDDImpl.scala:90
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 27 ms
-	+ Executor CPU Time: 24346084 ns (24 ms)
-- Stage (29)
-	+ Name: mapPartitions at VertexRDDImpl.scala:251
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 25 ms
-	+ Executor CPU Time: 17611733 ns (17 ms)
-- Stage (30)
-	+ Name: mapPartitions at VertexRDDImpl.scala:247
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 26 ms
-	+ Executor CPU Time: 15359338 ns (15 ms)
-- Stage (31)
-	+ Name: mapPartitions at GraphImpl.scala:208
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 76 ms
-	+ Executor CPU Time: 118510445 ns (118 ms)
-- Stage (32)
-	+ Name: fold at VertexRDDImpl.scala:90
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 21 ms
-	+ Executor CPU Time: 14345529 ns (14 ms)
-- Stage (46)
-	+ Name: mapPartitions at VertexRDDImpl.scala:247
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 25 ms
-	+ Executor CPU Time: 16122300 ns (16 ms)
-- Stage (47)
-	+ Name: mapPartitions at VertexRDDImpl.scala:251
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 23 ms
-	+ Executor CPU Time: 17243041 ns (17 ms)
-- Stage (48)
-	+ Name: mapPartitions at GraphImpl.scala:208
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 202 ms
-	+ Executor CPU Time: 339321887 ns (339 ms)
-- Stage (49)
-	+ Name: fold at VertexRDDImpl.scala:90
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 20 ms
-	+ Executor CPU Time: 11137346 ns (11 ms)
-- Stage (63)
-	+ Name: sum at PageRank.scala:441
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 33 ms
-	+ Executor CPU Time: 6797491 ns (6 ms)
-- Stage (77)
-	+ Name: fold at VertexRDDImpl.scala:90
-	+ Status: succeeded
-	+ Attempt Number: 0
-	+ Total Time: 12 ms
-	+ Executor CPU Time: 1495556 ns (1 ms)
-------------- [METRICS | END] -------------
+
+Scheduling mode = FIFO
+Spark Context default degree of parallelism = 4
+Aggregated Spark stage metrics:
+numStages => 22
+numTasks => 44
+elapsedTime => 3335 (3 s)
+stageDuration => 6461 (6 s)
+executorRunTime => 8061 (8 s)
+executorCpuTime => 6613 (7 s)
+executorDeserializeTime => 574 (0.6 s)
+executorDeserializeCpuTime => 496 (0.5 s)
+resultSerializationTime => 4 (4 ms)
+jvmGCTime => 848 (0.8 s)
+shuffleFetchWaitTime => 0 (0 ms)
+shuffleWriteTime => 42 (42 ms)
+resultSize => 2924 (2.0 KB)
+diskBytesSpilled => 0 (0 Bytes)
+memoryBytesSpilled => 0 (0 Bytes)
+peakExecutionMemory => 0
+recordsRead => 2001052
+bytesRead => 81940545 (78.0 MB)
+recordsWritten => 0
+bytesWritten => 0 (0 Bytes)
+shuffleRecordsRead => 8043
+shuffleTotalBlocksFetched => 64
+shuffleLocalBlocksFetched => 64
+shuffleRemoteBlocksFetched => 0
+shuffleTotalBytesRead => 107370 (104.0 KB)
+shuffleLocalBytesRead => 107370 (104.0 KB)
+shuffleRemoteBytesRead => 0 (0 Bytes)
+shuffleRemoteBytesReadToDisk => 0 (0 Bytes)
+shuffleBytesWritten => 97536 (95.0 KB)
+shuffleRecordsWritten => 8039

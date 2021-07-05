@@ -1,20 +1,13 @@
 package org.apache.spark.graphx.pkgraph.macrobenchmarks
 
+import ch.cern.sparkmeasure.StageMetrics
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{
-  ConnectedComponentsAlgorithm,
-  GraphAlgorithm,
-  PageRankAlgorithm,
-  ShortestPathAlgorithm,
-  TriangleCountAlgorithm
-}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{ConnectedComponentsAlgorithm, GraphAlgorithm, PageRankAlgorithm, ShortestPathAlgorithm, TriangleCountAlgorithm}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.GraphDatasetReader
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.generators.{GraphGenerator, GraphXGenerator, PKGraphGenerator}
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.metrics.GraphMetricsCollector
 import org.apache.spark.sql.SparkSession
 
 import java.io.PrintStream
-import scala.io.StdIn
 
 object GraphBenchmark {
   def getGraphGeneratorFromArgs(implementation: String): GraphGenerator = {
@@ -51,24 +44,24 @@ object GraphBenchmark {
     val config = new SparkConf()
       .setMaster("local[4]")
       .setAppName(s"Graph Benchmark ($implementation | $graphAlgorithm | $graphDataset)")
+      .set("spark.sql.unsafe.enabled", "true")
       .set("spark.eventLog.enabled", "true")
       .set("spark.eventLog.dir", "/tmp/spark-events")
 
     val sc = new SparkContext(config)
-    val metricsCollector = new GraphMetricsCollector(sc, implementation, graphAlgorithm, graphDataset)
-    metricsCollector.start()
+    val spark = SparkSession.builder().config(sc.getConf).getOrCreate()
 
     val datasetPath = s"macrobenchmarks/datasets/$graphDataset"
     println(s"Dataset Path = $datasetPath")
 
-    val dataset = reader.readDataset(sc, datasetPath)
-    algorithm.run(graph.generate(dataset))
+    val stageMetrics = StageMetrics(spark)
+    stageMetrics.runAndMeasure {
+      val dataset = reader.readDataset(sc, datasetPath)
+      algorithm.run(graph.generate(dataset))
+    }
 
-    metricsCollector.stop()
-
-    val logs = new PrintStream(s"macrobenchmarks/reports/metrics-$implementation-$graphAlgorithm-$graphDataset.txt")
-    metricsCollector.printCollectedMetrics(logs)
-
+    val report = new PrintStream(s"macrobenchmarks/reports/metrics-$implementation-$graphAlgorithm-$graphDataset.txt")
+    report.println(stageMetrics.report())
     sc.stop()
   }
 }
