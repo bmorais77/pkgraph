@@ -8,7 +8,8 @@ class K2Tree(
     val size: Int,
     val bits: Bitset,
     val internalCount: Int,
-    val leavesCount: Int
+    val leavesCount: Int,
+    val leafIndices: Array[Long]
 ) extends Serializable {
 
   assert(size <= (1L << 31), s"K²-Tree matrix size must be smaller than 2^31 (size: $size)")

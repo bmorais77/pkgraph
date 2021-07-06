@@ -3,15 +3,13 @@ package org.apache.spark.graphx.pkgraph.compression
 class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
   private val k2 = tree.k * tree.k
 
-  // Keeps a cursor in each level of the tree
-  private val cursors = buildTreeCursors(tree)
+  // Number of quadrants per line/column one level above the leaves
+  private val levelSize = if(tree.size == 0) 0 else tree.size / tree.k
 
-  // Keeps the child index in each level of the tree
-  private val childCursors = new Array[Int](tree.height)
+  private var leafBlockIndex = 0
 
-  private var line: Int = 0
-  private var col: Int = 0
-  private var height: Int = 0
+  // Position inside the tree bitset
+  private var leafPos = tree.internalCount - 1
 
   private var currentEdge: Option[(Int, Int)] = None
 
@@ -46,82 +44,30 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
   private def findNextEdge(): Option[(Int, Int)] = {
     var nextEdge: Option[(Int, Int)] = None
 
-    while (nextEdge.isEmpty) {
-      var nextChild = true
-      val pos = cursors(height)
+    while (nextEdge.isEmpty && leafBlockIndex < tree.leafIndices.length) {
+      leafPos = tree.bits.nextSetBit(leafPos + 1)
+      val pos = leafPos - tree.internalCount
 
-      // No more child nodes
-      if (childCursors(height) >= k2) {
-        childCursors(height) = 0
-        height -= 1
-
-        // Reached virtual root
-        if (height == -1) {
-          return None
-        }
-
-        line /= tree.k
-        col /= tree.k
-      } else {
-        // Leaf node
-        if (pos >= tree.internalCount) {
-          if (tree.bits.get(pos)) {
-            nextEdge = Some((line, col))
-          }
-        } else {
-          if (tree.bits.get(pos)) {
-            line = line * tree.k + childCursors(height + 1) / tree.k
-            col = col * tree.k + childCursors(height + 1) % tree.k
-            height += 1
-            nextChild = false
-          }
-        }
+      // Reached end of tree or end of leaf block
+      if (leafPos == -1 || pos >= k2 * (leafBlockIndex + 1)) {
+        leafBlockIndex += 1
       }
 
-      if(nextChild) {
-        // Move to next child node
-        cursors(height) += 1
-        childCursors(height) += 1
-
-        // If the next child node is not the last
-        if (childCursors(height) < k2) {
-          line = line / tree.k * tree.k + childCursors(height) / tree.k
-          col = col / tree.k * tree.k + childCursors(height) % tree.k
-        }
+      // Reached end of leaf blocks
+      if(leafBlockIndex >= tree.leafIndices.length) {
+        return None
       }
+
+      // Safe to cast to Int since the matrix size is at most 2^31
+      val lineOffset = (tree.leafIndices(leafBlockIndex) / levelSize).toInt
+      val colOffset = (tree.leafIndices(leafBlockIndex) % levelSize).toInt
+
+      val childIndex = pos % k2
+      val line = lineOffset * tree.k + (childIndex / tree.k)
+      val col = colOffset * tree.k + (childIndex % tree.k)
+      nextEdge = Some((line, col))
     }
 
     nextEdge
-  }
-
-  /**
-    * Builds a cursor for each level of the tree.
-    * Each cursor keeps track of the global position in the bitset for a given level.
-    *
-    * @param tree    Tree to build cursors for
-    * @return cursors for each level
-    */
-  private def buildTreeCursors(tree: K2Tree): Array[Int] = {
-    if (tree.isEmpty) {
-      return Array.empty
-    }
-
-    val height = tree.height
-    val cursors = new Array[Int](height)
-    cursors(0) = 0 // First level cursor ia always at beginning of the bitset
-
-    if (height > 1) {
-      cursors(1) = k2 // Second level is always as an offset of K² bits
-    }
-
-    var start = 0
-    var end = k2
-    for (level <- 2 until height) {
-      cursors(level) = cursors(level - 1) + tree.bits.count(start, end - 1) * k2
-      start = end
-      end = cursors(level)
-    }
-
-    cursors
   }
 }

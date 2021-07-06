@@ -2,9 +2,11 @@ package org.apache.spark.graphx.pkgraph.compression
 
 import org.apache.spark.graphx.pkgraph.util.collection.Bitset
 import org.apache.spark.graphx.pkgraph.util.mathx
+import org.apache.spark.util.collection.PrimitiveVector
 
 class K2TreeBuilder(val k: Int, val size: Int, val height: Int) {
   private val cursors = Array.fill[K2TreeCursor](height)(K2TreeCursor())
+  private val leafIndices = new PrimitiveVector[Long]
   private val k2 = k * k
 
   /**
@@ -39,6 +41,11 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int) {
       var parentOffset = (cursor.sentinel / k2) * k2
       if (cursor.parentIndex != -1 && cursor.parentIndex != parentIndex) {
         parentOffset += k2
+      }
+
+      // Update leaf indices, if we are in a leaf node and we found a new parent index
+      if(i == cursors.length - 1 && (cursor.parentIndex == -1 || cursor.parentIndex != parentIndex)) {
+        leafIndices += parentIndex
       }
 
       // Index relative to beginning of this level
@@ -91,7 +98,7 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int) {
       i += 1
     }
 
-    new K2Tree(k, size, bits, internalCount, leavesCount)
+    new K2Tree(k, size, bits, internalCount, leavesCount, leafIndices.toArray)
   }
 
   /**

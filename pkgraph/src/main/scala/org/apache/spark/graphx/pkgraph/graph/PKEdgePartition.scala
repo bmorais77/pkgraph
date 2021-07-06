@@ -483,7 +483,7 @@ object PKEdgePartition {
       Array.empty,
       new GraphXPrimitiveKeyOpenHashMap[VertexId, Int],
       Array.empty,
-      new K2Tree(0, 0, new Bitset(0), 0, 0),
+      new K2Tree(0, 0, new Bitset(0), 0, 0, Array.empty),
       0,
       0,
       None
