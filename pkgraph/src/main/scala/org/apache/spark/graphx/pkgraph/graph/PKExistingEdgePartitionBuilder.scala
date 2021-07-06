@@ -32,12 +32,21 @@ private[pkgraph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(
   private val builder = K2TreeBuilder(k, size)
   private val edgeAttrs = new PrimitiveVector[E](64)
 
+  private var lastLine = -1
+  private var lastCol = -1
+
   def addEdge(src: VertexId, dst: VertexId, attr: E): Unit = {
     val line = (src - srcOffset).toInt
     val col = (dst - dstOffset).toInt
 
-    builder.addEdge(line, col)
-    edgeAttrs += attr
+    // Our solution does not support multi-graphs, so we ignore repeated edges
+    if(lastLine != line || lastCol != col) {
+      lastLine = line
+      lastCol = col
+
+      builder.addEdge(line, col)
+      edgeAttrs += attr
+    }
   }
 
   def build(): PKEdgePartition[V, E] = {

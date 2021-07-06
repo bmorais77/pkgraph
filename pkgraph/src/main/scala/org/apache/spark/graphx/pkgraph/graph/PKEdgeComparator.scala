@@ -13,13 +13,13 @@ private[pkgraph] class PKEdgeComparator[E1: ClassTag, E2: ClassTag](
   private val srcOffset = math.min(part1.srcOffset, part2.srcOffset)
   private val dstOffset = math.min(part1.dstOffset, part2.dstOffset)
 
-  def compare(e1: Edge[E1], e2: Edge[E2]): Int = {
+  def compare(e1: Edge[E1], e2: Edge[E2]): Boolean = {
     val line1 = (e1.srcId - srcOffset).toInt
     val col1 = (e1.dstId - dstOffset).toInt
     val line2 = (e2.srcId - srcOffset).toInt
     val col2 = (e2.dstId - dstOffset).toInt
     val idx1 = K2TreeIndex.fromEdge(part1.tree.k, height, line1, col1)
     val idx2 = K2TreeIndex.fromEdge(part2.tree.k, height, line2, col2)
-    idx1 - idx2
+    idx1 > idx2
   }
 }

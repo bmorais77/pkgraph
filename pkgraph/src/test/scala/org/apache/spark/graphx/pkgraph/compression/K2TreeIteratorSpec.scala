@@ -209,4 +209,32 @@ class K2TreeIteratorSpec extends FlatSpec {
     val iterator = new K2TreeIterator(tree)
     assert(!iterator.hasNext)
   }
+
+  /**
+   * Matrix 4x4:
+   * +---+---+---+---+
+   * | 1   1   1   1 |
+   * | 1   1   1   1 |
+   * | 1   1   1   1 |
+   * | 1   1   1   1 |
+   * +---+---+---+---+
+   */
+  it should "iterate a dense matrix" in {
+    val edges = (0 until 4)
+      .flatMap(i => (0 until 4).map(j => (i, j, K2TreeIndex.fromEdge(2, 2, i, j))))
+      .sortBy(_._3)
+      .map(a => (a._1, a._2))
+      .toArray
+
+    val tree = K2Tree(2, 4, edges)
+    val buffer = new ArrayBuffer[(Int, Int)](edges.length)
+    val iterator = new K2TreeIterator(tree)
+    while(iterator.hasNext) {
+      val edge = iterator.next()
+      buffer.append(edge)
+    }
+
+    val edgesFound: Array[(Int, Int)] = buffer.toArray
+    assert(edges sameElements edgesFound)
+  }
 }

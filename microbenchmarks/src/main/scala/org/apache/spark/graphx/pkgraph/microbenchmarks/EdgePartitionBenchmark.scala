@@ -34,10 +34,6 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
           }
         }
 
-        using(PKGraphDataSet.buildPartitions(2, density)) curve "PKGraph (k=2) (recursive)" in { partition =>
-          partition.tree.foreach { (_, _) => }
-        }
-
         using(PKGraphDataSet.buildPartitions(2, density)) curve "PKGraph (k=2) (iterator)" in { partition =>
           val it = partition.tree.iterator
           while (it.hasNext) {
@@ -45,19 +41,11 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
           }
         }
 
-        using(PKGraphDataSet.buildPartitions(4, density)) curve "PKGraph (k=4) (recursive)" in { partition =>
-          partition.tree.foreach { (_, _) => }
-        }
-
         using(PKGraphDataSet.buildPartitions(4, density)) curve "PKGraph (k=4) (iterator)" in { partition =>
           val it = partition.tree.iterator
           while (it.hasNext) {
             it.next()
           }
-        }
-
-        using(PKGraphDataSet.buildPartitions(8, density)) curve "PKGraph (k=8) (recursive)" in { partition =>
-          partition.tree.foreach { (_, _) => }
         }
 
         using(PKGraphDataSet.buildPartitions(8, density)) curve "PKGraph (k=8) (iterator)" in { partition =>

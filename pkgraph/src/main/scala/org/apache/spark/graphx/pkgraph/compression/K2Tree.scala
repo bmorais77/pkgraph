@@ -11,6 +11,8 @@ class K2Tree(
     val leavesCount: Int
 ) extends Serializable {
 
+  assert(size <= (1L << 31), s"K²-Tree matrix size must be smaller than 2^31 (size: $size)")
+
   /**
     * Total number of bits used to represent this K²-Tree.
     *
@@ -45,35 +47,6 @@ class K2Tree(
     * @return K²-Tree iterator
     */
   def iterator: Iterator[(Int, Int)] = new K2TreeIterator(this)
-
-  /**
-    * Calls the given function for each edge stored in this K²-Tree.
-    *
-    * @param f   User function ((line, col) => Unit)
-    */
-  def foreach(f: (Int, Int) => Unit): Unit = {
-    if (isEmpty) {
-      return
-    }
-
-    val k2 = k * k
-    def recursiveNavigation(n: Int, line: Int, col: Int, pos: Int): Unit = {
-      if (pos >= internalCount) { // Is non-zero leaf node
-        if (bits.get(pos)) {
-          f(line, col)
-        }
-      } else if (pos == -1 || bits.get(pos)) { // Is virtual node (-1) or non-zero internal node
-        val y = rank(pos) * k2
-        val newSize = n / k
-
-        for (i <- 0 until k2) {
-          recursiveNavigation(newSize, line * k + i / k, col * k + i % k, y + i)
-        }
-      }
-    }
-
-    recursiveNavigation(size, 0, 0, -1)
-  }
 
   /**
     * Rank operation of the K²-Tree.

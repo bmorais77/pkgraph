@@ -20,6 +20,24 @@ class PKEdgePartitionSpec extends FlatSpec {
     assert(partition.size == size)
   }
 
+  it should "create a new partition with repeat edges" in {
+    val builder = PKEdgePartitionBuilder[Int, Int](2, 10)
+    for(_ <- 0 until 10) {
+      builder.add(10, 10, 10)
+    }
+
+    val partition = builder.build()
+    assert(partition.size == 1)
+
+    val it = partition.iterator
+    assert(it.hasNext)
+
+    val edge = it.next()
+    assert(edge.srcId == 10)
+    assert(edge.dstId == 10)
+    assert(edge.attr == 10)
+  }
+
   /**
     * Matrix 16x16:
     * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -332,6 +350,78 @@ class PKEdgePartitionSpec extends FlatSpec {
     }
 
     assert(i - 1 == partition.size / 2)
+  }
+
+  it should "iterate all edges in a partition" in {
+    val partition = buildEdgePartition(2, 100)
+    assert(partition.size == 100)
+
+    var i = 0
+    for(edge <- partition.iterator) {
+      assert(edge.srcId + edge.dstId == edge.attr)
+      i += 1
+    }
+    assert(i == partition.size)
+  }
+
+  it should "iterate all triplet edges in a partition" in {
+    val partition = buildEdgePartition(2, 100)
+    assert(partition.size == 100)
+
+    var i = 0
+    for(edge <- partition.tripletIterator()) {
+      assert(edge.srcId + edge.dstId == edge.attr)
+      i += 1
+    }
+    assert(i == partition.size)
+  }
+
+  it should "iterate all edges in a partition with a large matrix" in {
+    val builder = PKEdgePartitionBuilder[Int, Int](2, 10)
+
+    // Matrix only contains 10 edges, but they are very far apart in the matrix
+    for(i <- 0 until 10) {
+      if(i < 5) {
+        builder.add(i, i, 1)
+      } else {
+        builder.add(100000000 + i, 100000000 + i, 1)
+      }
+    }
+
+    val partition = builder.build()
+    assert(partition.size == 10)
+
+    var i = 0
+    for(edge <- partition.iterator) {
+      assert(edge.attr == 1)
+      i += 1
+    }
+
+    assert(i > 0 && i == partition.size)
+  }
+
+  it should "iterate all triplet edges in a partition with a large matrix" in {
+    val builder = PKEdgePartitionBuilder[Int, Int](2, 10)
+
+    // Matrix only contains 10 edges, but they are very far apart in the matrix
+    for(i <- 0 until 10) {
+      if(i < 5) {
+        builder.add(i, i, 1)
+      } else {
+        builder.add(100000000 + i, 100000000 + i, 1)
+      }
+    }
+
+    val partition = builder.build()
+    assert(partition.size == 10)
+
+    var i = 0
+    for(edge <- partition.tripletIterator()) {
+      assert(edge.attr == 1)
+      i += 1
+    }
+
+    assert(i > 0 && i == partition.size)
   }
 
   private def updatePartitionVertices(partition: PKEdgePartition[Int, Int]): PKEdgePartition[Int, Int] = {

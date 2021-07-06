@@ -22,7 +22,7 @@ object GraphDatasetGenerator {
     val density = math.max(0, math.min(args(1).toInt, 100))
     val densityPercentage = density / 100.0
 
-    val outputDir = s"${args(2)}/graph-dataset-$size-$density-generated"
+    val outputDir = s"${args(2)}/generated-$size-$density"
     createOutputDirectory(s"$outputDir")
 
     println(s"Generating ${size}x$size sparse matrix with $densityPercentage density...")

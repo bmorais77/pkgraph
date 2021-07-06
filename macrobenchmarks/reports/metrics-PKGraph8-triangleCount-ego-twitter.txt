@@ -1,0 +1,34 @@
+
+Scheduling mode = FIFO
+Spark Context default degree of parallelism = 4
+Aggregated Spark stage metrics:
+numStages => 1
+numTasks => 2
+elapsedTime => 3799 (4 s)
+stageDuration => 3799 (4 s)
+executorRunTime => 7227 (7 s)
+executorCpuTime => 6359 (6 s)
+executorDeserializeTime => 116 (0.1 s)
+executorDeserializeCpuTime => 86 (86 ms)
+resultSerializationTime => 0 (0 ms)
+jvmGCTime => 820 (0.8 s)
+shuffleFetchWaitTime => 0 (0 ms)
+shuffleWriteTime => 0 (0 ms)
+resultSize => 2008 (2008 Bytes)
+diskBytesSpilled => 0 (0 Bytes)
+memoryBytesSpilled => 0 (0 Bytes)
+peakExecutionMemory => 0
+recordsRead => 2420766
+bytesRead => 44622841 (42.0 MB)
+recordsWritten => 0
+bytesWritten => 0 (0 Bytes)
+shuffleRecordsRead => 0
+shuffleTotalBlocksFetched => 0
+shuffleLocalBlocksFetched => 0
+shuffleRemoteBlocksFetched => 0
+shuffleTotalBytesRead => 0 (0 Bytes)
+shuffleLocalBytesRead => 0 (0 Bytes)
+shuffleRemoteBytesRead => 0 (0 Bytes)
+shuffleRemoteBytesReadToDisk => 0 (0 Bytes)
+shuffleBytesWritten => 0 (0 Bytes)
+shuffleRecordsWritten => 0

@@ -4,6 +4,7 @@ import ch.cern.sparkmeasure.StageMetrics
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{ConnectedComponentsAlgorithm, GraphAlgorithm, PageRankAlgorithm, ShortestPathAlgorithm, TriangleCountAlgorithm}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.GraphDatasetReader
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.readers.{EgoTwitterGraphDatasetReader, GeneratedGraphDatasetReader}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.generators.{GraphGenerator, GraphXGenerator, PKGraphGenerator}
 import org.apache.spark.sql.SparkSession
 
@@ -31,6 +32,13 @@ object GraphBenchmark {
     }
   }
 
+  def getGraphDatasetReaderFromArgs(dataset: String): GraphDatasetReader = {
+    dataset match {
+      case "ego-twitter" => new EgoTwitterGraphDatasetReader
+      case _ => new GeneratedGraphDatasetReader
+    }
+  }
+
   def main(args: Array[String]): Unit = {
     assert(args.length == 3, "Wrong usage: graph-benchmark <implementation> <algorithm> <dataset>")
     val implementation = args(0)
@@ -39,7 +47,7 @@ object GraphBenchmark {
 
     val graph = getGraphGeneratorFromArgs(implementation)
     val algorithm = getGraphAlgorithmFromArgs(graphAlgorithm)
-    val reader = new GraphDatasetReader
+    val reader = getGraphDatasetReaderFromArgs(graphDataset)
 
     val config = new SparkConf()
       .setMaster("local[4]")
@@ -51,7 +59,7 @@ object GraphBenchmark {
     val sc = new SparkContext(config)
     val spark = SparkSession.builder().config(sc.getConf).getOrCreate()
 
-    val datasetPath = s"macrobenchmarks/datasets/$graphDataset"
+    val datasetPath = s"datasets/$graphDataset"
     println(s"Dataset Path = $datasetPath")
 
     val stageMetrics = StageMetrics(spark)

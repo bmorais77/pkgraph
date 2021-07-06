@@ -206,6 +206,7 @@ private[pkgraph] class PKEdgePartition[
       i += 1
     }
 
+    assert(newData.length == i, s"new data length '$i' (expected: ${newData.length})")
     withEdgeAttrs(newData)
   }
 
@@ -229,7 +230,8 @@ private[pkgraph] class PKEdgePartition[
       newData(i) = iter.next()
       i += 1
     }
-    assert(newData.length == i)
+
+    assert(newData.length == i, s"new data length '$i' (expected: ${newData.length})")
     withEdgeAttrs(newData)
   }
 
@@ -269,18 +271,7 @@ private[pkgraph] class PKEdgePartition[
     *
     * @param f an external state mutating user defined function.
     */
-  def foreach(f: Edge[E] => Unit): Unit = {
-    val edge = new Edge[E]()
-    var pos = 0
-
-    tree.foreach { (line, col) =>
-      edge.srcId = line + srcOffset
-      edge.dstId = col + dstOffset
-      edge.attr = edgeAttrs(pos)
-      f(edge)
-      pos += 1
-    }
-  }
+  def foreach(f: Edge[E] => Unit): Unit = iterator.foreach(f)
 
   /**
     * Apply `f` to all edges present in both `this` and `other` and return a new `PKEdgePartition`
@@ -316,7 +307,7 @@ private[pkgraph] class PKEdgePartition[
     while (it1.hasNext && it2.hasNext) {
       val edge1 = it1.next()
 
-      while (it2.hasNext && comparator.compare(edge1, edge2) > 0) {
+      while (it2.hasNext && comparator.compare(edge1, edge2)) {
         edge2 = it2.next()
       }
 
@@ -376,28 +367,26 @@ private[pkgraph] class PKEdgePartition[
     */
   def tripletIterator(includeSrc: Boolean = true, includeDst: Boolean = true): Iterator[EdgeTriplet[V, E]] =
     new Iterator[EdgeTriplet[V, E]] {
-      private val iterator = tree.iterator
-      private var pos = 0
+      private val iterator = PKEdgePartition.this.iterator
 
-      override def hasNext: Boolean = pos < edgeAttrs.length && iterator.hasNext
+      override def hasNext: Boolean = iterator.hasNext
 
       override def next(): EdgeTriplet[V, E] = {
         val triplet = new EdgeTriplet[V, E]
 
-        val (line, col) = iterator.next()
-        triplet.srcId = line + srcOffset
-        triplet.dstId = col + dstOffset
-        triplet.attr = edgeAttrs(pos)
+        val edge = iterator.next()
+        triplet.srcId = edge.srcId
+        triplet.dstId = edge.dstId
+        triplet.attr = edge.attr
 
         if (includeSrc) {
-          triplet.srcAttr = vertexAttribute(line + srcOffset)
+          triplet.srcAttr = vertexAttribute(edge.srcId)
         }
 
         if (includeDst) {
-          triplet.dstAttr = vertexAttribute(col + dstOffset)
+          triplet.dstAttr = vertexAttribute(edge.dstId)
         }
 
-        pos += 1
         triplet
       }
     }

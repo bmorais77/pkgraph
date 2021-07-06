@@ -45,7 +45,7 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
     val matrixSize = math.max(endX - srcOffset + 1, endY - dstOffset + 1).toInt
 
     val builder = K2TreeBuilder(k, matrixSize)
-    val sortedEdges = edges
+    val sortedEdgesWithIndex = edges
       .trim()
       .array
       .map { edge =>
@@ -54,27 +54,43 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
         (K2TreeIndex.fromEdge(k, builder.height, line, col), edge)
       }
       .sortBy(e => e._1)
-      .map(_._2)
 
-    for (edge <- sortedEdges) {
+    // Count the number of unique edges and map the edges to remove the index
+    val sortedEdges = new Array[Edge[E]](sortedEdgesWithIndex.length)
+    var edgeCount = 0
+    var lastLine = -1
+    var lastCol = -1
+
+    for ((_, edge) <- sortedEdgesWithIndex) {
       val line = (edge.srcId - srcOffset).toInt
       val col = (edge.dstId - dstOffset).toInt
 
       // Our solution does not support multi-graphs, so we ignore repeated edges
-      builder.addEdge(line, col)
+      if (lastLine != line || lastCol != col) {
+        builder.addEdge(line, col)
+        lastLine = line
+        lastCol = col
+
+        sortedEdges(edgeCount) = edge
+        edgeCount += 1
+      }
     }
 
     val tree = builder.build()
 
-    // Traverse sorted edges to construct global2local map
-    val global2local = new GraphXPrimitiveKeyOpenHashMap[VertexId, Int](tree.size)
+    // Traverse sorted edges to construct global2local map and the final edge attribute array
+    val edgeAttrs = new Array[E](edgeCount)
+    val global2local = new GraphXPrimitiveKeyOpenHashMap[VertexId, Int]
     var currLocalId = -1
-    for (edge <- sortedEdges) {
+
+    for (i <- 0 until edgeCount) {
+      val edge = sortedEdges(i)
+      edgeAttrs(i) = edge.attr
+
       global2local.changeValue(edge.srcId, { currLocalId += 1; currLocalId }, identity)
       global2local.changeValue(edge.dstId, { currLocalId += 1; currLocalId }, identity)
     }
 
-    val edgeAttrs = sortedEdges.map(_.attr)
     val vertexAttrs = new Array[V](currLocalId + 1)
     new PKEdgePartition[V, E](vertexAttrs, global2local, edgeAttrs, tree, srcOffset, dstOffset, None)
   }

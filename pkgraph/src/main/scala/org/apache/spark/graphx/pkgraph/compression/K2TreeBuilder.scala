@@ -32,7 +32,7 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int) {
       val childIndex = (currLine % k) * k + (currCol % k)
 
       // Index of the parent node relative to its level
-      val parentIndex = (currLine / k) * parentSize + (currCol / k)
+      val parentIndex = (currLine.toLong / k) * parentSize + (currCol.toLong / k)
 
       // Offset to start of child nodes of the current parent
       // We skip to the next K² if we are now in a different parent node then the current cursor
