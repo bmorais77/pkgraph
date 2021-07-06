@@ -1,6 +1,7 @@
 package org.apache.spark.graphx.pkgraph.macrobenchmarks
 
 import ch.cern.sparkmeasure.StageMetrics
+import org.apache.spark.graphx.PartitionStrategy
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{ConnectedComponentsAlgorithm, GraphAlgorithm, PageRankAlgorithm, ShortestPathAlgorithm, TriangleCountAlgorithm}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.GraphDatasetReader
@@ -45,7 +46,7 @@ object GraphBenchmark {
     val graphAlgorithm = args(1)
     val graphDataset = args(2)
 
-    val graph = getGraphGeneratorFromArgs(implementation)
+    val generator = getGraphGeneratorFromArgs(implementation)
     val algorithm = getGraphAlgorithmFromArgs(graphAlgorithm)
     val reader = getGraphDatasetReaderFromArgs(graphDataset)
 
@@ -65,7 +66,8 @@ object GraphBenchmark {
     val stageMetrics = StageMetrics(spark)
     stageMetrics.runAndMeasure {
       val dataset = reader.readDataset(sc, datasetPath)
-      algorithm.run(graph.generate(dataset))
+      val graph = generator.generate(dataset)
+      algorithm.run(graph)
     }
 
     val report = new PrintStream(s"macrobenchmarks/reports/metrics-$implementation-$graphAlgorithm-$graphDataset.txt")

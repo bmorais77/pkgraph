@@ -147,7 +147,7 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
             val data = message._2
             builder.add(data._1, data._2, data._3)
           }
-          val edgePartition = builder.build
+          val edgePartition = builder.build()
           Iterator((pid, edgePartition))
         },
         preservesPartitioning = true
