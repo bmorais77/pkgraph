@@ -2,17 +2,14 @@ package org.apache.spark.graphx.pkgraph.compression
 
 class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
   private val k2 = tree.k * tree.k
+  private val levelOffsets = buildLevelOffsets(tree)
 
   // Keeps a cursor in each level of the tree
-  private val cursors = buildTreeCursors(tree)
-
-  // Keeps the child index in each level of the tree
-  private val childCursors = new Array[Int](tree.height)
+  private val cursors = Array.fill(tree.height)(-1)
 
   private var line: Int = 0
   private var col: Int = 0
   private var height: Int = 0
-
   private var currentEdge: Option[(Int, Int)] = None
 
   override def hasNext: Boolean = {
@@ -44,15 +41,29 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
     * @return next edge if there are any more edges, or [[None]] otherwise.
     */
   private def findNextEdge(): Option[(Int, Int)] = {
+    var nextBlock = false
     var nextEdge: Option[(Int, Int)] = None
 
     while (nextEdge.isEmpty) {
-      var nextChild = true
-      val pos = cursors(height)
+      val offset = levelOffsets(height)
+      val levelPos = cursors(height)
 
-      // No more child nodes
-      if (childCursors(height) >= k2) {
-        childCursors(height) = 0
+      val pos = tree.bits.nextSetBit(offset + levelPos + 1)
+
+      // No more bits set to true, no more edges to find
+      if (pos == -1) {
+        return None
+      }
+
+      cursors(height) = pos - offset
+
+      val prevBlockIndex = levelPos / k2
+      val currBlockIndex = (pos - offset) / k2
+
+      // We moved to another sequence of K² bits (i.e we changed parent node)
+      if (!nextBlock && currBlockIndex != prevBlockIndex) {
+        // Setup cursor to next block of K² child nodes
+        cursors(height) = currBlockIndex * k2 - 1
         height -= 1
 
         // Reached virtual root
@@ -63,30 +74,19 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
         line /= tree.k
         col /= tree.k
       } else {
+        val childIndex = (pos - offset) % k2
+        line = line / tree.k * tree.k + childIndex / tree.k
+        col = col / tree.k * tree.k + childIndex % tree.k
+
         // Leaf node
         if (pos >= tree.internalCount) {
-          if (tree.bits.get(pos)) {
-            nextEdge = Some((line, col))
-          }
+          nextEdge = Some((line, col))
         } else {
-          if (tree.bits.get(pos)) {
-            line = line * tree.k + childCursors(height + 1) / tree.k
-            col = col * tree.k + childCursors(height + 1) % tree.k
-            height += 1
-            nextChild = false
-          }
-        }
-      }
+          line = line * tree.k + childIndex / tree.k
+          col = col * tree.k + childIndex % tree.k
 
-      if(nextChild) {
-        // Move to next child node
-        cursors(height) += 1
-        childCursors(height) += 1
-
-        // If the next child node is not the last
-        if (childCursors(height) < k2) {
-          line = line / tree.k * tree.k + childCursors(height) / tree.k
-          col = col / tree.k * tree.k + childCursors(height) % tree.k
+          height += 1
+          nextBlock = true
         }
       }
     }
@@ -95,33 +95,32 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
   }
 
   /**
-    * Builds a cursor for each level of the tree.
-    * Each cursor keeps track of the global position in the bitset for a given level.
+    * Builds an array containing the offset in the tree's bitset of each level.
     *
-    * @param tree    Tree to build cursors for
-    * @return cursors for each level
+    * @param tree    Tree to build level offsets for
+    * @return offsets for each level
     */
-  private def buildTreeCursors(tree: K2Tree): Array[Int] = {
+  private def buildLevelOffsets(tree: K2Tree): Array[Int] = {
     if (tree.isEmpty) {
       return Array.empty
     }
 
     val height = tree.height
-    val cursors = new Array[Int](height)
-    cursors(0) = 0 // First level cursor ia always at beginning of the bitset
+    val offsets = new Array[Int](height)
+    offsets(0) = 0 // First level is always at beginning of the bitset
 
     if (height > 1) {
-      cursors(1) = k2 // Second level is always as an offset of K² bits
+      offsets(1) = k2 // Second level is always as an offset of K² bits
     }
 
     var start = 0
     var end = k2
     for (level <- 2 until height) {
-      cursors(level) = cursors(level - 1) + tree.bits.count(start, end - 1) * k2
+      offsets(level) = offsets(level - 1) + tree.bits.count(start, end - 1) * k2
       start = end
-      end = cursors(level)
+      end = offsets(level)
     }
 
-    cursors
+    offsets
   }
 }
