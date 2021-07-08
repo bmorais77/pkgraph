@@ -2,19 +2,11 @@ package org.apache.spark.graphx.pkgraph.macrobenchmarks
 
 import ch.cern.sparkmeasure.StageMetrics
 import org.apache.spark.graphx.PartitionStrategy
+import org.apache.spark.graphx.pkgraph.graph.PKGraph
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{
-  ConnectedComponentsAlgorithm,
-  GraphAlgorithm,
-  PageRankAlgorithm,
-  ShortestPathAlgorithm,
-  TriangleCountAlgorithm
-}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{ConnectedComponentsAlgorithm, GraphAlgorithm, PageRankAlgorithm, ShortestPathAlgorithm, TriangleCountAlgorithm}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.GraphDatasetReader
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.readers.{
-  EgoTwitterGraphDatasetReader,
-  GeneratedGraphDatasetReader
-}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.readers.{EgoTwitterGraphDatasetReader, GeneratedGraphDatasetReader}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.generators.{GraphGenerator, GraphXGenerator, PKGraphGenerator}
 import org.apache.spark.sql.SparkSession
 
@@ -77,7 +69,12 @@ object GraphBenchmark {
     val dataset = reader.readDataset(sc, datasetPath)
     var graph = generator.generate(dataset)
     if (partitionCount != -1) {
-      graph = graph.partitionBy(PartitionStrategy.EdgePartition2D, partitionCount)
+      graph = graph match {
+        case g: PKGraph[Long, Int] =>
+          g.partitionByGridStrategy(partitionCount)
+        case _ =>
+          graph.partitionBy(PartitionStrategy.EdgePartition2D, partitionCount)
+      }
     }
 
     // Warmup

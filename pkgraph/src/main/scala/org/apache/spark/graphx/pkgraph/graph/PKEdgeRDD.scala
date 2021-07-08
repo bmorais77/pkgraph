@@ -178,7 +178,7 @@ object PKEdgeRDD {
       iter.foreach { e =>
         builder.add(e.srcId, e.dstId, e.attr)
       }
-      Iterator((pid, builder.build))
+      Iterator((pid, builder.build()))
     }
     new PKEdgeRDD(edgePartitions)
   }

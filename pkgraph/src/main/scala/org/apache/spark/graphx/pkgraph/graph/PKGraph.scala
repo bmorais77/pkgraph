@@ -114,6 +114,11 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
     this
   }
 
+  def partitionByGridStrategy(numPartitions: Int = edges.partitions.length): PKGraph[V, E] = {
+    val (matrixSize, _) = vertices.max() { case (a, b) => if(a._1 >= b._1) 1 else -1 }
+    partitionBy(new PKGridPartitionStrategy(matrixSize.toInt), numPartitions)
+  }
+
   /**
     * Repartitions the edges in the graph according to the given `partitionStrategy`.
     *
