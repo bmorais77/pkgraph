@@ -44,18 +44,23 @@ object GraphBenchmark {
 
   def getGraphDatasetReaderFromArgs(dataset: String): GraphDatasetReader = {
     dataset match {
-      case "ego-twitter" => new EgoTwitterGraphDatasetReader
-      case _             => new GeneratedGraphDatasetReader
+      case "ego-twitter"                => new EgoTwitterGraphDatasetReader
+      case "web-uk-2005" | "web-Google" => new MTXGraphDatasetReader
+      case _                            => new GeneratedGraphDatasetReader
     }
   }
 
   def main(args: Array[String]): Unit = {
-    assert(args.length >= 3, "Wrong usage: graph-benchmark <implementation> <algorithm> <dataset> [<partition-count>]")
+    assert(
+      args.length >= 3,
+      "Wrong usage: graph-benchmark <implementation> <algorithm> <dataset> [<warmup-count> <partition-count>]"
+    )
 
     val implementation = args(0)
     val graphAlgorithm = args(1)
     val graphDataset = args(2)
-    val partitionCount = if (args.length >= 4) args(3).toInt else -1
+    val warmupCount = if (args.length >= 4) args(3).toInt else -1
+    val partitionCount = if (args.length >= 5) args(4).toInt else -1
 
     val generator = getGraphGeneratorFromArgs(implementation)
     val algorithm = getGraphAlgorithmFromArgs(graphAlgorithm)
@@ -64,7 +69,6 @@ object GraphBenchmark {
     val config = new SparkConf()
       .setMaster("local[4]")
       .setAppName(s"Graph Benchmark ($implementation | $graphAlgorithm | $graphDataset)")
-      .set("spark.sql.unsafe.enabled", "true")
       .set("spark.eventLog.enabled", "true")
       .set("spark.eventLog.dir", "/tmp/spark-events")
 
@@ -80,18 +84,22 @@ object GraphBenchmark {
       graph = graph.partitionBy(PartitionStrategy.EdgePartition2D, partitionCount)
     }
 
-    // Warmup
-    algorithm.run(graph)
+    if (warmupCount != -1) {
+      for (_ <- 0 until warmupCount) {
+        algorithm.run(graph)
+      }
+    }
 
     val stageMetrics = StageMetrics(spark)
     stageMetrics.runAndMeasure {
-      algorithm.run(graph)
+      algorithm.run(graph.persist())
     }
 
     val report = new PrintStream(s"macrobenchmarks/reports/metrics-$implementation-$graphAlgorithm-$graphDataset.txt")
     report.println(s"Implementation = $implementation")
     report.println(s"Algorithm = $graphAlgorithm")
     report.println(s"Dataset = $graphDataset")
+    report.println(s"Warmup = $warmupCount")
     report.println(s"Partition Count = $partitionCount")
     report.println(stageMetrics.report())
     sc.stop()

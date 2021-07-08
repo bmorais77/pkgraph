@@ -11,7 +11,7 @@ class K2Tree(
     val leavesCount: Int
 ) extends Serializable {
 
-  if (size <= (1L << 31)) {
+  if (size > (1L << 31)) {
     throw new Exception(s"K²-Tree matrix size must be smaller than 2^31 (size: $size)")
   }
 
