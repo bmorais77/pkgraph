@@ -1,20 +1,24 @@
+Implementation = GraphX
+Algorithm = pageRank
+Dataset = ego-twitter
+Partition Count = 16
 
 Scheduling mode = FIFO
 Spark Context default degree of parallelism = 4
 Aggregated Spark stage metrics:
 numStages => 179
 numTasks => 974
-elapsedTime => 7899 (8 s)
-stageDuration => 9230 (9 s)
-executorRunTime => 17432 (17 s)
-executorCpuTime => 15930 (16 s)
-executorDeserializeTime => 1236 (1 s)
-executorDeserializeCpuTime => 1472 (1 s)
+elapsedTime => 9636 (10 s)
+stageDuration => 11469 (11 s)
+executorRunTime => 21651 (22 s)
+executorCpuTime => 19168 (19 s)
+executorDeserializeTime => 1362 (1 s)
+executorDeserializeCpuTime => 1581 (2 s)
 resultSerializationTime => 0 (0 ms)
-jvmGCTime => 1294 (1 s)
+jvmGCTime => 1186 (1 s)
 shuffleFetchWaitTime => 0 (0 ms)
-shuffleWriteTime => 473 (0.5 s)
-resultSize => 22747 (22.0 KB)
+shuffleWriteTime => 541 (0.5 s)
+resultSize => 22876 (22.0 KB)
 diskBytesSpilled => 0 (0 Bytes)
 memoryBytesSpilled => 0 (0 Bytes)
 peakExecutionMemory => 0

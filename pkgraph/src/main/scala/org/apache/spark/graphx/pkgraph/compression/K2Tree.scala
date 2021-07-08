@@ -11,7 +11,9 @@ class K2Tree(
     val leavesCount: Int
 ) extends Serializable {
 
-  assert(size <= (1L << 31), s"K²-Tree matrix size must be smaller than 2^31 (size: $size)")
+  if (size <= (1L << 31)) {
+    throw new Exception(s"K²-Tree matrix size must be smaller than 2^31 (size: $size)")
+  }
 
   /**
     * Total number of bits used to represent this K²-Tree.
@@ -47,16 +49,6 @@ class K2Tree(
     * @return K²-Tree iterator
     */
   def iterator: Iterator[(Int, Int)] = new K2TreeIterator(this)
-
-  /**
-    * Rank operation of the K²-Tree.
-    *
-    * Counts the number of bits with value 1 in the tree bits between [0, end].
-    *
-    * @param end  Inclusive ending position
-    * @return number of bits with value 1 between [0, end]
-    */
-  protected[compression] def rank(end: Int): Int = bits.count(0, end)
 }
 
 object K2Tree {
