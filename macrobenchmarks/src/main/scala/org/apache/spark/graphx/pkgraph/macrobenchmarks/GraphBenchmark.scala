@@ -3,9 +3,18 @@ package org.apache.spark.graphx.pkgraph.macrobenchmarks
 import ch.cern.sparkmeasure.StageMetrics
 import org.apache.spark.graphx.PartitionStrategy
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{ConnectedComponentsAlgorithm, GraphAlgorithm, PageRankAlgorithm, ShortestPathAlgorithm, TriangleCountAlgorithm}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{
+  ConnectedComponentsAlgorithm,
+  GraphAlgorithm,
+  PageRankAlgorithm,
+  ShortestPathAlgorithm,
+  TriangleCountAlgorithm
+}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.GraphDatasetReader
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.readers.{EgoTwitterGraphDatasetReader, GeneratedGraphDatasetReader}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.readers.{
+  EgoTwitterGraphDatasetReader,
+  GeneratedGraphDatasetReader
+}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.generators.{GraphGenerator, GraphXGenerator, PKGraphGenerator}
 import org.apache.spark.sql.SparkSession
 
@@ -36,15 +45,17 @@ object GraphBenchmark {
   def getGraphDatasetReaderFromArgs(dataset: String): GraphDatasetReader = {
     dataset match {
       case "ego-twitter" => new EgoTwitterGraphDatasetReader
-      case _ => new GeneratedGraphDatasetReader
+      case _             => new GeneratedGraphDatasetReader
     }
   }
 
   def main(args: Array[String]): Unit = {
-    assert(args.length == 3, "Wrong usage: graph-benchmark <implementation> <algorithm> <dataset>")
+    assert(args.length >= 3, "Wrong usage: graph-benchmark <implementation> <algorithm> <dataset> [<partition-count>]")
+
     val implementation = args(0)
     val graphAlgorithm = args(1)
     val graphDataset = args(2)
+    val partitionCount = if (args.length >= 4) args(3).toInt else -1
 
     val generator = getGraphGeneratorFromArgs(implementation)
     val algorithm = getGraphAlgorithmFromArgs(graphAlgorithm)
@@ -63,14 +74,25 @@ object GraphBenchmark {
     val datasetPath = s"datasets/$graphDataset"
     println(s"Dataset Path = $datasetPath")
 
+    val dataset = reader.readDataset(sc, datasetPath)
+    var graph = generator.generate(dataset)
+    if (partitionCount != -1) {
+      graph = graph.partitionBy(PartitionStrategy.EdgePartition2D, partitionCount)
+    }
+
+    // Warmup
+    algorithm.run(graph)
+
     val stageMetrics = StageMetrics(spark)
     stageMetrics.runAndMeasure {
-      val dataset = reader.readDataset(sc, datasetPath)
-      val graph = generator.generate(dataset)
       algorithm.run(graph)
     }
 
     val report = new PrintStream(s"macrobenchmarks/reports/metrics-$implementation-$graphAlgorithm-$graphDataset.txt")
+    report.println(s"Implementation = $implementation")
+    report.println(s"Algorithm = $graphAlgorithm")
+    report.println(s"Dataset = $graphDataset")
+    report.println(s"Partition Count = $partitionCount")
     report.println(stageMetrics.report())
     sc.stop()
   }
