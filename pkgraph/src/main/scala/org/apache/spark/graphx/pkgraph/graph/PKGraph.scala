@@ -114,6 +114,13 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
     this
   }
 
+  /**
+   * Partitions the graph according to a 2D partitioning scheme that arranges the edges of
+   * the graph in a grid of roughly equal sized blocks. Requires the number of vertices to be known.
+   *
+   * @param numPartitions     Number of partitions to create
+   * @return graph partitioned with the given [[PartitionStrategy]]
+   */
   def partitionByGridStrategy(numPartitions: Int = edges.partitions.length): PKGraph[V, E] = {
     val (matrixSize, _) = vertices.max() { case (a, b) => if(a._1 >= b._1) 1 else -1 }
     partitionBy(new PKGridPartitionStrategy(matrixSize.toInt), numPartitions)
