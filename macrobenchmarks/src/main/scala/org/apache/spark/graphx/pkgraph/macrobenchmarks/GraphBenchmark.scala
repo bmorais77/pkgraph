@@ -4,9 +4,14 @@ import ch.cern.sparkmeasure.StageMetrics
 import org.apache.spark.graphx.PartitionStrategy
 import org.apache.spark.graphx.pkgraph.graph.PKGraph
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{ConnectedComponentsAlgorithm, GraphAlgorithm, PageRankAlgorithm, ShortestPathAlgorithm, TriangleCountAlgorithm}
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.GraphDatasetReader
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.readers.{EgoTwitterGraphDatasetReader, GeneratedGraphDatasetReader}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.{
+  ConnectedComponentsAlgorithm,
+  GraphAlgorithm,
+  PageRankAlgorithm,
+  ShortestPathAlgorithm,
+  TriangleCountAlgorithm
+}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.MTXGraphDatasetReader
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.generators.{GraphGenerator, GraphXGenerator, PKGraphGenerator}
 import org.apache.spark.sql.SparkSession
 
@@ -34,14 +39,6 @@ object GraphBenchmark {
     }
   }
 
-  def getGraphDatasetReaderFromArgs(dataset: String): GraphDatasetReader = {
-    dataset match {
-      case "ego-twitter"                => new EgoTwitterGraphDatasetReader
-      case "web-uk-2005" | "web-Google" => new MTXGraphDatasetReader
-      case _                            => new GeneratedGraphDatasetReader
-    }
-  }
-
   def main(args: Array[String]): Unit = {
     assert(
       args.length >= 3,
@@ -56,7 +53,7 @@ object GraphBenchmark {
 
     val generator = getGraphGeneratorFromArgs(implementation)
     val algorithm = getGraphAlgorithmFromArgs(graphAlgorithm)
-    val reader = getGraphDatasetReaderFromArgs(graphDataset)
+    val reader = new MTXGraphDatasetReader
 
     val config = new SparkConf()
       .setMaster("local[4]")
