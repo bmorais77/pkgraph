@@ -42,4 +42,56 @@ class BitsetSpec extends FlatSpec {
     assert(bits.count(63, 64 * 3 - 1) == 12)
     assert(bits.count(64, 64 * 3 - 1) == 11)
   }
+
+  it should "shift bits left" in {
+    val bits = new Bitset(64 * 3)
+    val values = Array(0, 1, 2, 10, 11, 12, 63, 64, 66, 80, 110, 128, 129)
+
+    for (value <- values) {
+      bits.set(value)
+    }
+
+    val start = 10
+    val offset = 4
+    val shiftedBits = bits.shiftLeft(start, offset)
+    assert(shiftedBits.capacity == bits.capacity + offset)
+
+    var i = shiftedBits.nextSetBit(0)
+    for (value <- values) {
+      if (value >= start) {
+        assert(i == value + offset)
+      } else {
+        assert(i == value)
+      }
+      i = shiftedBits.nextSetBit(i + 1)
+    }
+
+    assert(i == -1)
+  }
+
+  it should "shift bits left more than 64 bits" in {
+    val bits = new Bitset(64 * 3)
+    val values = Array(0, 1, 2, 10, 11, 12, 63, 64, 66, 80, 110, 128, 129)
+
+    for (value <- values) {
+      bits.set(value)
+    }
+
+    val start = 10
+    val offset = 68
+    val shiftedBits = bits.shiftLeft(start, offset)
+    assert(shiftedBits.capacity == bits.capacity + offset)
+
+    var i = shiftedBits.nextSetBit(0)
+    for (value <- values) {
+      if (value >= start) {
+        assert(i == value + offset)
+      } else {
+        assert(i == value)
+      }
+      i = shiftedBits.nextSetBit(i + 1)
+    }
+
+    assert(i == -1)
+  }
 }

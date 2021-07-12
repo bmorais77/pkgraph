@@ -50,8 +50,8 @@ object MutableEdgePartitionBenchmark extends Bench.OfflineReport {
   }
 
   performanceOf("Dense", 0.0f)
-  performanceOf("Sparse20", 0.2f)
-  performanceOf("Sparse40", 0.4f)
-  performanceOf("Sparse60", 0.6f)
-  performanceOf("Sparse80", 0.8f)
+  //performanceOf("Sparse20", 0.2f)
+  //performanceOf("Sparse40", 0.4f)
+  //performanceOf("Sparse60", 0.6f)
+  //performanceOf("Sparse80", 0.8f)
 }
