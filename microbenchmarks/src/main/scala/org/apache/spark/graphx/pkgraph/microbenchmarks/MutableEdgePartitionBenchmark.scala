@@ -8,9 +8,9 @@ object MutableEdgePartitionBenchmark extends Bench.OfflineReport {
   private lazy val edges: Gen[Int] = Gen.range("edges")(10, 100, 10)
 
   def performanceOf(testName: String, sparsity: Float): Unit = {
-    val k2Partition = PKGraphDataSet.buildPKGraphEdgePartition(2, 100 * 100, sparsity)
-    val k4Partition = PKGraphDataSet.buildPKGraphEdgePartition(2, 100 * 100, sparsity)
-    val k8Partition = PKGraphDataSet.buildPKGraphEdgePartition(2, 100 * 100, sparsity)
+    val k2Partition = PKGraphDataSet.buildPKGraphEdgePartition(2, 100000, sparsity)
+    val k4Partition = PKGraphDataSet.buildPKGraphEdgePartition(4, 100000, sparsity)
+    val k8Partition = PKGraphDataSet.buildPKGraphEdgePartition(8, 100000, sparsity)
 
     performance of testName in {
       measure method "addEdges" in {
