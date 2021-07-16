@@ -1,14 +1,17 @@
 package org.apache.spark.graphx.pkgraph.graph
 
 import org.apache.spark.graphx.pkgraph.compression.{K2TreeBuilder, K2TreeIndex}
+import org.apache.spark.graphx.pkgraph.util.collection.Bitset
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.graphx.{Edge, VertexId}
 import org.apache.spark.util.collection.PrimitiveVector
 
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private (k: Int, initialCapacity: Int) {
   private val edges = new PrimitiveVector[Edge[E]](initialCapacity)
+  private val vertices = new mutable.HashSet[VertexId]
 
   private var startX: Long = Long.MaxValue
   private var startY: Long = Long.MaxValue
@@ -29,6 +32,8 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
     startY = math.min(startY, dst)
     endX = math.max(endX, src)
     endY = math.max(endY, dst)
+    vertices.add(src)
+    vertices.add(dst)
   }
 
   def build(): PKEdgePartition[V, E] = {
@@ -58,9 +63,14 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
     var lastLine = -1
     var lastCol = -1
 
+    val srcVertices = new Bitset(builder.size)
+    val dstVertices = new Bitset(builder.size)
     for ((_, edge) <- sortedEdgesWithIndex) {
       val line = (edge.srcId - srcOffset).toInt
       val col = (edge.dstId - dstOffset).toInt
+
+      srcVertices.set(line)
+      dstVertices.set(col)
 
       // Our solution does not support multi-graphs, so we ignore repeated edges
       if (lastLine != line || lastCol != col) {
@@ -89,7 +99,17 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
     }
 
     val vertexAttrs = new Array[V](currLocalId + 1)
-    new PKEdgePartition[V, E](vertexAttrs, global2local, edgeAttrs, tree, srcOffset, dstOffset, None)
+    new PKEdgePartition[V, E](
+      vertexAttrs,
+      global2local,
+      edgeAttrs,
+      tree,
+      srcOffset,
+      dstOffset,
+      srcVertices,
+      dstVertices,
+      None
+    )
   }
 }
 

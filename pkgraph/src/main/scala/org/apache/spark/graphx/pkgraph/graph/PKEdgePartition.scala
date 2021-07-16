@@ -31,6 +31,8 @@ private[pkgraph] class PKEdgePartition[
     val tree: K2Tree,
     val srcOffset: Long,
     val dstOffset: Long,
+    val srcVertices: Bitset,
+    val dstVertices: Bitset,
     val activeSet: Option[VertexSet]
 ) extends Serializable {
 
@@ -49,6 +51,8 @@ private[pkgraph] class PKEdgePartition[
       tree,
       srcOffset,
       dstOffset,
+      srcVertices,
+      dstVertices,
       activeSet
     )
   }
@@ -71,6 +75,8 @@ private[pkgraph] class PKEdgePartition[
       tree,
       srcOffset,
       dstOffset,
+      srcVertices,
+      dstVertices,
       Some(activeSet)
     )
   }
@@ -82,6 +88,27 @@ private[pkgraph] class PKEdgePartition[
     * @return true if vertex is active, false otherwise
     */
   def isActive(vid: VertexId): Boolean = activeSet.get.contains(vid)
+
+  /**
+    * The number of active vertices.
+    *
+    * @return number of active vertices
+    */
+  def numActives: Int = activeSet.map(_.size).getOrElse(0)
+
+  /**
+    * Gives the number of source vertices in this partition.
+    *
+    * @return number of source vertices
+    */
+  def numSrcVertices: Int = srcVertices.cardinality()
+
+  /**
+    * Gives the number of destination vertices in this partition.
+    *
+    * @return number of destination vertices
+    */
+  def numDstVertices: Int = dstVertices.cardinality()
 
   /**
     * Get the vertex attribute of the vertex with the given global identifier.
@@ -165,6 +192,8 @@ private[pkgraph] class PKEdgePartition[
       tree,
       srcOffset,
       dstOffset,
+      srcVertices,
+      dstVertices,
       activeSet
     )
   }
@@ -400,7 +429,7 @@ private[pkgraph] class PKEdgePartition[
     *
     * @return iterator aggregated messages keyed by the receiving vertex id
     */
-  def aggregateMessages[A: ClassTag](
+  def aggregateMessagesEdgeScan[A: ClassTag](
       sendMsg: EdgeContext[V, E, A] => Unit,
       mergeMsg: (A, A) => A,
       tripletFields: TripletFields,
@@ -419,6 +448,112 @@ private[pkgraph] class PKEdgePartition[
   }
 
   /**
+    * Send messages along edges and aggregate them at the receiving vertices. Implemented by
+    * filtering the source vertex index, then scanning each edge cluster.
+    *
+    * @param sendMsg generates messages to neighboring vertices of an edge
+    * @param mergeMsg the combiner applied to messages destined to the same vertex
+    * @param tripletFields which triplet fields `sendMsg` uses
+    * @param activeness criteria for filtering edges based on activeness
+    *
+    * @return iterator aggregated messages keyed by the receiving vertex id
+    */
+  def aggregateMessagesSrcIndexScan[A: ClassTag](
+      sendMsg: EdgeContext[V, E, A] => Unit,
+      mergeMsg: (A, A) => A,
+      tripletFields: TripletFields,
+      activeness: EdgeActiveness
+  ): Iterator[(VertexId, A)] = {
+    val ctx = new PKAggregatingEdgeContext[V, E, A](vertexAttrs.length, mergeMsg)
+    for (line <- srcVertices.iterator) {
+      val srcId: VertexId = line + srcOffset
+      if (isSrcVertexActive(srcId, activeness)) {
+        val srcAttr = if (tripletFields.useSrc) vertexAttribute(srcId) else null.asInstanceOf[V]
+        for ((col, index) <- tree.directNeighborIterator(line)) {
+          val dstId: VertexId = col + dstOffset
+          if (isEdgeActive(srcId, dstId, activeness)) {
+            val dstAttr = if (tripletFields.useDst) vertexAttribute(dstId) else null.asInstanceOf[V]
+            val attr = edgeAttrs(index)
+            ctx.set(srcId, dstId, global2local(srcId), global2local(dstId), srcAttr, dstAttr, attr)
+            sendMsg(ctx)
+          }
+        }
+      }
+    }
+    ctx.iterator
+  }
+
+  /**
+    * Send messages along edges and aggregate them at the receiving vertices. Implemented by
+    * filtering the destination vertex index, then scanning each edge cluster.
+    *
+    * @param sendMsg generates messages to neighboring vertices of an edge
+    * @param mergeMsg the combiner applied to messages destined to the same vertex
+    * @param tripletFields which triplet fields `sendMsg` uses
+    * @param activeness criteria for filtering edges based on activeness
+    *
+    * @return iterator aggregated messages keyed by the receiving vertex id
+    */
+  def aggregateMessagesDstIndexScan[A: ClassTag](
+      sendMsg: EdgeContext[V, E, A] => Unit,
+      mergeMsg: (A, A) => A,
+      tripletFields: TripletFields,
+      activeness: EdgeActiveness
+  ): Iterator[(VertexId, A)] = {
+    val ctx = new PKAggregatingEdgeContext[V, E, A](vertexAttrs.length, mergeMsg)
+    for (col <- dstVertices.iterator) {
+      val dstId: VertexId = col + dstOffset
+      if (isDstVertexActive(dstId, activeness)) {
+        val dstAttr = if (tripletFields.useDst) vertexAttribute(dstId) else null.asInstanceOf[V]
+        for ((line, index) <- tree.reverseNeighborIterator(col)) {
+          val srcId: VertexId = line + srcOffset
+          if (isEdgeActive(srcId, dstId, activeness)) {
+            val srcAttr = if (tripletFields.useSrc) vertexAttribute(dstId) else null.asInstanceOf[V]
+            val attr = edgeAttrs(index)
+            ctx.set(srcId, dstId, global2local(srcId), global2local(dstId), srcAttr, dstAttr, attr)
+            sendMsg(ctx)
+          }
+        }
+      }
+    }
+    ctx.iterator
+  }
+
+  /**
+    * Checks if the given source vertex is active according to the [[EdgeActiveness]] parameter.
+    *
+    * @param clusterId Source cluster identifier
+    * @param activeness [[EdgeActiveness]] parameter
+    * @return true if cluster is active, false otherwise
+    */
+  private def isSrcVertexActive(clusterId: VertexId, activeness: EdgeActiveness): Boolean = {
+    activeness match {
+      case EdgeActiveness.SrcOnly => isActive(clusterId)
+      case EdgeActiveness.DstOnly => true
+      case EdgeActiveness.Both    => isActive(clusterId)
+      case EdgeActiveness.Either  => true
+      case EdgeActiveness.Neither => true
+    }
+  }
+
+  /**
+    * Checks if the given destination vertex is active according to the [[EdgeActiveness]] parameter.
+    *
+    * @param clusterId Destination cluster identifier
+    * @param activeness [[EdgeActiveness]] parameter
+    * @return true if cluster is active, false otherwise
+    */
+  private def isDstVertexActive(clusterId: VertexId, activeness: EdgeActiveness): Boolean = {
+    activeness match {
+      case EdgeActiveness.SrcOnly => true
+      case EdgeActiveness.DstOnly => isActive(clusterId)
+      case EdgeActiveness.Both    => isActive(clusterId)
+      case EdgeActiveness.Either  => true
+      case EdgeActiveness.Neither => true
+    }
+  }
+
+  /**
     * Return a new edge partition with the specified edge data.
     * Note: It is assumed that the order of the edge attribute was preserved.
     *
@@ -427,7 +562,17 @@ private[pkgraph] class PKEdgePartition[
     * @return edge partition with given edge data
     */
   private def withEdgeAttrs[E2: ClassTag](attrs: Array[E2]): PKEdgePartition[V, E2] = {
-    new PKEdgePartition(vertexAttrs, global2local, attrs, tree, srcOffset, dstOffset, activeSet)
+    new PKEdgePartition(
+      vertexAttrs,
+      global2local,
+      attrs,
+      tree,
+      srcOffset,
+      dstOffset,
+      srcVertices,
+      dstVertices,
+      activeSet
+    )
   }
 
   /**
@@ -486,6 +631,8 @@ object PKEdgePartition {
       new K2Tree(0, 0, new Bitset(0), 0, 0),
       0,
       0,
+      new Bitset(0),
+      new Bitset(0),
       None
     )
 }

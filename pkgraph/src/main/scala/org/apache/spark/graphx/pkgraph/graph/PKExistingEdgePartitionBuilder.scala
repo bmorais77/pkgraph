@@ -2,6 +2,7 @@ package org.apache.spark.graphx.pkgraph.graph
 
 import org.apache.spark.graphx.{VertexId, VertexSet}
 import org.apache.spark.graphx.pkgraph.compression.K2TreeBuilder
+import org.apache.spark.graphx.pkgraph.util.collection.Bitset
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.util.collection.PrimitiveVector
 
@@ -27,6 +28,8 @@ private[pkgraph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(
     global2local: GraphXPrimitiveKeyOpenHashMap[VertexId, Int],
     srcOffset: Long,
     dstOffset: Long,
+    srcVertices: Bitset,
+    dstVertices: Bitset,
     activeSet: Option[VertexSet]
 ) {
   private val builder = K2TreeBuilder(k, size)
@@ -40,11 +43,13 @@ private[pkgraph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(
     val col = (dst - dstOffset).toInt
 
     // Our solution does not support multi-graphs, so we ignore repeated edges
-    if(lastLine != line || lastCol != col) {
+    if (lastLine != line || lastCol != col) {
       lastLine = line
       lastCol = col
 
       builder.addEdge(line, col)
+      srcVertices.set(line)
+      dstVertices.set(col)
       edgeAttrs += attr
     }
   }
@@ -57,12 +62,15 @@ private[pkgraph] class PKExistingEdgePartitionBuilder[V: ClassTag, @specialized(
       builder.build(),
       srcOffset,
       dstOffset,
+      srcVertices,
+      dstVertices,
       activeSet
     )
   }
 }
 
 object PKExistingEdgePartitionBuilder {
+
   /**
     * Creates a new builder from an existing partition but with no edges.
     *
@@ -79,6 +87,8 @@ object PKExistingEdgePartitionBuilder {
       partition.global2local,
       partition.srcOffset,
       partition.dstOffset,
+      partition.srcVertices,
+      partition.dstVertices,
       partition.activeSet
     )
   }

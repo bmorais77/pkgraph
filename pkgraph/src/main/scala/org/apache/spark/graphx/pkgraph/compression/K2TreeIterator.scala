@@ -2,7 +2,7 @@ package org.apache.spark.graphx.pkgraph.compression
 
 class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
   private val k2 = tree.k * tree.k
-  private val levelOffsets = buildLevelOffsets(tree)
+  private val levelOffsets = tree.levelOffsets
 
   // Keeps a cursor in each level of the tree
   private val cursors = Array.fill(tree.height)(-1)
@@ -75,6 +75,8 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
         col /= tree.k
       } else {
         val childIndex = (pos - offset) % k2
+
+        // Update the line and col of the current node
         line = line / tree.k * tree.k + childIndex / tree.k
         col = col / tree.k * tree.k + childIndex % tree.k
 
@@ -82,6 +84,7 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
         if (pos >= tree.internalCount) {
           nextEdge = Some((line, col))
         } else {
+          // Update line and col of next child node
           line = line * tree.k + childIndex / tree.k
           col = col * tree.k + childIndex % tree.k
 
@@ -92,35 +95,5 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
     }
 
     nextEdge
-  }
-
-  /**
-    * Builds an array containing the offset in the tree's bitset of each level.
-    *
-    * @param tree    Tree to build level offsets for
-    * @return offsets for each level
-    */
-  private def buildLevelOffsets(tree: K2Tree): Array[Int] = {
-    if (tree.isEmpty) {
-      return Array.empty
-    }
-
-    val height = tree.height
-    val offsets = new Array[Int](height)
-    offsets(0) = 0 // First level is always at beginning of the bitset
-
-    if (height > 1) {
-      offsets(1) = k2 // Second level is always as an offset of K² bits
-    }
-
-    var start = 0
-    var end = k2
-    for (level <- 2 until height) {
-      offsets(level) = offsets(level - 1) + tree.bits.count(start, end - 1) * k2
-      start = end
-      end = offsets(level)
-    }
-
-    offsets
   }
 }

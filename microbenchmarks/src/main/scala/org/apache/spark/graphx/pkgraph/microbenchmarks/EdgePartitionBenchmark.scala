@@ -1,7 +1,5 @@
 package org.apache.spark.graphx.pkgraph.microbenchmarks
 
-import org.apache.spark.graphx.TripletFields
-import org.apache.spark.graphx.impl.EdgeActiveness
 import org.apache.spark.graphx.pkgraph.microbenchmarks.datasets.{EdgesDataSet, GraphXDataSet, PKGraphDataSet}
 import org.scalameter.api._
 
@@ -111,65 +109,6 @@ object EdgePartitionBenchmark extends Bench.OfflineReport {
         using(PKGraphDataSet.buildPartitionsForInnerJoin(8, density)) curve "PKGraph (k=8)" in {
           case (p1, p2) =>
             p1.innerJoin(p2) { (_, _, attr1, attr2) => attr1 + attr2 }
-        }
-      }
-
-      measure method "aggregateMessages" in {
-        using(GraphXDataSet.buildPartitionsWithVertices(density)) curve "GraphX" in { partition =>
-          partition
-            .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-        }
-
-        using(PKGraphDataSet.buildPartitionsWithVertices(2, density)) curve "PKGraph (k=2)" in { partition =>
-          partition
-            .aggregateMessages[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-        }
-
-        using(PKGraphDataSet.buildPartitionsWithVertices(4, density)) curve "PKGraph (k=4)" in { partition =>
-          partition
-            .aggregateMessages[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-        }
-
-        using(PKGraphDataSet.buildPartitionsWithVertices(8, density)) curve "PKGraph (k=8)" in { partition =>
-          partition
-            .aggregateMessages[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.Neither)
-        }
-      }
-
-      measure method "aggregateMessagesIndexScan" in {
-        using(GraphXDataSet.buildPartitionsWithActiveVertices(density)) curve "GraphX" in { partition =>
-          partition
-            .aggregateMessagesIndexScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.SrcOnly)
-        }
-
-        using(PKGraphDataSet.buildPartitionsWithActiveVertices(2, density)) curve "PKGraph (k=2)" in {
-          partition =>
-            partition.aggregateMessages[Int](
-              ctx => ctx.sendToSrc(10),
-              _ + _,
-              TripletFields.All,
-              EdgeActiveness.SrcOnly
-            )
-        }
-
-        using(PKGraphDataSet.buildPartitionsWithActiveVertices(4, density)) curve "PKGraph (k=4)" in {
-          partition =>
-            partition.aggregateMessages[Int](
-              ctx => ctx.sendToSrc(10),
-              _ + _,
-              TripletFields.All,
-              EdgeActiveness.SrcOnly
-            )
-        }
-
-        using(PKGraphDataSet.buildPartitionsWithActiveVertices(8, density)) curve "PKGraph (k=8)" in {
-          partition =>
-            partition.aggregateMessages[Int](
-              ctx => ctx.sendToSrc(10),
-              _ + _,
-              TripletFields.All,
-              EdgeActiveness.SrcOnly
-            )
         }
       }
     }

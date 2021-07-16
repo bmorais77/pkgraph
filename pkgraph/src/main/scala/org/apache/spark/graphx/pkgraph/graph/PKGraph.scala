@@ -115,14 +115,14 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
   }
 
   /**
-   * Partitions the graph according to a 2D partitioning scheme that arranges the edges of
-   * the graph in a grid of roughly equal sized blocks. Requires the number of vertices to be known.
-   *
-   * @param numPartitions     Number of partitions to create
-   * @return graph partitioned with the given [[PartitionStrategy]]
-   */
+    * Partitions the graph according to a 2D partitioning scheme that arranges the edges of
+    * the graph in a grid of roughly equal sized blocks. Requires the number of vertices to be known.
+    *
+    * @param numPartitions     Number of partitions to create
+    * @return graph partitioned with the given [[PartitionStrategy]]
+    */
   def partitionByGridStrategy(numPartitions: Int = edges.partitions.length): PKGraph[V, E] = {
-    val (matrixSize, _) = vertices.max() { case (a, b) => if(a._1 >= b._1) 1 else -1 }
+    val (matrixSize, _) = vertices.max() { case (a, b) => if (a._1 >= b._1) 1 else -1 }
     partitionBy(new PKGridPartitionStrategy(matrixSize.toInt), numPartitions)
   }
 
@@ -379,17 +379,57 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
     val preAgg = view.edges.edgePartitions
       .mapPartitions(_.flatMap {
         case (_, part) =>
+          val activeFractionBound = 0.8
+
+          // Choose scan method
+          val srcVertexCount = part.numSrcVertices
+          val dstVertexCount = part.numDstVertices
+          val srcActiveFraction = if (srcVertexCount == 0) 1f else part.numActives / srcVertexCount
+          val dstActiveFraction = if (dstVertexCount == 0) 1f else part.numActives / dstVertexCount
+
           activeDirectionOpt match {
             case Some(EdgeDirection.Both) =>
-              part.aggregateMessages(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
+              if (srcActiveFraction < activeFractionBound || dstActiveFraction < activeFractionBound) {
+                if (srcActiveFraction < dstActiveFraction) {
+                  part.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
+                } else {
+                  part.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
+                }
+              } else {
+                part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
+              }
             case Some(EdgeDirection.Either) =>
-              part.aggregateMessages(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
+              if (srcActiveFraction < activeFractionBound || dstActiveFraction < activeFractionBound) {
+                if (srcActiveFraction < dstActiveFraction) {
+                  part.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
+                } else {
+                  part.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
+                }
+              } else {
+                part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
+              }
             case Some(EdgeDirection.Out) =>
-              part.aggregateMessages(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
+              if (srcActiveFraction < activeFractionBound || dstActiveFraction < activeFractionBound) {
+                if (srcActiveFraction < dstActiveFraction) {
+                  part.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
+                } else {
+                  part.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
+                }
+              } else {
+                part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
+              }
             case Some(EdgeDirection.In) =>
-              part.aggregateMessages(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
+              if (srcActiveFraction < activeFractionBound || dstActiveFraction < activeFractionBound) {
+                if (srcActiveFraction < dstActiveFraction) {
+                  part.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
+                } else {
+                  part.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
+                }
+              } else {
+                part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
+              }
             case _ => // None
-              part.aggregateMessages(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Neither)
+              part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Neither)
           }
       })
       .setName("PKGraph.aggregateMessages - preAgg")

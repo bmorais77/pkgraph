@@ -49,6 +49,52 @@ class K2Tree(
     * @return K²-Tree iterator
     */
   def iterator: Iterator[(Int, Int)] = new K2TreeIterator(this)
+
+  /**
+   * Get an iterator to find all direct neighbors of the given line.
+   *
+   * @param line    Line to look for direct neighbors
+   * @return direct neighbor iterator returning the neighbor's column and leaf index
+   */
+  def directNeighborIterator(line: Int): Iterator[(Int, Int)] = new K2TreeDirectNeighborIterator(this, line)
+
+  /**
+   * Get an iterator to find all reverse neighbors of the given column.
+   *
+   * @param column    Column to look for reverse neighbors
+   * @return reverse neighbor iterator returning the neighbor's line and leaf index
+   */
+  def reverseNeighborIterator(column: Int): Iterator[(Int, Int)] = new K2TreeReverseNeighborIterator(this, column)
+
+  /**
+   * Returns an array containing the offset in the tree's bitset of each level.
+   *
+   * @return offsets for each level
+   */
+  def levelOffsets: Array[Int] = {
+    if (isEmpty) {
+      return Array.empty
+    }
+
+    val k2 = k * k
+    val computedHeight = height
+    val offsets = new Array[Int](computedHeight)
+    offsets(0) = 0 // First level is always at beginning of the bitset
+
+    if (computedHeight > 1) {
+      offsets(1) = k2 // Second level is always as an offset of K² bits
+    }
+
+    var start = 0
+    var end = k2
+    for (level <- 2 until computedHeight) {
+      offsets(level) = offsets(level - 1) + bits.count(start, end - 1) * k2
+      start = end
+      end = offsets(level)
+    }
+
+    offsets
+  }
 }
 
 object K2Tree {

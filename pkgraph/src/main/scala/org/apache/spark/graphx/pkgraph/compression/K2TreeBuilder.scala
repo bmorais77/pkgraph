@@ -3,6 +3,8 @@ package org.apache.spark.graphx.pkgraph.compression
 import org.apache.spark.graphx.pkgraph.util.collection.Bitset
 import org.apache.spark.graphx.pkgraph.util.mathx
 
+private case class K2TreeCursor(var bits: Bitset = new Bitset(64), var parentIndex: Long = -1, var sentinel: Int = 0)
+
 class K2TreeBuilder(val k: Int, val size: Int, val height: Int) {
   private val cursors = Array.fill[K2TreeCursor](height)(K2TreeCursor())
   private val k2 = k * k
