@@ -7,17 +7,18 @@ import org.apache.spark.graphx.pkgraph.microbenchmarks.datasets.{GraphXDataSet, 
 import org.scalameter.api.{Bench, Gen}
 
 object EdgePartitionAggregateBenchmark extends Bench.OfflineReport {
-  private val partitionSize = 100000
-  private val partitionSparsity = 0.2f
+  private val partitionSize = 10000
+  private val partitionSparsity = 0.1f
 
-  lazy val activeFactors: Gen[Int] = Gen.range("active factor")(10, 90, 10)
+  lazy val activeFactors: Gen[Int] = Gen.range("active percentage")(10, 100, 10)
 
   def buildGraphXAggregateMessagesPartitions(): Gen[EdgePartition[Int, Int]] = {
     for { factor <- activeFactors } yield {
       val partition = GraphXDataSet.buildGraphXEdgePartition(partitionSize, partitionSparsity)
       val sqrSize = math.floor(math.sqrt(partitionSize)).toInt
 
-      val activeFactor: Float = factor / 100
+      val activeFactor = factor.toFloat / 100f
+      println(activeFactor)
       val vertices = (0 until (sqrSize * activeFactor).toInt).map(i => i.toLong)
       partition.withActiveSet(vertices.iterator)
     }
@@ -28,7 +29,7 @@ object EdgePartitionAggregateBenchmark extends Bench.OfflineReport {
       val partition = PKGraphDataSet.buildPKGraphEdgePartition(k, partitionSize, partitionSparsity)
       val sqrSize = math.floor(math.sqrt(partitionSize)).toInt
 
-      val activeFactor: Float = factor / 100
+      val activeFactor = factor.toFloat / 100f
       val vertices = (0 until (sqrSize * activeFactor).toInt).map(i => i.toLong)
       partition.withActiveSet(vertices.iterator)
     }
@@ -93,12 +94,12 @@ object EdgePartitionAggregateBenchmark extends Bench.OfflineReport {
   measure method "aggregateMessagesDstIndexScan" in {
     using(buildGraphXAggregateMessagesPartitions()) curve "GraphX (Edge Scan)" in { partition =>
       partition
-        .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToSrc(10), _ + _, TripletFields.All, EdgeActiveness.DstOnly)
+        .aggregateMessagesEdgeScan[Int](ctx => ctx.sendToDst(10), _ + _, TripletFields.All, EdgeActiveness.DstOnly)
     }
 
     using(buildPKAggregateMessagesPartitions(2)) curve "PKGraph (k=2)" in { partition =>
       partition.aggregateMessagesDstIndexScan[Int](
-        ctx => ctx.sendToSrc(10),
+        ctx => ctx.sendToDst(10),
         _ + _,
         TripletFields.All,
         EdgeActiveness.DstOnly
@@ -107,7 +108,7 @@ object EdgePartitionAggregateBenchmark extends Bench.OfflineReport {
 
     using(buildPKAggregateMessagesPartitions(4)) curve "PKGraph (k=4)" in { partition =>
       partition.aggregateMessagesDstIndexScan[Int](
-        ctx => ctx.sendToSrc(10),
+        ctx => ctx.sendToDst(10),
         _ + _,
         TripletFields.All,
         EdgeActiveness.DstOnly
@@ -116,7 +117,7 @@ object EdgePartitionAggregateBenchmark extends Bench.OfflineReport {
 
     using(buildPKAggregateMessagesPartitions(8)) curve "PKGraph (k=8)" in { partition =>
       partition.aggregateMessagesDstIndexScan[Int](
-        ctx => ctx.sendToSrc(10),
+        ctx => ctx.sendToDst(10),
         _ + _,
         TripletFields.All,
         EdgeActiveness.DstOnly

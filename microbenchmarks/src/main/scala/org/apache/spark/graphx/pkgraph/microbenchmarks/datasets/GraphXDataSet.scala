@@ -44,7 +44,7 @@ object GraphXDataSet {
     * @return edge partition
     */
   def buildGraphXEdgePartition(size: Int, sparsity: Float): EdgePartition[Int, Int] = {
-    val builder = new EdgePartitionBuilder[Int, Int](size)
+    val builder = new EdgePartitionBuilder[Int, Int]
     val matrixSize = math.floor(math.sqrt(size)).toInt
     val sparseMatrix = SparseMatrix.sprand(matrixSize, matrixSize, 1.0f - sparsity, new Random())
 

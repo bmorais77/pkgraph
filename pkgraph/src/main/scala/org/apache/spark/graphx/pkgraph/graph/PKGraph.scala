@@ -384,13 +384,13 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
           // Choose scan method
           val srcVertexCount = part.numSrcVertices
           val dstVertexCount = part.numDstVertices
-          val srcActiveFraction = if (srcVertexCount == 0) 1f else part.numActives / srcVertexCount
-          val dstActiveFraction = if (dstVertexCount == 0) 1f else part.numActives / dstVertexCount
+          val srcActiveFraction = if (srcVertexCount == 0) 1f else part.numActives.toFloat / srcVertexCount.toFloat
+          val dstActiveFraction = if (dstVertexCount == 0) 1f else part.numActives.toFloat / dstVertexCount.toFloat
 
           activeDirectionOpt match {
             case Some(EdgeDirection.Both) =>
               if (srcActiveFraction < activeFractionBound || dstActiveFraction < activeFractionBound) {
-                if (srcActiveFraction < dstActiveFraction) {
+                if (srcVertexCount < dstVertexCount) {
                   part.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
                 } else {
                   part.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Both)
@@ -400,7 +400,7 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
               }
             case Some(EdgeDirection.Either) =>
               if (srcActiveFraction < activeFractionBound || dstActiveFraction < activeFractionBound) {
-                if (srcActiveFraction < dstActiveFraction) {
+                if (srcVertexCount < dstVertexCount) {
                   part.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
                 } else {
                   part.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
@@ -409,22 +409,14 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
                 part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.Either)
               }
             case Some(EdgeDirection.Out) =>
-              if (srcActiveFraction < activeFractionBound || dstActiveFraction < activeFractionBound) {
-                if (srcActiveFraction < dstActiveFraction) {
-                  part.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
-                } else {
-                  part.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
-                }
+              if (srcActiveFraction < activeFractionBound) {
+                part.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
               } else {
                 part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.SrcOnly)
               }
             case Some(EdgeDirection.In) =>
-              if (srcActiveFraction < activeFractionBound || dstActiveFraction < activeFractionBound) {
-                if (srcActiveFraction < dstActiveFraction) {
-                  part.aggregateMessagesSrcIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
-                } else {
-                  part.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
-                }
+              if (dstActiveFraction < activeFractionBound) {
+                part.aggregateMessagesDstIndexScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
               } else {
                 part.aggregateMessagesEdgeScan(sendMsg, mergeMsg, tripletFields, EdgeActiveness.DstOnly)
               }
