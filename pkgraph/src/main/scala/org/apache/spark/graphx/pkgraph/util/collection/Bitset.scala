@@ -287,37 +287,6 @@ class Bitset(numBits: Int) extends Serializable {
     bits
   }
 
-  /**
-    * Shifts all bits from 'start', 'offset' times to the left.
-    * The empty positions will be filled with '0' values.
-    * The resulting [[Bitset]] will have a new capacity of: oldCapacity + count
-    *
-    * @param start    Index of the bit to start shifting at (inclusive)
-    * @param offset   Number of bits to shift
-    * @return new bitset with bits shifted
-    */
-  def shiftLeft(start: Int, offset: Int): Bitset = {
-    val startWord = start / 64
-    val bits = new Bitset(capacity + offset)
-
-    // Copy all words that remaining unchanged
-    System.arraycopy(words, 0, bits.words, 0, startWord + 1)
-
-    // Keep only non-shifted bits of the starting word
-    val startLocal = start % 64
-    val mask = -1 >>> (64 - startLocal)
-    bits.words(startWord) &= mask
-
-    // Copy remaining bits starting in 'start' with an offset of 'offset'
-    var i = nextSetBit(start)
-    while (i >= 0) {
-      bits.set(offset + i)
-      i = nextSetBit(i + 1)
-    }
-
-    bits
-  }
-
   /** Return the number of longs it would take to hold numBits. */
   private def bit2words(numBits: Int) = ((numBits - 1) >> 6) + 1
 }
