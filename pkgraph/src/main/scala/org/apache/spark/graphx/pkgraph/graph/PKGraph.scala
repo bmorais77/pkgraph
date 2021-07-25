@@ -1,10 +1,12 @@
 package org.apache.spark.graphx.pkgraph.graph
 
 import org.apache.spark.HashPartitioner
+import org.apache.spark.graphx.PartitionStrategy.EdgePartition2D
 import org.apache.spark.graphx._
 import org.apache.spark.graphx.impl.{EdgeActiveness, VertexRDDImpl}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.util.collection.OpenHashSet
 
 import scala.language.implicitConversions
 import scala.reflect.{ClassTag, classTag}
@@ -13,7 +15,8 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
     val k: Int,
     @transient override val vertices: VertexRDD[V],
     @transient val replicatedVertexView: PKReplicatedVertexView[V, E]
-) extends Graph[V, E] {
+) extends Graph[V, E]
+    with DynamicGraph[V, E] {
   @transient override val edges: PKEdgeRDD[V, E] = replicatedVertexView.edges
 
   /**
@@ -115,14 +118,14 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
   }
 
   /**
-   * Partitions the graph according to a 2D partitioning scheme that arranges the edges of
-   * the graph in a grid of roughly equal sized blocks. Requires the number of vertices to be known.
-   *
-   * @param numPartitions     Number of partitions to create
-   * @return graph partitioned with the given [[PartitionStrategy]]
-   */
+    * Partitions the graph according to a 2D partitioning scheme that arranges the edges of
+    * the graph in a grid of roughly equal sized blocks. Requires the number of vertices to be known.
+    *
+    * @param numPartitions     Number of partitions to create
+    * @return graph partitioned with the given [[PartitionStrategy]]
+    */
   def partitionByGridStrategy(numPartitions: Int = edges.partitions.length): PKGraph[V, E] = {
-    val (matrixSize, _) = vertices.max() { case (a, b) => if(a._1 >= b._1) 1 else -1 }
+    val (matrixSize, _) = vertices.max() { case (a, b) => if (a._1 >= b._1) 1 else -1 }
     partitionBy(new PKGridPartitionStrategy(matrixSize.toInt), numPartitions)
   }
 
@@ -451,7 +454,7 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
     * @param other Vertex RDD
     * @return new Graph with added vertices
     */
-  def fullOuterJoinVertices(other: RDD[(VertexId, V)]): Graph[V, E] = {
+  override def addVertices(other: RDD[(VertexId, V)]): Graph[V, E] = {
     val partitions = vertices
       .fullOuterJoin(other)
       .map { v =>
@@ -472,6 +475,56 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
   }
 
   /**
+    * Filters out all given vertices from this graph.
+    *
+    * @param other   Vertex identifiers to remove
+    * @return new graph with removed vertices
+    */
+  override def removeVertices(other: RDD[VertexId]): Graph[V, E] = {
+    // Remove edges referencing vertices
+    val edgePartitions = vertices
+      .shipVertexIds()
+      .zipPartitions(edges.edgePartitions, preservesPartitioning = true) { (vertexPartIter, edgePartIter) =>
+        vertexPartIter.map { vertexPartition =>
+          val removedVertices = new OpenHashSet[VertexId]()
+          for (vid <- vertexPartition._2) {
+            removedVertices.add(vid)
+          }
+
+          val edgePartition = edgePartIter.next()
+          (vertexPartition._1, edgePartition._2.filter(_ => true, (vid, _) => !removedVertices.contains(vid)))
+        }
+      }
+
+    // Remove vertices
+    val vertexPartitions = other match {
+      case other if vertices.partitioner == other.partitioner =>
+        vertices.partitionsRDD.zipPartitions(other, preservesPartitioning = true) { (partIter, vertices) =>
+          val removedVertices = new OpenHashSet[VertexId]()
+          for (vid <- vertices) {
+            removedVertices.add(vid)
+          }
+          partIter.flatMap(part => part.filter((vid, _) => !removedVertices.contains(vid)).iterator)
+        }
+      case _ =>
+        other
+          .map(v => (v, v))
+          .partitionBy(vertices.partitioner.get)
+          .zipPartitions(vertices.partitionsRDD, preservesPartitioning = true) { (vertices, partIter) =>
+            val removedVertices = new OpenHashSet[VertexId]()
+            for ((vid, _) <- vertices) {
+              removedVertices.add(vid)
+            }
+            partIter.flatMap(part => part.filter((vid, _) => !removedVertices.contains(vid)).iterator)
+          }
+    }
+
+    val newEdges = new PKEdgeRDD[V, E](edgePartitions, edges.targetStorageLevel)
+    val newVertices = PKVertexRDD(vertexPartitions, newEdges, null.asInstanceOf[V])
+    PKGraph(k, newVertices, newEdges)
+  }
+
+  /**
     * Performs a full outer join the given edge RDD.
     * Note: The operation is optimized if the RDD is already partitioned as the existing edge
     * RDD in this graph, if not a default partition strategy is used.
@@ -479,33 +532,8 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
     * @param other Edge RDD
     * @return new Graph with added edges
     */
-  def fullOuterJoinEdges(other: RDD[Edge[E]]): Graph[V, E] = {
-    fullOuterJoinEdges(other, PartitionStrategy.EdgePartition2D, edges.partitions.length)
-  }
-
-  /**
-    * Performs a full outer join the given edge RDD.
-    *
-    * @param other Edge RDD
-    * @param strategy [[PartitionStrategy]] to partition 'other' RDD with
-    * @return new Graph with added edges
-    */
-  def fullOuterJoinEdges(other: RDD[Edge[E]], strategy: PartitionStrategy): Graph[V, E] = {
-    fullOuterJoinEdges(other, strategy, edges.partitions.length)
-  }
-
-  /**
-    * Performs a full outer join the given edge RDD.
-    * If the 'other' RDD does not have the same partition has the current edge RDD in this graph,
-    * it will be partitioned using the given [[PartitionStrategy]] into the given number of partitions.
-    *
-    * @param other Edge RDD
-    * @param strategy [[PartitionStrategy]] to partition 'other' RDD with
-    * @param numPartitions Number of partitions to partition 'other' RDD in
-    * @return new Graph with added edges
-    */
-  def fullOuterJoinEdges(other: RDD[Edge[E]], strategy: PartitionStrategy, numPartitions: Int): Graph[V, E] = {
-    // Test if the other edge is already partitioned
+  override def addEdges(other: RDD[Edge[E]]): Graph[V, E] = {
+    val partitionCount = edges.partitions.length
     val partitions = other match {
       case other if edges.partitioner == other.partitioner =>
         edges.edgePartitions.zipPartitions(other, preservesPartitioning = true) { (partIter, edges) =>
@@ -513,10 +541,38 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
         }
       case _ =>
         other
-          .map(e => (strategy.getPartition(e.srcId, e.dstId, numPartitions), e))
+          .map(e => (EdgePartition2D.getPartition(e.srcId, e.dstId, partitionCount), e))
           .partitionBy(edges.partitioner.get)
           .zipPartitions(edges.edgePartitions, preservesPartitioning = true) { (edges, partIter) =>
             partIter.map(e => (e._1, e._2.addEdges(edges.map(_._2))))
+          }
+    }
+
+    val newEdges = edges.withEdgePartitions(partitions)
+    new PKGraph[V, E](k, vertices, replicatedVertexView.withEdges(newEdges))
+  }
+
+  /**
+    * Filters out all given edges.
+    * Note: The operation is optimized if the RDD is already partitioned as the existing edge
+    * RDD in this graph, if not a default partition strategy is used.
+    *
+    * @param other   Edge identifiers to remove
+    * @return new graph with removed edges
+    */
+  override def removeEdges(other: RDD[(VertexId, VertexId)]): Graph[V, E] = {
+    val partitionCount = edges.partitions.length
+    val partitions = other match {
+      case other if edges.partitioner == other.partitioner =>
+        edges.edgePartitions.zipPartitions(other, preservesPartitioning = true) { (partIter, edges) =>
+          partIter.map(v => (v._1, v._2.removeEdges(edges)))
+        }
+      case _ =>
+        other
+          .map(e => (EdgePartition2D.getPartition(e._1, e._2, partitionCount), e))
+          .partitionBy(edges.partitioner.get)
+          .zipPartitions(edges.edgePartitions, preservesPartitioning = true) { (edges, partIter) =>
+            partIter.map(e => (e._1, e._2.removeEdges(edges.map(_._2))))
           }
     }
 
