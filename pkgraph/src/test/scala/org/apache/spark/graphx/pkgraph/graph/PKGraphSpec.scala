@@ -105,10 +105,6 @@ class PKGraphSpec extends FlatSpec with SparkSessionTestWrapper {
     assert(actualEdges sameElements expectedEdges)
   }
 
-  it should "group edges" in assertThrows[UnsupportedOperationException] {
-    buildGraph().groupEdges((a, b) => a + b)
-  }
-
   it should "left outer join vertices" in {
     val newVertices = sc.parallelize((5 until 10).map(i => (i.toLong, i * 20)))
 

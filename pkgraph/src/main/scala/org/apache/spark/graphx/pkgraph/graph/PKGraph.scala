@@ -327,7 +327,7 @@ class PKGraph[V: ClassTag, E: ClassTag] private (
   override def groupEdges(merge: (E, E) => E): PKGraph[V, E] = {
     // Our solution does not support multi-graphs so identical edges are already grouped when adding them
     // for the first time, so this method does nothing
-    throw new UnsupportedOperationException
+    this
   }
 
   /**
