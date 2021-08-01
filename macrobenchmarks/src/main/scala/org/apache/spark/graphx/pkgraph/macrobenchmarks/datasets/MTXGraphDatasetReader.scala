@@ -7,7 +7,7 @@ import org.apache.spark.rdd.RDD
 class MTXGraphDatasetReader {
   def readDataset(sc: SparkContext, path: String): GraphDataset = {
     val edges: RDD[Edge[Int]] = sc
-      .textFile(s"$path.mtx")
+      .textFile(path)
       .filter(line => !line.startsWith("%") && !line.startsWith("#")) // Skip comments
       .mapPartitionsWithIndex(
         (idx, it) => if (idx == 0) it.drop(1) else it,
