@@ -83,22 +83,15 @@ class K2TreeBuilder(val k: Int, val size: Int, val height: Int) {
     var offset = 0
     val bits = new Bitset(internalCount + leavesCount)
 
-    var i = 0
-    while (i < cursors.length) {
-      val cursor = cursors(i)
-
-      // Fill the K²-Tree bits with the bits of each level's Bitset
-      var pos = cursor.bits.nextSetBit(0)
-      while (pos >= 0 && pos <= cursor.sentinel) {
-        bits.set(offset + pos)
-        pos = cursor.bits.nextSetBit(pos + 1)
-      }
-
-      offset += (cursor.sentinel / k2) * k2 + k2
-      i += 1
+    // Only need the last level
+    val cursor = cursors(cursors.length - 1)
+    var pos = cursor.bits.nextSetBit(0)
+    while (pos >= 0 && pos <= cursor.sentinel) {
+      bits.set(offset + pos)
+      pos = cursor.bits.nextSetBit(pos + 1)
     }
 
-    new K2Tree(k, size, bits, internalCount, leavesCount, leafIndices.toArray)
+    new K2Tree(k, size, bits, leavesCount, leafIndices.toArray)
   }
 
   /**

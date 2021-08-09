@@ -2,7 +2,6 @@ package org.apache.spark.graphx.pkgraph.compression
 
 class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
   private val k2 = tree.k * tree.k
-  private val levelOffsets = buildLevelOffsets(tree)
 
   // Number of quadrants per line/column one level above the leaves
   private val levelSize = if(tree.size == 0) 0 else tree.size / tree.k
@@ -10,7 +9,7 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
   private var leafBlockIndex = 0
 
   // Position inside the tree bitset
-  private var leafPos = tree.internalCount - 1
+  private var leafPos = -1
 
   private var currentEdge: Option[(Int, Int)] = None
 
@@ -43,15 +42,13 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
     * @return next edge if there are any more edges, or [[None]] otherwise.
     */
   private def findNextEdge(): Option[(Int, Int)] = {
-    var nextBlock = false
     var nextEdge: Option[(Int, Int)] = None
 
     while (nextEdge.isEmpty && leafBlockIndex < tree.leafIndices.length) {
       leafPos = tree.bits.nextSetBit(leafPos + 1)
-      val pos = leafPos - tree.internalCount
 
       // Reached end of tree or end of leaf block
-      if (leafPos == -1 || pos >= k2 * (leafBlockIndex + 1)) {
+      if (leafPos == -1 || leafPos >= k2 * (leafBlockIndex + 1)) {
         leafBlockIndex += 1
       }
 
@@ -64,7 +61,7 @@ class K2TreeIterator(tree: K2Tree) extends Iterator[(Int, Int)] {
       val lineOffset = (tree.leafIndices(leafBlockIndex) / levelSize).toInt
       val colOffset = (tree.leafIndices(leafBlockIndex) % levelSize).toInt
 
-      val childIndex = pos % k2
+      val childIndex = leafPos % k2
       val line = lineOffset * tree.k + (childIndex / tree.k)
       val col = colOffset * tree.k + (childIndex % tree.k)
       nextEdge = Some((line, col))
