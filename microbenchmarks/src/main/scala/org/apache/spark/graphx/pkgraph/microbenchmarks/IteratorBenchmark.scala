@@ -19,21 +19,21 @@ object IteratorBenchmark extends Microbenchmark("GraphX") {
       }
     }
 
-    using(k2Partitions) curve "PKGraph (k=2) (iterator)" in { partition =>
+    using(k2Partitions) curve "PKGraph (k=2)" in { partition =>
       val it = partition.tree.iterator
       while (it.hasNext) {
         it.next()
       }
     }
 
-    using(k4Partitions) curve "PKGraph (k=4) (iterator)" in { partition =>
+    using(k4Partitions) curve "PKGraph (k=4)" in { partition =>
       val it = partition.tree.iterator
       while (it.hasNext) {
         it.next()
       }
     }
 
-    using(k8Partitions) curve "PKGraph (k=8) (iterator)" in { partition =>
+    using(k8Partitions) curve "PKGraph (k=8)" in { partition =>
       val it = partition.tree.iterator
       while (it.hasNext) {
         it.next()
