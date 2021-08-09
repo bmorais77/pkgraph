@@ -122,14 +122,14 @@ private[pkgraph] class PKEdgePartition[
   def removeEdges(edges: Iterator[(VertexId, VertexId)]): PKEdgePartition[V, E] = {
     val removedEdges = new OpenHashSet[Int]()
 
-    // Build bitsets containing source/destination vertices to be removed
+    // Build hashset containing edges to be removed
     for ((src, dst) <- edges) {
       val line = (src - srcOffset).toInt
       val col = (dst - dstOffset).toInt
       removedEdges.add(line * tree.size + col)
     }
 
-    val builder = PKEdgePartitionBuilder[V, E](tree.k, tree.size)
+    val builder = PKExistingEdgePartitionBuilder[V, E](this)
 
     // Add existing edges expect from removed vertices
     for (edge <- iterator) {
@@ -137,7 +137,7 @@ private[pkgraph] class PKEdgePartition[
       val col = (edge.dstId - dstOffset).toInt
 
       if (!removedEdges.contains(line * tree.size + col)) {
-        builder.add(edge.srcId, edge.dstId, edge.attr)
+        builder.addEdge(edge.srcId, edge.dstId, edge.attr)
       }
     }
 

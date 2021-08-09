@@ -1,0 +1,37 @@
+Implementation = PKGraph
+Algorithm = pageRank
+Input = datasets/uk-2002.mtx
+
+Scheduling mode = FIFO
+Spark Context default degree of parallelism = 4
+Aggregated Spark stage metrics:
+numStages => 227
+numTasks => 454
+elapsedTime => 20138 (20 s)
+stageDuration => 28084 (28 s)
+executorRunTime => 41662 (42 s)
+executorCpuTime => 34452 (34 s)
+executorDeserializeTime => 1398 (1 s)
+executorDeserializeCpuTime => 1351 (1 s)
+resultSerializationTime => 2 (2 ms)
+jvmGCTime => 3201 (3 s)
+shuffleFetchWaitTime => 0 (0 ms)
+shuffleWriteTime => 100 (0.1 s)
+resultSize => 3010 (2.0 KB)
+diskBytesSpilled => 0 (0 Bytes)
+memoryBytesSpilled => 0 (0 Bytes)
+peakExecutionMemory => 16314514
+recordsRead => 7120205
+bytesRead => 6297994526 (5.0 GB)
+recordsWritten => 0
+bytesWritten => 0 (0 Bytes)
+shuffleRecordsRead => 1222802
+shuffleTotalBlocksFetched => 630
+shuffleLocalBlocksFetched => 630
+shuffleRemoteBlocksFetched => 0
+shuffleTotalBytesRead => 20641704 (19.0 MB)
+shuffleLocalBytesRead => 20641704 (19.0 MB)
+shuffleRemoteBytesRead => 0 (0 Bytes)
+shuffleRemoteBytesReadToDisk => 0 (0 Bytes)
+shuffleBytesWritten => 19616443 (18.0 MB)
+shuffleRecordsWritten => 1222798

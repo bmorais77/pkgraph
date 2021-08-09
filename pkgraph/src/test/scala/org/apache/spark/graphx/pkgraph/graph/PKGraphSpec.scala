@@ -105,10 +105,6 @@ class PKGraphSpec extends FlatSpec with SparkSessionTestWrapper {
     assert(actualEdges sameElements expectedEdges)
   }
 
-  it should "group edges" in assertThrows[UnsupportedOperationException] {
-    buildGraph().groupEdges((a, b) => a + b)
-  }
-
   it should "left outer join vertices" in {
     val newVertices = sc.parallelize((5 until 10).map(i => (i.toLong, i * 20)))
 
@@ -126,28 +122,6 @@ class PKGraphSpec extends FlatSpec with SparkSessionTestWrapper {
       })
       .toArray
     assert(actualVertices sameElements expectedVertices)
-  }
-
-  it should "full outer join vertices" in {
-    val newVertices = sc.parallelize((10 until 20).map(i => (i.toLong, i * 20)))
-
-    val graph = buildGraph()
-    val newGraph = graph.fullOuterJoinVertices(newVertices)
-
-    val actualVertices = newGraph.vertices.collect().sortWith((a, b) => a._1 < b._1)
-    val expectedVertices = (0 until 20).map(i => (i.toLong, i * 20)).toArray
-    assert(expectedVertices sameElements actualVertices)
-  }
-
-  it should "full outer join edges" in {
-    val newEdges = sc.parallelize((10 until 20).map(i => Edge(i, i, i * 10)))
-
-    val graph = buildGraph()
-    val newGraph = graph.fullOuterJoinEdges(newEdges)
-
-    val actualEdges = newGraph.edges.collect().sortWith((a, b) => a.srcId < b.srcId)
-    val expectedEdges = (0 until 20).map(i => Edge(i, i, i * 10)).toArray
-    assert(expectedEdges sameElements actualEdges)
   }
 
   private def buildGraph(

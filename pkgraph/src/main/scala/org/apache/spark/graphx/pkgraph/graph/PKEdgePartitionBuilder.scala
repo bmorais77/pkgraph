@@ -37,11 +37,8 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
       return PKEdgePartition.empty
     }
 
-    val k2 = k * k
-
-    // Align origin to nearest multiple of K
-    val srcOffset = if (startX % k2 == 0) startX else startX / k2
-    val dstOffset = if (startY % k2 == 0) startY else startY / k2
+    val srcOffset = startX
+    val dstOffset = startY
     val matrixSize = math.max(endX - srcOffset + 1, endY - dstOffset + 1).toInt
 
     val builder = K2TreeBuilder(k, matrixSize)
