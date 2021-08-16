@@ -2,91 +2,231 @@ package org.apache.spark.graphx.pkgraph.macrobenchmarks
 
 import ch.cern.sparkmeasure.StageMetrics
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.commons.cli.{Option, Options, ParseException, PosixParser}
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.algorithms.GraphAlgorithm
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.MTXGraphDatasetReader
+import org.apache.commons.cli.{Option, Options, PosixParser}
+import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.spark.graphx.pkgraph.graph.PKGraph
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.workloads.GraphWorkload
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.{GraphDataset, MTXGraphDatasetReader}
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.generators.GraphGenerator
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.util.SizeEstimator
+import org.json4s.jackson.{Json, prettyJson}
 
-import java.io.{File, PrintStream}
+import java.net.URI
+import scala.collection.mutable.ArrayBuffer
 
 object GraphBenchmark {
-  case class GraphBenchmarkOptions(implementation: String, algorithm: String, input: String, output: String)
+  case class GraphBenchmarkOptions(
+      implementationFilter: String,
+      workloadFilter: String,
+      datasetFilter: String,
+      datasetDir: String,
+      warmup: Int,
+      samples: Int,
+      partitions: Int,
+      performMemoryTest: Boolean,
+      output: String
+  )
 
   object GraphBenchmarkParser {
     private val options = new Options
 
     {
-      val implementationOption =
-        new Option("implementation", true, "Graph implementation to use (i.e 'PKGraph<N>' or 'GraphX')")
-      implementationOption.setRequired(true)
-      options.addOption(implementationOption)
+      val impl = new Option("IFilter", true, "Filter to apply to graph implementations")
+      impl.setRequired(false)
+      options.addOption(impl)
 
-      val algorithmOption = new Option("algorithm", true, "Graph algorithm to execute")
-      algorithmOption.setRequired(true)
-      options.addOption(algorithmOption)
+      val algorithm = new Option("WFilter", true, "Filter to apply to graph workloads")
+      algorithm.setRequired(false)
+      options.addOption(algorithm)
 
-      val inputOption = new Option("input", true, "Path to the input file containing the graph data")
-      inputOption.setRequired(true)
-      options.addOption(inputOption)
+      val dataset = new Option("DFilter", true, "Filter to apply to datasets")
+      dataset.setRequired(false)
+      options.addOption(dataset)
 
-      val outputOption = new Option("output", true, "Path to the local output file to write report to")
-      outputOption.setRequired(true)
-      options.addOption(outputOption)
+      val datasetDir = new Option("DatasetDir", true, "Path to the directory containing the datasets")
+      datasetDir.setRequired(true)
+      options.addOption(datasetDir)
+
+      val warmup = new Option("Warmup", true, "Number of warmup rounds for each test")
+      warmup.setRequired(true)
+      options.addOption(warmup)
+
+      val samples = new Option("Samples", true, "Number of samples to take for each test")
+      samples.setRequired(true)
+      options.addOption(samples)
+
+      val partitions =
+        new Option("Partitions", true, "Number of partitions the graph should have (-1 means to not repartition graph)")
+      partitions.setRequired(false)
+      options.addOption(partitions)
+
+      val memoryTest = new Option("PerformMemoryTest", true, "Whether to perform a memory test as well")
+      memoryTest.setRequired(false)
+      options.addOption(memoryTest)
+
+      val output = new Option("Output", true, "Path to the output file to write report to")
+      output.setRequired(true)
+      options.addOption(output)
     }
 
     def parse(args: Array[String]): GraphBenchmarkOptions = {
       val cmdParse = new PosixParser
       val cmd = cmdParse.parse(options, args)
 
-      if (cmd.getOptionValue("input") == null) {
-        throw new ParseException("no input file specified")
-      }
-
       GraphBenchmarkOptions(
-        cmd.getOptionValue("implementation"),
-        cmd.getOptionValue("algorithm"),
-        cmd.getOptionValue("input"),
-        cmd.getOptionValue("output")
+        cmd.getOptionValue("IFilter", ".*"),
+        cmd.getOptionValue("WFilter", ".*"),
+        cmd.getOptionValue("DFilter", ".*"),
+        cmd.getOptionValue("DatasetDir"),
+        cmd.getOptionValue("Warmup").toInt,
+        cmd.getOptionValue("Samples").toInt,
+        cmd.getOptionValue("Partitions", "-1").toInt,
+        cmd.getOptionValue("PerformMemoryTest", "false").toBoolean,
+        cmd.getOptionValue("Output")
       )
     }
+  }
+
+  private val implementations = Seq("GraphX", "PKGraph8")
+  private val algorithms = Seq("build", "map", "pageRank", "triangleCount", "connectedComponents", "shortestPath")
+  private val datasets = Seq("eu-2005", "indochina-2004", "soc-youtube-growth", "uk-2002")
+
+  def runBenchmark(generator: GraphGenerator, algorithm: GraphWorkload, dataset: GraphDataset): Unit = {
+    val graph = generator.generate(dataset)
+    algorithm.run(graph)
+  }
+
+  def runMemoryBenchmark(impl: String, generator: GraphGenerator, dataset: GraphDataset): Long = {
+    val graph = generator.generate(dataset)
+    val verticesEstimatedSize =
+      graph.vertices.partitionsRDD
+        .aggregate(0L)((acc, part) => acc + SizeEstimator.estimate(part), (v1, v2) => v1 + v2)
+
+    val edgesEstimatedSize = if (impl == "GraphX") {
+      graph.edges.partitionsRDD
+        .aggregate(0L)((acc, part) => acc + SizeEstimator.estimate(part._2), (v1, v2) => v1 + v2)
+    } else {
+      graph
+        .asInstanceOf[PKGraph[Long, Int]]
+        .edges
+        .edgePartitions
+        .aggregate(0L)((acc, part) => acc + SizeEstimator.estimate(part._2), (v1, v2) => v1 + v2)
+    }
+
+    verticesEstimatedSize + edgesEstimatedSize
   }
 
   def main(args: Array[String]): Unit = {
     val options = GraphBenchmarkParser.parse(args)
 
-    val generator = GraphGenerator.fromString(options.implementation)
-    val algorithm = GraphAlgorithm.fromString(options.algorithm)
+    val filteredImplementations = implementations.filter(i => options.implementationFilter.r.findFirstIn(i).isDefined)
+    val filteredWorkloads = algorithms.filter(i => options.workloadFilter.r.findFirstIn(i).isDefined)
+    val filteredDatasets = datasets.filter(i => options.datasetFilter.r.findFirstIn(i).isDefined)
+
+    println(s"""
+    #####################################################################################################
+    # Macrobenchmarks
+    # - IFilter: ${options.implementationFilter}
+    # - WFilter: ${options.workloadFilter}
+    # - DFilter: ${options.datasetFilter}
+    # - Dataset Directory: ${options.datasetDir}
+    # 
+    # - Implementations: ${filteredImplementations.mkString("[", ",", "]")}
+    # - Workloads: ${filteredWorkloads.mkString("[", ",", "]")}
+    # - Datasets: ${filteredDatasets.mkString("[", ",", "]")}
+    #
+    # - Warmup: ${options.warmup}
+    # - Samples: ${options.samples}
+    # - Partitions: ${options.partitions}
+    # - Perform Memory Test: ${options.performMemoryTest}
+    #####################################################################################################
+    """)
+
     val reader = new MTXGraphDatasetReader
-
-    val config = new SparkConf()
-    //.setMaster("local[4]")
-      .setAppName(s"Graph Benchmark (${options.implementation} | ${options.algorithm} | ${options.input})")
-    //.set("spark.eventLog.enabled", "true")
-    //.set("spark.eventLog.dir", "/tmp/spark-events")
-
-    val sc = new SparkContext(config)
+    val sc = new SparkContext()
     val spark = SparkSession.builder().config(sc.getConf).getOrCreate()
 
-    val dataset = reader.readDataset(sc, options.input)
-    val graph = generator.generate(dataset)
-    val stageMetrics = StageMetrics(spark)
-    stageMetrics.runAndMeasure {
-      algorithm.run(graph.persist())
+    val metrics = ArrayBuffer[GraphBenchmarkMetrics]()
+    for (impl <- filteredImplementations) {
+      for (dataset <- filteredDatasets) {
+        val generator = GraphGenerator.fromString(impl)
+        val datasetPath = s"${options.datasetDir}/$dataset.mtx"
+        val graphDataset = reader.readDataset(sc, datasetPath)
+        val algorithmMetrics = ArrayBuffer[GraphAlgorithmMetrics]()
+
+        for (workload <- filteredWorkloads) {
+          val graphWorkload = GraphWorkload.fromString(workload)
+
+          println(s"""
+          #####################################################################################################
+          # Macrobenchmark
+          # - Implementation: $impl
+          # - Dataset: $datasetPath
+          # - Workload: $workload
+          #####################################################################################################
+          """)
+
+          val warmupStart = System.currentTimeMillis()
+          println(s"Warming up (${options.warmup})...")
+          for (_ <- 0 until options.warmup) {
+            runBenchmark(generator, graphWorkload, graphDataset)
+          }
+          val warmupEnd = System.currentTimeMillis()
+          println(s"Warmup done (${warmupEnd - warmupStart}ms)")
+
+          val latencyValues = ArrayBuffer[Long]()
+          val throughputValues = ArrayBuffer[Long]()
+          val cpuUsageValues = ArrayBuffer[Float]()
+
+          println(s"Running ${options.samples} sample(s)...")
+          for (i <- 0 until options.samples) {
+            val stageMetrics = StageMetrics(spark)
+            println(s"////// Sample #${i + 1} //////")
+            stageMetrics.runAndMeasure {
+              runBenchmark(generator, graphWorkload, graphDataset)
+            }
+            println(s"//////////////////////////////")
+
+            val metricsMap = stageMetrics.reportMap
+            val latency = metricsMap.get("elapsedTime").toLong
+            val throughput = (metricsMap.get("recordsRead").toLong / (latency.toFloat / 1000f)).toLong
+            val cpuUsage = metricsMap.get("executorCpuTime").toFloat / metricsMap.get("executorRunTime").toFloat
+
+            latencyValues += latency
+            throughputValues += throughput
+            cpuUsageValues += cpuUsage
+          }
+
+          algorithmMetrics += GraphAlgorithmMetrics(workload, latencyValues, throughputValues, cpuUsageValues)
+        }
+
+        var memory = 0L
+        if (options.performMemoryTest) {
+          val memoryTestStart = System.currentTimeMillis()
+          println("Running memory test...")
+          memory = runMemoryBenchmark(impl, generator, graphDataset)
+          val memoryTestEnd = System.currentTimeMillis()
+          println(s"Memory test done (${memoryTestEnd - memoryTestStart}ms)")
+        }
+
+        val benchmarkMetrics =
+          GraphBenchmarkMetrics(impl, dataset, options.warmup, options.samples, memory, algorithmMetrics)
+
+        println(prettyJson(benchmarkMetrics.toJsonValue))
+        metrics += benchmarkMetrics
+      }
     }
 
     val now = System.currentTimeMillis()
-    val outputPath = s"${options.output}-$now.txt"
-    println(outputPath)
+    val output = s"${options.output}/graph-macrobenchmark-$now.json"
+    println(s"Output = $output")
 
-    val file = new File(outputPath)
-    file.createNewFile()
-
-    val report = new PrintStream(file)
-    report.println(s"Implementation = ${options.implementation}")
-    report.println(s"Algorithm = ${options.algorithm}")
-    report.println(s"Input = ${options.input}")
-    report.println(stageMetrics.report())
+    val outputPath = new Path(output)
+    val fs = outputPath.getFileSystem(sc.hadoopConfiguration)
+    val out = fs.create(outputPath, true)
+    out.writeBytes(GraphBenchmarkMetrics.toJsonArray(metrics))
+    out.close()
     sc.stop()
   }
 }

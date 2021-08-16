@@ -18,12 +18,10 @@ class MTXGraphDatasetReader {
         assert(args.length >= 2, s"line '$line'")
         Edge(args(0).toLong, args(1).toLong, if (args.length > 2) args(2).toInt else 0)
       }
-      .cache()
 
     val vertices: RDD[(VertexId, Long)] = edges
       .flatMap(e => Seq((e.srcId, 1L), (e.dstId, 1L))) // No attribute
       .distinct()
-      .cache()
 
     GraphDataset(vertices, edges)
   }

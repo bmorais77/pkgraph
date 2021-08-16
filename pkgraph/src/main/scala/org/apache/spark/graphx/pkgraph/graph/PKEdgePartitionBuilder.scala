@@ -3,7 +3,7 @@ package org.apache.spark.graphx.pkgraph.graph
 import org.apache.spark.graphx.pkgraph.compression.{K2TreeBuilder, K2TreeIndex}
 import org.apache.spark.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.graphx.{Edge, VertexId}
-import org.apache.spark.util.collection.PrimitiveVector
+import org.apache.spark.util.collection.{PrimitiveVector, Sorter}
 
 import scala.reflect.ClassTag
 
@@ -42,23 +42,18 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
     val matrixSize = math.max(endX - srcOffset + 1, endY - dstOffset + 1).toInt
 
     val builder = K2TreeBuilder(k, matrixSize)
-    val sortedEdgesWithIndex = edges
-      .trim()
-      .array
-      .map { edge =>
-        val line = (edge.srcId - srcOffset).toInt
-        val col = (edge.dstId - dstOffset).toInt
-        (K2TreeIndex.fromEdge(k, builder.height, line, col), edge)
-      }
-      .sortBy(e => e._1)
+    val edgeArray = edges.trim().array
+    new Sorter(Edge.edgeArraySortDataFormat[E])
+      .sort(edgeArray, 0, edgeArray.length, edgeOrdering[E](builder.height, srcOffset, dstOffset))
 
-    // Count the number of unique edges and map the edges to remove the index
-    val sortedEdges = new Array[Edge[E]](sortedEdgesWithIndex.length)
+    val sortedEdges = new PrimitiveVector[E](edgeArray.length)
+    val global2local = new GraphXPrimitiveKeyOpenHashMap[VertexId, Int]
+    var currLocalId = -1
     var edgeCount = 0
     var lastLine = -1
     var lastCol = -1
 
-    for ((_, edge) <- sortedEdgesWithIndex) {
+    for (edge <- edgeArray) {
       val line = (edge.srcId - srcOffset).toInt
       val col = (edge.dstId - dstOffset).toInt
 
@@ -68,29 +63,35 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
         lastLine = line
         lastCol = col
 
-        sortedEdges(edgeCount) = edge
+        sortedEdges += edge.attr
         edgeCount += 1
+
+        global2local.changeValue(edge.srcId, { currLocalId += 1; currLocalId }, identity)
+        global2local.changeValue(edge.dstId, { currLocalId += 1; currLocalId }, identity)
       }
     }
 
     val tree = builder.build()
-
-    // Traverse sorted edges to construct global2local map and the final edge attribute array
-    val edgeAttrs = new Array[E](edgeCount)
-    val global2local = new GraphXPrimitiveKeyOpenHashMap[VertexId, Int]
-    var currLocalId = -1
-
-    for (i <- 0 until edgeCount) {
-      val edge = sortedEdges(i)
-      edgeAttrs(i) = edge.attr
-
-      global2local.changeValue(edge.srcId, { currLocalId += 1; currLocalId }, identity)
-      global2local.changeValue(edge.dstId, { currLocalId += 1; currLocalId }, identity)
-    }
-
+    val edgeAttrs = sortedEdges.trim().array
     val vertexAttrs = new Array[V](currLocalId + 1)
     new PKEdgePartition[V, E](vertexAttrs, global2local, edgeAttrs, tree, srcOffset, dstOffset, None)
   }
+
+  private def edgeOrdering[ED](height: Int, srcOffset: Long, dstOffset: Long) =
+    new Ordering[Edge[ED]] {
+      override def compare(a: Edge[ED], b: Edge[ED]): Int = {
+        val idx1 = K2TreeIndex.fromEdge(k, height, (a.srcId - srcOffset).toInt, (a.dstId - dstOffset).toInt)
+        val idx2 = K2TreeIndex.fromEdge(k, height, (b.srcId - srcOffset).toInt, (b.dstId - dstOffset).toInt)
+
+        if (idx1 > idx2) {
+          1
+        } else if (idx1 < idx2) {
+          -1
+        } else {
+          0
+        }
+      }
+    }
 }
 
 object PKEdgePartitionBuilder {

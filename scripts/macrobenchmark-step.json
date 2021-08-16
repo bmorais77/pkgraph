@@ -1,0 +1,18 @@
+[
+  {
+    "Type": "Spark",
+    "Name": "Graph Benchmark",
+    "ActionOnFailure": "CONTINUE",
+    "Args": [
+      "--class","org.apache.spark.graphx.pkgraph.macrobenchmarks.GraphBenchmark",
+      "s3://pkgraph-storage/jars/macrobenchmarks-assembly-1.0.0.jar",
+      "--WFilter","(build|map)",
+      "--DFilter","(uk-2002)",
+      "--DatasetDir","s3://pkgraph-storage/datasets",
+      "--Warmup","1",
+      "--Samples","2",
+      "--PerformMemoryTest","true",
+      "--Output","s3a://pkgraph-storage/macrobenchmarks"
+    ]
+  }
+]

@@ -6,10 +6,11 @@ lazy val settings = Seq(
   scalaVersion := "2.12.10"
 )
 
+val sparkVersion = "3.1.1"
 lazy val sparkDependencies = Seq(
-  "org.apache.spark" %% "spark-core" % "3.1.0",
-  "org.apache.spark" %% "spark-sql" % "3.1.0",
-  "org.apache.spark" %% "spark-graphx" % "3.1.0"
+  "org.apache.spark" %% "spark-core" % sparkVersion,
+  "org.apache.spark" %% "spark-sql" % sparkVersion,
+  "org.apache.spark" %% "spark-graphx" % sparkVersion
 )
 
 // "provided" dependencies are not transitive so, even though the benchmarks depend on the pkgraph library,
@@ -49,7 +50,9 @@ lazy val macrobenchmarks = project
   .settings(
     name := "macrobenchmarks",
     settings,
-    libraryDependencies ++= sparkDependencies,
+    // Use 'providedSparkDependencies' when running the macrobenchmarks in a cluster
+    //libraryDependencies ++= sparkDependencies,
+    libraryDependencies ++= providedSparkDependencies,
     libraryDependencies += "ch.cern.sparkmeasure" %% "spark-measure" % "0.17"
   )
   .dependsOn(pkgraph)
