@@ -1,5 +1,0 @@
-Implementation = PKGraph2
-Dataset = uk-2002
-Partition Count = -1
-Vertices Estimated Size = 9937288 bytes
-Edges Estimated Size = 19498152 bytes

@@ -7,8 +7,8 @@ class K2Tree(
     val k: Int,
     val size: Int,
     val bits: Bitset,
-    val leavesCount: Int,
-    val leafIndices: Array[Long]
+    val internalCount: Int,
+    val leavesCount: Int
 ) extends Serializable {
 
   if (size > (1L << 31)) {
@@ -20,7 +20,7 @@ class K2Tree(
     *
     * @return number of bits used to represent this K²-Tree
     */
-  def length: Int = leavesCount
+  def length: Int = internalCount + leavesCount
 
   /**
     * Get the height of this K²-Tree

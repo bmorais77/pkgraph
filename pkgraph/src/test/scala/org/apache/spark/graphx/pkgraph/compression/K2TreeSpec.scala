@@ -23,7 +23,7 @@ class K2TreeSpec extends FlatSpec {
 
     assert(tree.k == 2)
     assert(tree.size == 4)
-    assertBitSet(tree.bits, "0011 1000 0110 0001")
+    assertBitSet(tree.bits, "1111 0011 1000 0110 0001")
   }
 
   /**
@@ -43,7 +43,6 @@ class K2TreeSpec extends FlatSpec {
 
     assert(tree.k == 4)
     assert(tree.size == 4)
-    assertBitSet(tree.bits, "0010 1100 0100 1001")
 
     val treeEdges = tree.edges
     assert(edges sameElements treeEdges)
@@ -71,7 +70,7 @@ class K2TreeSpec extends FlatSpec {
 
     assert(tree.k == 2)
     assert(tree.size == 8)
-    assertBitSet(tree.bits, "1010 1001")
+    assertBitSet(tree.bits, "1001 1000 0001 1010 1001")
   }
 
   /**
@@ -96,7 +95,7 @@ class K2TreeSpec extends FlatSpec {
 
     assert(tree.k == 2)
     assert(tree.size == 8)
-    assertBitSet(tree.bits, "0011 0010 0110 0100 1000 1000")
+    assertBitSet(tree.bits, "1111 1110 0010 0001 0001 0011 0010 0110 0100 1000 1000")
   }
 
   /**
@@ -132,7 +131,7 @@ class K2TreeSpec extends FlatSpec {
 
     assert(tree.k == 2)
     assert(tree.size == 16)
-    assertBitSet(tree.bits, "0001 0010 0010 0100")
+    assertBitSet(tree.bits, "1111 1000 0100 0010 1000 0001 1000 0100 0100 0001 0010 0010 0100")
   }
 
   /**
@@ -168,7 +167,7 @@ class K2TreeSpec extends FlatSpec {
 
     assert(tree.k == 4)
     assert(tree.size == 16)
-    assertBitSet(tree.bits, "1000000000000000 0000100000000000 0001000000000000 0000001000000000")
+    assertBitSet(tree.bits, "1001000000101000 1000000000000000 0000100000000000 0001000000000000 0000001000000000")
   }
 
   it should "build an empty tree" in {
@@ -199,7 +198,7 @@ class K2TreeSpec extends FlatSpec {
 
     assert(tree.k == 2)
     assert(tree.size == 8)
-    assertBitSet(tree.bits, "0011 0010 0110 0100 1000 1000")
+    assertBitSet(tree.bits, "1111 1110 0010 0001 0001 0011 0010 0110 0100 1000 1000")
   }
 
   /**
@@ -237,7 +236,7 @@ class K2TreeSpec extends FlatSpec {
 
     assert(tree.k == 2)
     assert(tree.size == 4)
-    assertBitSet(tree.bits, "1111 1111 1111 1111")
+    assertBitSet(tree.bits, "1111 1111 1111 1111 1111")
   }
 
   /**

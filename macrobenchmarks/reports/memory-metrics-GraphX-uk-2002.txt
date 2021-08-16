@@ -1,5 +1,0 @@
-Implementation = GraphX
-Dataset = uk-2002
-Partition Count = -1
-Vertices Estimated Size = 9937288 bytes
-Edges Estimated Size = 42227840 bytes
