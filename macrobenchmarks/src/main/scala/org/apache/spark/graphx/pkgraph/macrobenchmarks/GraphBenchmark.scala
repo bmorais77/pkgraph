@@ -92,13 +92,18 @@ object GraphBenchmark {
   private val algorithms = Seq("build", "map", "pageRank", "triangleCount", "connectedComponents", "shortestPath")
   private val datasets = Seq("eu-2005", "indochina-2004", "soc-youtube-growth", "uk-2002")
 
-  def runBenchmark(generator: GraphGenerator, algorithm: GraphWorkload, dataset: GraphDataset): Unit = {
-    val graph = generator.generate(dataset)
+  def runBenchmark(
+      generator: GraphGenerator,
+      partitionCount: Int,
+      algorithm: GraphWorkload,
+      dataset: GraphDataset
+  ): Unit = {
+    val graph = generator.generate(dataset, partitionCount)
     algorithm.run(graph)
   }
 
-  def runMemoryBenchmark(impl: String, generator: GraphGenerator, dataset: GraphDataset): Long = {
-    val graph = generator.generate(dataset)
+  def runMemoryBenchmark(impl: String, generator: GraphGenerator, partitionCount: Int, dataset: GraphDataset): Long = {
+    val graph = generator.generate(dataset, partitionCount)
     val verticesEstimatedSize =
       graph.vertices.partitionsRDD
         .aggregate(0L)((acc, part) => acc + SizeEstimator.estimate(part), (v1, v2) => v1 + v2)
@@ -153,7 +158,7 @@ object GraphBenchmark {
         val generator = GraphGenerator.fromString(impl)
         val datasetPath = s"${options.datasetDir}/$dataset.mtx"
         val graphDataset = reader.readDataset(sc, datasetPath)
-        val algorithmMetrics = ArrayBuffer[GraphAlgorithmMetrics]()
+        val algorithmMetrics = ArrayBuffer[GraphWorkloadMetrics]()
 
         for (workload <- filteredWorkloads) {
           val graphWorkload = GraphWorkload.fromString(workload)
@@ -170,7 +175,7 @@ object GraphBenchmark {
           val warmupStart = System.currentTimeMillis()
           println(s"Warming up (${options.warmup})...")
           for (_ <- 0 until options.warmup) {
-            runBenchmark(generator, graphWorkload, graphDataset)
+            runBenchmark(generator, options.partitions, graphWorkload, graphDataset)
           }
           val warmupEnd = System.currentTimeMillis()
           println(s"Warmup done (${warmupEnd - warmupStart}ms)")
@@ -184,7 +189,7 @@ object GraphBenchmark {
             val stageMetrics = StageMetrics(spark)
             println(s"////// Sample #${i + 1} //////")
             stageMetrics.runAndMeasure {
-              runBenchmark(generator, graphWorkload, graphDataset)
+              runBenchmark(generator, options.partitions, graphWorkload, graphDataset)
             }
             println(s"//////////////////////////////")
 
@@ -198,14 +203,14 @@ object GraphBenchmark {
             cpuUsageValues += cpuUsage
           }
 
-          algorithmMetrics += GraphAlgorithmMetrics(workload, latencyValues, throughputValues, cpuUsageValues)
+          algorithmMetrics += GraphWorkloadMetrics(workload, latencyValues, throughputValues, cpuUsageValues)
         }
 
         var memory = 0L
         if (options.performMemoryTest) {
           val memoryTestStart = System.currentTimeMillis()
           println("Running memory test...")
-          memory = runMemoryBenchmark(impl, generator, graphDataset)
+          memory = runMemoryBenchmark(impl, generator, options.partitions, graphDataset)
           val memoryTestEnd = System.currentTimeMillis()
           println(s"Memory test done (${memoryTestEnd - memoryTestStart}ms)")
         }

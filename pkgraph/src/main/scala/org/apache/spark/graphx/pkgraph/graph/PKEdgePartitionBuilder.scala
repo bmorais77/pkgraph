@@ -49,7 +49,6 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
     val sortedEdges = new PrimitiveVector[E](edgeArray.length)
     val global2local = new GraphXPrimitiveKeyOpenHashMap[VertexId, Int]
     var currLocalId = -1
-    var edgeCount = 0
     var lastLine = -1
     var lastCol = -1
 
@@ -62,10 +61,7 @@ private[pkgraph] class PKEdgePartitionBuilder[V: ClassTag, E: ClassTag] private 
         builder.addEdge(line, col)
         lastLine = line
         lastCol = col
-
         sortedEdges += edge.attr
-        edgeCount += 1
-
         global2local.changeValue(edge.srcId, { currLocalId += 1; currLocalId }, identity)
         global2local.changeValue(edge.dstId, { currLocalId += 1; currLocalId }, identity)
       }

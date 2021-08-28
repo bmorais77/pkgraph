@@ -8,7 +8,7 @@ import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.Date
 
-case class GraphAlgorithmMetrics(
+case class GraphWorkloadMetrics(
     workload: String,
     latencyValues: Seq[Long],
     throughputValues: Seq[Long],
@@ -21,11 +21,11 @@ case class GraphBenchmarkMetrics(
     warmup: Int,
     samples: Int,
     memorySize: Long,
-    algorithmMetrics: Seq[GraphAlgorithmMetrics]
+    workloads: Seq[GraphWorkloadMetrics]
 ) {
   def toJsonValue: JValue = {
-    val allCpuUsageValues = algorithmMetrics.flatMap(m => m.cpuUsageValues)
-    val averageOverallCpuUsage = allCpuUsageValues.sum / allCpuUsageValues.size
+    val allCpuUsageValues = workloads.flatMap(m => m.cpuUsageValues)
+    val averageOverallCpuUsage = if(allCpuUsageValues.isEmpty) 0 else allCpuUsageValues.sum / allCpuUsageValues.size
 
     ("implementation" -> implementation) ~
       ("dataset" -> dataset) ~
@@ -33,17 +33,17 @@ case class GraphBenchmarkMetrics(
       ("samples" -> samples) ~
       ("memorySize" -> memorySize) ~
       ("averageOverallCpuUsage" -> averageOverallCpuUsage) ~
-      ("algorithms" -> algorithmMetrics.map { m =>
+      ("workloads" -> workloads.map { m =>
         ("workload" -> m.workload) ~
           ("latency" ->
             ("values" -> m.latencyValues) ~
-              ("average" -> m.latencyValues.sum / m.latencyValues.size)) ~
+              ("average" -> {if(m.latencyValues.isEmpty) 0 else m.latencyValues.sum / m.latencyValues.size})) ~
           ("throughput" ->
             ("values" -> m.throughputValues) ~
-              ("average" -> m.throughputValues.sum / m.throughputValues.size)) ~
+              ("average" -> {if(m.throughputValues.isEmpty) 0 else m.throughputValues.sum / m.throughputValues.size})) ~
           ("cpuUsage" ->
             ("values" -> m.cpuUsageValues) ~
-              ("average" -> m.cpuUsageValues.sum / m.cpuUsageValues.size))
+              ("average" -> {if(m.cpuUsageValues.isEmpty) 0 else m.cpuUsageValues.sum / m.cpuUsageValues.size}))
       })
   }
 }

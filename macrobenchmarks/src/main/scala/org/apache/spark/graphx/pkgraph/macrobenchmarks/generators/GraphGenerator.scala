@@ -8,10 +8,11 @@ trait GraphGenerator {
   /**
     * Generates a new graph from the given dataset.
     *
-    * @param dataset   Dataset containing vertices and edges of a graph
+    * @param dataset          Dataset containing vertices and edges of a graph
+    * @param partitionCount   Number of partitions to repartition the graph into
     * @return generated graph
     */
-  def generate(dataset: GraphDataset): Graph[Long, Int]
+  def generate(dataset: GraphDataset, partitionCount: Int): Graph[Long, Int]
 }
 
 object GraphGenerator {
@@ -24,11 +25,11 @@ object GraphGenerator {
     */
   def fromString(implementation: String): GraphGenerator = {
     implementation match {
-      case "GraphX"  => new GraphXGenerator()
+      case "GraphX"   => new GraphXGenerator()
       case "PKGraph2" => new PKGraphGenerator(2)
       case "PKGraph4" => new PKGraphGenerator(4)
       case "PKGraph8" => new PKGraphGenerator(8)
-      case i         => throw new IllegalArgumentException(s"unknown implementation '$i'")
+      case i          => throw new IllegalArgumentException(s"unknown implementation '$i'")
     }
   }
 }
