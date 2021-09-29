@@ -5,7 +5,6 @@ import org.apache.spark.graphx.{PartitionID, PartitionStrategy, VertexId}
 /**
  * Partitions the global adjacency matrix into several 'blocks' of roughly equal size.
  *
- * @param k             Value of the K²-Tree that will be used
  * @param matrixSize    Size of the global matrix
  */
 class PKGridPartitionStrategy(matrixSize: Int) extends PartitionStrategy {

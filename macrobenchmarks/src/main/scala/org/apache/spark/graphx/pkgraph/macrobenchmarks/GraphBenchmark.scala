@@ -1,18 +1,19 @@
 package org.apache.spark.graphx.pkgraph.macrobenchmarks
 
 import ch.cern.sparkmeasure.StageMetrics
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkContext
 import org.apache.commons.cli.{Option, Options, PosixParser}
-import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.fs.Path
+import org.apache.spark.graphx.{Graph, PartitionStrategy}
+import org.apache.spark.graphx.impl.GraphImpl
 import org.apache.spark.graphx.pkgraph.graph.PKGraph
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.workloads.GraphWorkload
-import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.{GraphDataset, MTXGraphDatasetReader}
+import org.apache.spark.graphx.pkgraph.macrobenchmarks.datasets.MTXGraphDatasetReader
 import org.apache.spark.graphx.pkgraph.macrobenchmarks.generators.GraphGenerator
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.util.SizeEstimator
-import org.json4s.jackson.{Json, prettyJson}
+import org.json4s.jackson.prettyJson
 
-import java.net.URI
 import scala.collection.mutable.ArrayBuffer
 
 object GraphBenchmark {
@@ -24,6 +25,7 @@ object GraphBenchmark {
       warmup: Int,
       samples: Int,
       partitions: Int,
+      useGridPartition: Boolean,
       performMemoryTest: Boolean,
       output: String
   )
@@ -61,6 +63,14 @@ object GraphBenchmark {
       partitions.setRequired(false)
       options.addOption(partitions)
 
+      val gridPartition = new Option(
+        "UseGridPartition",
+        true,
+        "Whether to use the grid partitioning strategy for the PKGraph implementation or use the default partitioning"
+      )
+      gridPartition.setRequired(false)
+      options.addOption(gridPartition)
+
       val memoryTest = new Option("PerformMemoryTest", true, "Whether to perform a memory test as well")
       memoryTest.setRequired(false)
       options.addOption(memoryTest)
@@ -82,6 +92,7 @@ object GraphBenchmark {
         cmd.getOptionValue("Warmup").toInt,
         cmd.getOptionValue("Samples").toInt,
         cmd.getOptionValue("Partitions", "-1").toInt,
+        cmd.getOptionValue("UseGridPartition", "false").toBoolean,
         cmd.getOptionValue("PerformMemoryTest", "false").toBoolean,
         cmd.getOptionValue("Output")
       )
@@ -89,26 +100,35 @@ object GraphBenchmark {
   }
 
   private val implementations = Seq("GraphX", "PKGraph8")
-  private val algorithms = Seq("build", "map", "pageRank", "triangleCount", "connectedComponents", "shortestPath")
+  private val algorithms = Seq("map", "pageRank", "triangleCount", "connectedComponents", "shortestPath")
   private val datasets = Seq("eu-2005", "indochina-2004", "soc-youtube-growth", "uk-2002")
 
-  def runBenchmark(
-      generator: GraphGenerator,
-      partitionCount: Int,
-      algorithm: GraphWorkload,
-      dataset: GraphDataset
-  ): Unit = {
-    val graph = generator.generate(dataset, partitionCount)
+  def runBenchmark(graph: Graph[Long, Int], algorithm: GraphWorkload): Unit = {
     algorithm.run(graph)
   }
 
-  def runMemoryBenchmark(impl: String, generator: GraphGenerator, partitionCount: Int, dataset: GraphDataset): Long = {
-    val graph = generator.generate(dataset, partitionCount)
+  def runBuildBenchmark(spark: SparkSession, graph: Graph[Long, Int]): GraphWorkloadMetrics = {
+    val stageMetrics = StageMetrics(spark)
+    println(s"////// Build //////")
+    stageMetrics.runAndMeasure {
+      graph.edges.count() // Forces graph to be built
+    }
+    println(s"//////////////////////////////\n\n")
+
+    val metricsMap = stageMetrics.reportMap
+    val latency = metricsMap.get("elapsedTime").toLong
+    val throughput = (metricsMap.get("recordsRead").toLong / (latency.toFloat / 1000f)).toLong
+    val cpuUsage = metricsMap.get("executorCpuTime").toFloat / metricsMap.get("executorRunTime").toFloat
+
+    GraphWorkloadMetrics("build", Seq(latency), Seq(throughput), Seq(cpuUsage))
+  }
+
+  def runMemoryBenchmark(graph: Graph[Long, Int]): Long = {
     val verticesEstimatedSize =
       graph.vertices.partitionsRDD
         .aggregate(0L)((acc, part) => acc + SizeEstimator.estimate(part), (v1, v2) => v1 + v2)
 
-    val edgesEstimatedSize = if (impl == "GraphX") {
+    val edgesEstimatedSize = if (graph.isInstanceOf[GraphImpl[Long, Int]]) {
       graph.edges.partitionsRDD
         .aggregate(0L)((acc, part) => acc + SizeEstimator.estimate(part._2), (v1, v2) => v1 + v2)
     } else {
@@ -146,19 +166,33 @@ object GraphBenchmark {
     # - Partitions: ${options.partitions}
     # - Perform Memory Test: ${options.performMemoryTest}
     #####################################################################################################
-    """)
+    \n\n""")
 
     val reader = new MTXGraphDatasetReader
     val sc = new SparkContext()
     val spark = SparkSession.builder().config(sc.getConf).getOrCreate()
 
-    val metrics = ArrayBuffer[GraphBenchmarkMetrics]()
     for (impl <- filteredImplementations) {
+      val metrics = ArrayBuffer[GraphBenchmarkMetrics]()
+
       for (dataset <- filteredDatasets) {
         val generator = GraphGenerator.fromString(impl)
         val datasetPath = s"${options.datasetDir}/$dataset.mtx"
         val graphDataset = reader.readDataset(sc, datasetPath)
         val algorithmMetrics = ArrayBuffer[GraphWorkloadMetrics]()
+        var graph = generator.generate(graphDataset, options.partitions).cache()
+
+        println(s"""
+          #####################################################################################################
+          # Macrobenchmark
+          # - Implementation: $impl
+          # - Dataset: $datasetPath
+          # - Workload: build
+          #####################################################################################################
+          \n\n""")
+
+        // Measure build performance once
+        algorithmMetrics += runBuildBenchmark(spark, graph)
 
         for (workload <- filteredWorkloads) {
           val graphWorkload = GraphWorkload.fromString(workload)
@@ -170,12 +204,25 @@ object GraphBenchmark {
           # - Dataset: $datasetPath
           # - Workload: $workload
           #####################################################################################################
-          """)
+          \n\n""")
+
+          graph = if (options.useGridPartition) {
+            val pkGraph = graph.asInstanceOf[PKGraph[Long, Int]]
+            if (options.partitions > 0) {
+              pkGraph.partitionByGridStrategy(options.partitions)
+            } else {
+              pkGraph.partitionByGridStrategy()
+            }
+          } else if (options.partitions > 0) {
+            graph.partitionBy(PartitionStrategy.EdgePartition2D, options.partitions)
+          } else {
+            graph
+          }
 
           val warmupStart = System.currentTimeMillis()
           println(s"Warming up (${options.warmup})...")
           for (_ <- 0 until options.warmup) {
-            runBenchmark(generator, options.partitions, graphWorkload, graphDataset)
+            runBenchmark(graph, graphWorkload)
           }
           val warmupEnd = System.currentTimeMillis()
           println(s"Warmup done (${warmupEnd - warmupStart}ms)")
@@ -189,9 +236,9 @@ object GraphBenchmark {
             val stageMetrics = StageMetrics(spark)
             println(s"////// Sample #${i + 1} //////")
             stageMetrics.runAndMeasure {
-              runBenchmark(generator, options.partitions, graphWorkload, graphDataset)
+              runBenchmark(graph, graphWorkload)
             }
-            println(s"//////////////////////////////")
+            println(s"//////////////////////////////\n\n")
 
             val metricsMap = stageMetrics.reportMap
             val latency = metricsMap.get("elapsedTime").toLong
@@ -204,34 +251,50 @@ object GraphBenchmark {
           }
 
           algorithmMetrics += GraphWorkloadMetrics(workload, latencyValues, throughputValues, cpuUsageValues)
+          graph.unpersist()
         }
 
         var memory = 0L
         if (options.performMemoryTest) {
           val memoryTestStart = System.currentTimeMillis()
           println("Running memory test...")
-          memory = runMemoryBenchmark(impl, generator, options.partitions, graphDataset)
+          memory = runMemoryBenchmark(graph)
           val memoryTestEnd = System.currentTimeMillis()
           println(s"Memory test done (${memoryTestEnd - memoryTestStart}ms)")
         }
 
         val benchmarkMetrics =
-          GraphBenchmarkMetrics(impl, dataset, options.warmup, options.samples, memory, algorithmMetrics)
+          GraphBenchmarkMetrics(
+            impl,
+            dataset,
+            options.warmup,
+            options.samples,
+            options.partitions,
+            options.useGridPartition,
+            memory,
+            algorithmMetrics
+          )
 
         println(prettyJson(benchmarkMetrics.toJsonValue))
         metrics += benchmarkMetrics
       }
+
+      // Write the output of each implementation separately
+      val now = System.currentTimeMillis()
+      val output = s"${options.output}/graph-macrobenchmark-$impl-$now.json"
+
+      println(s"/////////////////////////////////////////////////")
+      println(s"// Finished testing for implementation '$impl'")
+      println(s"// Writing to output: '$output'")
+      println(s"/////////////////////////////////////////////////")
+
+      val outputPath = new Path(output)
+      val fs = outputPath.getFileSystem(sc.hadoopConfiguration)
+      val out = fs.create(outputPath, true)
+      out.writeBytes(GraphBenchmarkMetrics.toJsonArray(metrics))
+      out.close()
     }
 
-    val now = System.currentTimeMillis()
-    val output = s"${options.output}/graph-macrobenchmark-$now.json"
-    println(s"Output = $output")
-
-    val outputPath = new Path(output)
-    val fs = outputPath.getFileSystem(sc.hadoopConfiguration)
-    val out = fs.create(outputPath, true)
-    out.writeBytes(GraphBenchmarkMetrics.toJsonArray(metrics))
-    out.close()
     sc.stop()
   }
 }

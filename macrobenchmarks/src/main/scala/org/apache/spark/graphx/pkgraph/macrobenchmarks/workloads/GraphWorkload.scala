@@ -22,7 +22,6 @@ object GraphWorkload {
     */
   def fromString(workload: String): GraphWorkload = {
     workload match {
-      case "build"               => new BuildWorkload()
       case "map"                 => new MapWorkload()
       case "pageRank"            => new PageRankWorkload()
       case "triangleCount"       => new TriangleCountWorkload()

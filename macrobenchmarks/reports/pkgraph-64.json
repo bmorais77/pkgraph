@@ -1,120 +1,116 @@
 {
-  "timestamp": "11:00:50 16/08/2021",
+  "timestamp": "10:33:24 13/09/2021",
   "benchmarks": [
     {
       "implementation": "PKGraph8",
       "dataset": "eu-2005",
       "warmup": 2,
       "samples": 3,
-      "memorySize": 205525768,
-      "averageOverallCpuUsage": 0.9476537704467773,
+      "partitions": -1,
+      "useGridPartition": false,
+      "memorySize": 0,
+      "averageOverallCpuUsage": 0.9672333598136902,
       "workloads": [
         {
           "workload": "build",
           "latency": {
             "values": [
-              10865,
-              10347,
-              9709
+              10764
             ],
-            "average": 10307
+            "average": 10764
           },
           "throughput": {
             "values": [
-              1770381,
-              1859011,
-              1981171
+              1786992
             ],
-            "average": 1870187
+            "average": 1786992
           },
           "cpuUsage": {
             "values": [
-              0.9358831644058228,
-              0.9381928443908691,
-              0.9679351449012756
+              0.9256945252418518
             ],
-            "average": 0.9473370909690857
+            "average": 0.9256945252418518
           }
         },
         {
           "workload": "map",
           "latency": {
             "values": [
-              10616,
-              10210,
-              11349
+              301,
+              303,
+              305
             ],
-            "average": 10725
+            "average": 303
           },
           "throughput": {
             "values": [
-              1811905,
-              1883955,
-              1694879
+              13,
+              13,
+              13
             ],
-            "average": 1796913
+            "average": 13
           },
           "cpuUsage": {
             "values": [
-              0.9413735270500183,
-              0.9440032243728638,
-              0.9316126704216003
+              1.0008865594863892,
+              1.0008833408355713,
+              1.0017683506011963
             ],
-            "average": 0.9389964938163757
+            "average": 1.0011794567108154
           }
         },
         {
           "workload": "pageRank",
           "latency": {
             "values": [
-              50893,
-              47502,
-              49807
+              48597,
+              46317,
+              48103
             ],
-            "average": 49400
+            "average": 47672
           },
           "throughput": {
             "values": [
-              755929,
-              809892,
-              772411
+              395833,
+              415318,
+              399898
             ],
-            "average": 779410
+            "average": 403683
           },
           "cpuUsage": {
             "values": [
-              0.9286617636680603,
-              0.9693136811256409,
-              0.9400706887245178
+              0.9495782852172852,
+              0.9566263556480408,
+              0.955945611000061
             ],
-            "average": 0.9460153579711914
+            "average": 0.9540500640869141
           }
         },
         {
           "workload": "triangleCount",
           "latency": {
             "values": [
-              9854,
-              10025,
-              10835
+              10372,
+              9881,
+              9495
             ],
-            "average": 10238
+            "average": 9916
           },
           "throughput": {
             "values": [
-              1952018,
-              1918722,
-              1775282
+              1854530,
+              1946684,
+              2025823
             ],
-            "average": 1882007
+            "average": 1942345
           },
           "cpuUsage": {
             "values": [
-              0.969687283039093,
-              0.9649654030799866,
-              0.9401453733444214
+              0.9554756283760071,
+              0.9615638256072998,
+              0.9639113545417786
             ],
-            "average": 0.958266019821167
+            "average": 0.9603168964385986
           }
         }
       ]
@@ -122,93 +118,113 @@
     {
       "implementation": "PKGraph8",
       "dataset": "indochina-2004",
-      "warmup": 0,
-      "samples": 1,
+      "warmup": 2,
+      "samples": 3,
+      "partitions": -1,
+      "useGridPartition": false,
       "memorySize": 0,
-      "averageOverallCpuUsage": 0.8146389722824097,
+      "averageOverallCpuUsage": 0.8437617421150208,
       "workloads": [
         {
           "workload": "build",
           "latency": {
             "values": [
-              19433
+              27399
             ],
-            "average": 19433
+            "average": 27399
           },
           "throughput": {
             "values": [
-              9988646
+              7084541
             ],
-            "average": 9988646
+            "average": 7084541
           },
           "cpuUsage": {
             "values": [
-              0.7527840733528137
+              0.7804697751998901
             ],
-            "average": 0.7527840733528137
+            "average": 0.7804697751998901
           }
         },
         {
           "workload": "map",
           "latency": {
             "values": [
-              18205
+              647,
+              970,
+              866
             ],
-            "average": 18205
+            "average": 827
           },
           "throughput": {
             "values": [
-              10662420
+              71,
+              47,
+              53
             ],
-            "average": 10662420
+            "average": 57
           },
           "cpuUsage": {
             "values": [
-              0.797416627407074
+              0.8499228358268738,
+              0.8635505437850952,
+              0.8704540133476257
             ],
-            "average": 0.797416627407074
+            "average": 0.8613091111183167
           }
         },
         {
           "workload": "pageRank",
           "latency": {
             "values": [
-              167541
+              134143,
+              130104,
+              126590
             ],
-            "average": 167541
+            "average": 130279
           },
           "throughput": {
             "values": [
-              3475839
+              1447163,
+              1492089,
+              1533508
             ],
-            "average": 3475839
+            "average": 1490920
           },
           "cpuUsage": {
             "values": [
-              0.8164538145065308
+              0.815183699131012,
+              0.817149817943573,
+              0.8350789546966553
             ],
-            "average": 0.8164538145065308
+            "average": 0.8224708437919617
           }
         },
         {
           "workload": "triangleCount",
           "latency": {
             "values": [
-              15016
+              16804,
+              15384,
+              15129
             ],
-            "average": 15016
+            "average": 15772
           },
           "throughput": {
             "values": [
-              12926835
+              11551378,
+              12617613,
+              12830284
             ],
-            "average": 12926835
+            "average": 12333091
           },
           "cpuUsage": {
             "values": [
-              0.891901433467865
+              0.8437241315841675,
+              0.882380485534668,
+              0.8797028064727783
             ],
-            "average": 0.891901433467865
+            "average": 0.868602454662323
           }
         }
       ]
@@ -218,115 +234,111 @@
       "dataset": "soc-youtube-growth",
       "warmup": 2,
       "samples": 3,
-      "memorySize": 474831440,
-      "averageOverallCpuUsage": 0.9594722390174866,
+      "partitions": -1,
+      "useGridPartition": false,
+      "memorySize": 0,
+      "averageOverallCpuUsage": 0.9711055755615234,
       "workloads": [
         {
           "workload": "build",
           "latency": {
             "values": [
-              8194,
-              8526,
-              7927
+              8808
             ],
-            "average": 8215
+            "average": 8808
           },
           "throughput": {
             "values": [
-              1491795,
-              1433705,
-              1542043
+              1387803
             ],
-            "average": 1489181
+            "average": 1387803
           },
           "cpuUsage": {
             "values": [
-              0.9779332280158997,
-              0.964594304561615,
-              0.981621265411377
+              0.9584084153175354
             ],
-            "average": 0.9747162461280823
+            "average": 0.9584084153175354
           }
         },
         {
           "workload": "map",
           "latency": {
             "values": [
-              8056,
-              8311,
-              8191
+              247,
+              242,
+              243
             ],
-            "average": 8186
+            "average": 244
           },
           "throughput": {
             "values": [
-              1517350,
-              1470794,
-              1492342
+              20,
+              20,
+              20
             ],
-            "average": 1493495
+            "average": 20
           },
           "cpuUsage": {
             "values": [
-              0.9575459361076355,
-              0.9800985455513,
-              0.9810436367988586
+              1.0008710622787476,
+              1.0008748769760132,
+              1.0017857551574707
             ],
-            "average": 0.9728960394859314
+            "average": 1.001177191734314
           }
         },
         {
           "workload": "pageRank",
           "latency": {
             "values": [
-              29447,
-              31192,
-              30530
+              27722,
+              28227,
+              30680
             ],
-            "average": 30389
+            "average": 28876
           },
           "throughput": {
             "values": [
-              830234,
-              783788,
-              800783
+              440954,
+              433065,
+              398440
             ],
-            "average": 804935
+            "average": 424153
           },
           "cpuUsage": {
             "values": [
-              0.9507386088371277,
-              0.9388473033905029,
-              0.9112185835838318
+              0.9451274871826172,
+              0.945886492729187,
+              0.9379001259803772
             ],
-            "average": 0.9336015582084656
+            "average": 0.942971408367157
           }
         },
         {
           "workload": "triangleCount",
           "latency": {
             "values": [
-              8123,
-              7978,
-              8195
+              8156,
+              7764,
+              8363
             ],
-            "average": 8098
+            "average": 8094
           },
           "throughput": {
             "values": [
-              1504835,
-              1532185,
-              1491614
+              1498746,
+              1574417,
+              1461649
             ],
-            "average": 1509544
+            "average": 1511604
           },
           "cpuUsage": {
             "values": [
-              0.9532759785652161,
-              0.952503502368927,
-              0.9642465710639954
+              0.9739766120910645,
+              0.9782500863075256,
+              0.9679741859436035
             ],
-            "average": 0.9566753506660461
+            "average": 0.9734002947807312
           }
         }
       ]
@@ -334,123 +346,113 @@
     {
       "implementation": "PKGraph8",
       "dataset": "uk-2002",
-      "warmup": 1,
-      "samples": 2,
-      "memorySize": 3173450528,
-      "averageOverallCpuUsage": 0.8276398181915283,
-      "algorithms": [
+      "warmup": 2,
+      "samples": 3,
+      "partitions": -1,
+      "useGridPartition": false,
+      "memorySize": 0,
+      "averageOverallCpuUsage": 0.8408342599868774,
+      "workloads": [
         {
           "workload": "build",
           "latency": {
             "values": [
-              31868
+              25855
             ],
-            "average": 31868
+            "average": 25855
           },
           "throughput": {
             "values": [
-              9354643
+              11530217
             ],
-            "average": 9354643
+            "average": 11530217
           },
           "cpuUsage": {
             "values": [
-              0.7575122117996216
+              0.846335232257843
             ],
-            "average": 0.7575122117996216
+            "average": 0.846335232257843
           }
         },
         {
           "workload": "map",
           "latency": {
             "values": [
-              30680
+              982,
+              1081,
+              920
             ],
-            "average": 30680
+            "average": 994
           },
           "throughput": {
             "values": [
-              9716876
+              77,
+              70,
+              82
             ],
-            "average": 9716876
+            "average": 76
           },
           "cpuUsage": {
             "values": [
-              0.7895979881286621
+              0.9519280791282654,
+              0.8936281800270081,
+              0.9258167743682861
             ],
-            "average": 0.7895979881286621
+            "average": 0.9237909913063049
           }
         },
         {
-          "algorithm": "pageRank",
+          "workload": "pageRank",
           "latency": {
             "values": [
-              295631,
-              290557
+              258310,
+              259804,
+              248556
             ],
-            "average": 293094
+            "average": 255556
           },
           "throughput": {
             "values": [
-              2016873,
-              2052094
+              1154181,
+              1147544,
+              1199475
             ],
-            "average": 2034483
+            "average": 1167066
           },
           "cpuUsage": {
             "values": [
-              0.746221125125885,
-              0.7451234459877014
+              0.7257903218269348,
+              0.7389225363731384,
+              0.739532470703125
             ],
-            "average": 0.7456722855567932
+            "average": 0.7347484230995178
           }
         },
         {
-          "algorithm": "triangleCount",
+          "workload": "triangleCount",
           "latency": {
             "values": [
-              27173,
-              24636
+              27862,
+              22959,
+              25124
             ],
-            "average": 25904
+            "average": 25315
           },
           "throughput": {
             "values": [
-              10970955,
-              12100737
+              10699654,
+              12984615,
+              11865696
             ],
-            "average": 11535846
+            "average": 11849988
           },
           "cpuUsage": {
             "values": [
-              0.8448817133903503,
-              0.8898975849151611
+              0.8519029021263123,
+              0.8773117661476135,
+              0.8571740388870239
             ],
-            "average": 0.8673896789550781
-          }
-        },
-        {
-          "algorithm": "connectedComponents",
-          "latency": {
-            "values": [
-              155656,
-              157756
-            ],
-            "average": 156706
-          },
-          "throughput": {
-            "values": [
-              3830501,
-              3779511
-            ],
-            "average": 3805006
-          },
-          "cpuUsage": {
-            "values": [
-              0.8682462573051453,
-              0.8714691996574402
-            ],
-            "average": 0.8698577284812927
+            "average": 0.8621295094490051
           }
         }
       ]

@@ -8,7 +8,7 @@ object AddEdgesBenchmark extends Microbenchmark("PKGraph (k=2)") {
   private lazy val edges: Gen[Int] = Gen.range("edges")(100, 1000, 100)
 
   private val density = 1.0f
-  private val fixedSize = 100000
+  private val fixedSize = 1000000
 
   private lazy val k2Partition = PKGraphPartitionBuilder.build(2, fixedSize, density, 0.0f)
   private lazy val k4Partition = PKGraphPartitionBuilder.build(4, fixedSize, density, 0.0f)

@@ -20,6 +20,8 @@ case class GraphBenchmarkMetrics(
     dataset: String,
     warmup: Int,
     samples: Int,
+    partitions: Int,
+    useGridPartition: Boolean,
     memorySize: Long,
     workloads: Seq[GraphWorkloadMetrics]
 ) {
@@ -31,6 +33,8 @@ case class GraphBenchmarkMetrics(
       ("dataset" -> dataset) ~
       ("warmup" -> warmup) ~
       ("samples" -> samples) ~
+      ("partitions" -> partitions) ~
+      ("useGridPartition" -> useGridPartition) ~
       ("memorySize" -> memorySize) ~
       ("averageOverallCpuUsage" -> averageOverallCpuUsage) ~
       ("workloads" -> workloads.map { m =>

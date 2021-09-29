@@ -8,11 +8,13 @@
       "--class","org.apache.spark.graphx.pkgraph.macrobenchmarks.GraphBenchmark",
       "s3://pkgraph-storage/jars/macrobenchmarks-assembly-1.0.0.jar",
       "--IFilter","(GraphX|PKGraph)",
-      "--WFilter","(build|map|pageRank|triangleCount)",
-      "--DFilter","(indochina-2004)",
+      "--WFilter","(map|pageRank|triangleCount)",
+      "--DFilter","(eu-2005|soc-youtube-growth|indochina-2004|uk-2002)",
       "--DatasetDir","s3://pkgraph-storage/datasets",
-      "--Warmup","0",
-      "--Samples","1",
+      "--Warmup","2",
+      "--Samples","3",
+      "--Partitions","-1",
+      "--UseGridPartition","false",
       "--PerformMemoryTest","false",
       "--Output","s3a://pkgraph-storage/macrobenchmarks"
     ]
