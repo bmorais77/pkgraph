@@ -1,0 +1,52 @@
+{
+  "timestamp" : "19:02:56 16/10/2021",
+  "benchmarks" : [ {
+    "implementation" : "GraphX",
+    "dataset" : "eu-2005",
+    "warmup" : 5,
+    "samples" : 10,
+    "iterationTests" : [ {
+      "workload" : "map",
+      "latency" : {
+        "values" : [ 228, 208, 195, 201, 207, 279, 188, 232, 227, 190 ],
+        "average" : 215
+      }
+    } ]
+  }, {
+    "implementation" : "GraphX",
+    "dataset" : "indochina-2004",
+    "warmup" : 5,
+    "samples" : 10,
+    "iterationTests" : [ {
+      "workload" : "map",
+      "latency" : {
+        "values" : [ 320, 645, 280, 483, 247, 345, 264, 197, 251, 203 ],
+        "average" : 323
+      }
+    } ]
+  }, {
+    "implementation" : "GraphX",
+    "dataset" : "soc-youtube-growth",
+    "warmup" : 5,
+    "samples" : 10,
+    "iterationTests" : [ {
+      "workload" : "map",
+      "latency" : {
+        "values" : [ 94, 90, 94, 80, 82, 80, 106, 82, 95, 82 ],
+        "average" : 88
+      }
+    } ]
+  }, {
+    "implementation" : "GraphX",
+    "dataset" : "uk-2002",
+    "warmup" : 5,
+    "samples" : 10,
+    "iterationTests" : [ {
+      "workload" : "map",
+      "latency" : {
+        "values" : [ 955, 875, 775, 824, 1109, 739, 937, 828, 915, 871 ],
+        "average" : 882
+      }
+    } ]
+  } ]
+}

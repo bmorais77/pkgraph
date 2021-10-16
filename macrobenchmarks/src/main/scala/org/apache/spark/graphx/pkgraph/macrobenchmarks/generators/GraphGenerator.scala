@@ -9,10 +9,9 @@ trait GraphGenerator {
     * Generates a new graph from the given dataset.
     *
     * @param dataset          Dataset containing vertices and edges of a graph
-    * @param partitionCount   Number of partitions to repartition the graph into
     * @return generated graph
     */
-  def generate(dataset: GraphDataset, partitionCount: Int): Graph[Long, Int]
+  def generate(dataset: GraphDataset): Graph[Long, Int]
 }
 
 object GraphGenerator {

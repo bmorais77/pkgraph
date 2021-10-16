@@ -1,0 +1,28 @@
+{
+  "timestamp" : "16:40:58 16/10/2021",
+  "benchmarks" : [ {
+    "implementation" : "GraphX",
+    "dataset" : "eu-2005",
+    "warmup" : 5,
+    "samples" : 10,
+    "buildTest" : {
+      "latency" : {
+        "values" : [ 9500, 7143, 7123, 6298, 6784, 7065, 7420, 6364, 6459, 6447 ],
+        "average" : 7060
+      }
+    },
+    "iterationTests" : [ ]
+  }, {
+    "implementation" : "GraphX",
+    "dataset" : "soc-youtube-growth",
+    "warmup" : 5,
+    "samples" : 10,
+    "buildTest" : {
+      "latency" : {
+        "values" : [ 4091, 4095, 4746, 4077, 3999, 4019, 4086, 4154, 4121, 4120 ],
+        "average" : 4150
+      }
+    },
+    "iterationTests" : [ ]
+  } ]
+}

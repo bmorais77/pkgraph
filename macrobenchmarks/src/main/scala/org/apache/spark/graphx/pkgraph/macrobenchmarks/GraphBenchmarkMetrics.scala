@@ -8,47 +8,75 @@ import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.Date
 
-case class GraphWorkloadMetrics(
-    workload: String,
-    latencyValues: Seq[Long],
-    throughputValues: Seq[Long],
-    cpuUsageValues: Seq[Float]
-)
+case class GraphMemoryTestMetrics(estimatedSize: Long) {
+  def toJsonValue: JValue = {
+    ("estimatedSize" ->
+      ("bytes" -> estimatedSize) ~
+        ("kilobytes" -> estimatedSize / 1024) ~
+        ("megabytes" -> estimatedSize / (1024 * 1024)) ~
+        ("gigabytes" -> estimatedSize / (1024 * 1024 * 1024)))
+  }
+}
+
+case class GraphBuildTestMetrics(latencyValues: Seq[Long]) {
+  def toJsonValue: JValue = {
+    ("latency" ->
+      ("values" -> latencyValues) ~
+        ("average" -> { if (latencyValues.isEmpty) 0 else latencyValues.sum / latencyValues.size }))
+  }
+}
+
+case class GraphIterationTestMetrics(workload: String, latencyValues: Seq[Long]) {
+  def toJsonValue: JValue = {
+    ("workload" -> workload) ~
+      ("latency" ->
+        ("values" -> latencyValues) ~
+          ("average" -> { if (latencyValues.isEmpty) 0 else latencyValues.sum / latencyValues.size }))
+  }
+}
+
+case class GraphThroughputTestMetrics(throughputValues: Seq[Long], recordThroughputValues: Seq[Long]) {
+  def toJsonValue: JValue = {
+    ("throughput" ->
+      ("values" -> throughputValues) ~
+        ("average" -> { if (throughputValues.isEmpty) 0 else throughputValues.sum / throughputValues.size })) ~
+      ("recordThroughput" ->
+        ("values" -> recordThroughputValues) ~
+          ("average" -> {
+            if (recordThroughputValues.isEmpty) 0 else recordThroughputValues.sum / recordThroughputValues.size
+          }))
+  }
+}
+
+case class GraphCpuUsageTestMetrics(usageValues: Seq[Float]) {
+  def toJsonValue: JValue = {
+    ("cpuUsage" ->
+      ("values" -> usageValues) ~
+        ("average" -> { if (usageValues.isEmpty) 0 else usageValues.sum / usageValues.size }))
+  }
+}
 
 case class GraphBenchmarkMetrics(
     implementation: String,
     dataset: String,
     warmup: Int,
     samples: Int,
-    partitions: Int,
-    useGridPartition: Boolean,
-    memorySize: Long,
-    workloads: Seq[GraphWorkloadMetrics]
+    memoryTest: Option[GraphMemoryTestMetrics],
+    buildTest: Option[GraphBuildTestMetrics],
+    iterationTests: Seq[GraphIterationTestMetrics],
+    throughputTests: Option[GraphThroughputTestMetrics],
+    cpuUsageTests: Option[GraphCpuUsageTestMetrics]
 ) {
   def toJsonValue: JValue = {
-    val allCpuUsageValues = workloads.flatMap(m => m.cpuUsageValues)
-    val averageOverallCpuUsage = if(allCpuUsageValues.isEmpty) 0 else allCpuUsageValues.sum / allCpuUsageValues.size
-
     ("implementation" -> implementation) ~
       ("dataset" -> dataset) ~
       ("warmup" -> warmup) ~
       ("samples" -> samples) ~
-      ("partitions" -> partitions) ~
-      ("useGridPartition" -> useGridPartition) ~
-      ("memorySize" -> memorySize) ~
-      ("averageOverallCpuUsage" -> averageOverallCpuUsage) ~
-      ("workloads" -> workloads.map { m =>
-        ("workload" -> m.workload) ~
-          ("latency" ->
-            ("values" -> m.latencyValues) ~
-              ("average" -> {if(m.latencyValues.isEmpty) 0 else m.latencyValues.sum / m.latencyValues.size})) ~
-          ("throughput" ->
-            ("values" -> m.throughputValues) ~
-              ("average" -> {if(m.throughputValues.isEmpty) 0 else m.throughputValues.sum / m.throughputValues.size})) ~
-          ("cpuUsage" ->
-            ("values" -> m.cpuUsageValues) ~
-              ("average" -> {if(m.cpuUsageValues.isEmpty) 0 else m.cpuUsageValues.sum / m.cpuUsageValues.size}))
-      })
+      ("memoryTest" -> memoryTest.map(_.toJsonValue)) ~
+      ("buildTest" -> buildTest.map(_.toJsonValue)) ~
+      ("iterationTests" -> iterationTests.map(_.toJsonValue)) ~
+      ("throughputTests" -> throughputTests.map(_.toJsonValue)) ~
+      ("cpuUsageTests" -> cpuUsageTests.map(_.toJsonValue))
   }
 }
 
