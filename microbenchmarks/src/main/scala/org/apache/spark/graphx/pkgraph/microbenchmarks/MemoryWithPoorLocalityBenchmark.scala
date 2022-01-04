@@ -29,6 +29,22 @@ object MemoryWithPoorLocalityBenchmark extends Microbenchmark("GraphX") {
       using(densities) curve "PKGraph (k=8)" in { density =>
         PKGraphPartitionBuilder.build(8, fixedSize, density, 0.0f)
       }
+
+      using(densities) curve "PKGraph (k=16)" in { density =>
+        PKGraphPartitionBuilder.build(16, fixedSize, density, 0.0f)
+      }
+
+      using(densities) curve "PKGraph (k=32)" in { density =>
+        PKGraphPartitionBuilder.build(32, fixedSize, density, 0.0f)
+      }
+
+      using(densities) curve "PKGraph (k=64)" in { density =>
+        PKGraphPartitionBuilder.build(64, fixedSize, density, 0.0f)
+      }
+
+      using(densities) curve "PKGraph (k=128)" in { density =>
+        PKGraphPartitionBuilder.build(128, fixedSize, density, 0.0f)
+      }
     }
   }
 }
