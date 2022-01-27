@@ -1,0 +1,13 @@
+spark-submit macrobenchmarks/target/scala-2.12/pkgraph-macrobenchmarks.jar \
+  --IFilter "(GraphX|PKGraph)" \
+  --WFilter "(map)" \
+  --DFilter "(soc-youtube-growth)" \
+  --DatasetDir "datasets" \
+  --Warmup 0 \
+  --Samples 1 \
+  --MemoryTests false \
+  --BuildTests false \
+  --IterationTests true \
+  --ThroughputTests false \
+  --CPUUsageTests false \
+  --Output "reports"

@@ -39,7 +39,6 @@ lazy val microbenchmarks = project
     name := "microbenchmarks",
     settings,
     resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/releases",
-    libraryDependencies ++= sparkDependencies,
     libraryDependencies += "com.storm-enroute" %% "scalameter" % "0.19",
     dependencyOverrides += "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.9",
     dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.9.9"
@@ -49,9 +48,10 @@ lazy val microbenchmarks = project
 lazy val macrobenchmarks = project
   .settings(
     name := "macrobenchmarks",
+    assembly / mainClass := Some("org.apache.spark.graphx.pkgraph.macrobenchmarks.GraphBenchmark"),
+    assembly / assemblyJarName := "pkgraph-macrobenchmarks.jar",
     settings,
     // Use 'providedSparkDependencies' when running the macrobenchmarks in a cluster
-    //libraryDependencies ++= sparkDependencies,
     libraryDependencies ++= providedSparkDependencies,
     libraryDependencies += "ch.cern.sparkmeasure" %% "spark-measure" % "0.17"
   )
